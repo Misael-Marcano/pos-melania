@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} sh -c \"echo \"\"=== {} ===\"\" && head -30 \"\"{}\"\"\")",
+      "Bash(cat /c/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src/app/\\\\\\(dashboard\\\\\\)/proveedores/page.tsx)",
+      "Bash(cat /c/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src/app/\\\\\\(dashboard\\\\\\)/gastos/page.tsx)",
+      "Bash(npx tsc:*)",
+      "Bash(cat /c/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src/app/\\\\\\(dashboard\\\\\\)/clientes/page.tsx)",
+      "Bash(cat /c/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src/app/\\\\\\(dashboard\\\\\\)/reportes/page.tsx)",
+      "Bash(ls:*)",
+      "Bash(docker compose:*)",
+      "Bash(cmd /c \"findstr /i \\\\\"react-toastify\\\\\" \\\\\"C:\\\\Users\\\\creed\\\\OneDrive\\\\Escritorio\\\\pos-melania\\\\package-lock.json\\\\\" | head -2 2>&1\")",
+      "Bash(cmd /c \"findstr /c:\\\\\"react-toastify\\\\\" \\\\\"C:\\\\Users\\\\creed\\\\OneDrive\\\\Escritorio\\\\pos-melania\\\\package-lock.json\\\\\" 2>&1\")",
+      "Bash(python3 -c \":*)",
+      "Bash(npm install:*)",
+      "Bash(npm audit:*)",
+      "Bash(xargs grep:*)",
+      "Bash(claude mcp:*)",
+      "mcp__stitch__list_projects",
+      "mcp__stitch__list_screens",
+      "mcp__stitch__edit_screens",
+      "mcp__stitch__generate_screen_from_text",
+      "Bash(find . -name \"*.tsx\" -exec sed -i 's/rounded-xl border border-navy-[0-9]*/rounded-[12px]/g; s/rounded-2xl border border-navy-[0-9]*/rounded-[12px]/g; s/rounded-3xl border border-navy-[0-9]*/rounded-[16px]/g' {} \\\\;)",
+      "Bash(find . -name '*.tsx' -exec sed -i -e 's/rounded-xl shadow-2xl/rounded-[12px] shadow-float/g' -e 's/rounded-xl shadow-xl/rounded-[12px] shadow-float/g' -e 's/rounded-2xl shadow-xl/rounded-[12px] shadow-float/g' -e 's/rounded-2xl shadow-2xl/rounded-[12px] shadow-float/g' -e 's/border-b border-navy-100[^\\\\/]/border-b border-navy-100\\\\/40 /g' -e 's/border-t border-navy-100[^\\\\/]/border-t border-navy-100\\\\/40 /g' '{}' ';')",
+      "Bash(find . -name '*.tsx' -exec sed -i -e 's|border-navy-100/40 >|border-navy-100/40\">|g' -e 's|border-navy-100/40  |border-navy-100/40 |g' '{}' ';')",
+      "Bash(sed:*)",
+      "Bash(grep -rn 'className=\"[^\"]*>$' C:/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src --include=\"*.tsx\")",
+      "Bash(dir \"C:\\\\Users\\\\creed\\\\OneDrive\\\\Escritorio\\\\pos-melania\\\\apps\\\\backend\\\\src\")"
+    ]
+  }
+}

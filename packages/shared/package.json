@@ -1,0 +1,6 @@
+{
+  "name": "@pos/shared",
+  "version": "1.0.0",
+  "main": "types/index.d.ts",
+  "types": "types/index.d.ts"
+}

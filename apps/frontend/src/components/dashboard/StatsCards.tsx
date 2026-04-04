@@ -1,0 +1,138 @@
+'use client';
+
+import { useState } from 'react';
+import { ShoppingCart, TrendingDown, AlertTriangle, DollarSign, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useResumenDia } from '@/hooks/useReportes';
+import { useStockBajo }  from '@/hooks/useInventario';
+import { formatCurrency } from '@/lib/utils';
+
+function StatCard({
+  label, value, sub, icon, color, accent, alert,
+}: {
+  label:   string;
+  value:   string | number;
+  sub?:    string;
+  icon:    React.ReactNode;
+  color:   string;
+  accent:  string;
+  alert?:  boolean;
+}) {
+  return (
+    <div className="relative bg-white rounded-[12px] shadow-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 overflow-hidden">
+      {/* Accent bar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${accent}`} />
+      <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] sm:text-xs font-medium text-navy-400 uppercase tracking-wider truncate">{label}</p>
+        <p className={`text-base sm:text-xl lg:text-2xl font-bold mt-0.5 truncate ${alert ? 'text-rose-600' : 'text-navy-900'}`}>
+          {typeof value === 'number' ? value.toLocaleString('es-DO') : value}
+        </p>
+        {sub && <p className="text-[10px] sm:text-xs text-navy-400 mt-0.5 truncate">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+function stepDate(base: string, delta: number) {
+  const d = new Date(base + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().split('T')[0];
+}
+
+export function StatsCards() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [fecha, setFecha] = useState(todayStr);
+  const isHoy = fecha === todayStr;
+
+  const { data: resumen }   = useResumenDia(fecha);
+  const { data: stockBajo } = useStockBajo();
+
+  const transacciones = Number(resumen?.totalTransacciones ?? 0);
+  const totalVentas   = Number(resumen?.totalVentas        ?? 0);
+  const totalEfectivo = Number(resumen?.totalEfectivo      ?? 0);
+  const totalGastos   = Number(resumen?.totalGastos        ?? 0);
+  const stockCount    = stockBajo?.length ?? 0;
+
+  const labelFecha = isHoy ? 'Hoy' : new Date(fecha + 'T12:00:00').toLocaleDateString('es-DO', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
+
+  return (
+    <div className="space-y-3">
+    {/* Date navigator */}
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => setFecha(stepDate(fecha, -1))}
+        className="w-7 h-7 flex items-center justify-center rounded-lg border border-navy-200 text-navy-500 hover:border-navy-300 hover:bg-white transition-colors"
+      >
+        <ChevronLeft size={14} />
+      </button>
+      <div className="flex items-center gap-1.5">
+        <CalendarDays size={13} className="text-navy-400" />
+        <input
+          type="date"
+          value={fecha}
+          max={todayStr}
+          onChange={(e) => e.target.value && setFecha(e.target.value)}
+          className="text-xs font-medium text-navy-700 border-0 bg-transparent focus:outline-none cursor-pointer"
+        />
+        <span className="text-xs text-navy-400">({labelFecha})</span>
+      </div>
+      <button
+        onClick={() => setFecha(stepDate(fecha, 1))}
+        disabled={isHoy}
+        className="w-7 h-7 flex items-center justify-center rounded-lg border border-navy-200 text-navy-500 hover:border-navy-300 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <ChevronRight size={14} />
+      </button>
+      {!isHoy && (
+        <button
+          onClick={() => setFecha(todayStr)}
+          className="text-xs text-primary-600 font-medium hover:underline ml-1"
+        >
+          Hoy
+        </button>
+      )}
+    </div>
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <StatCard
+        label={isHoy ? 'Ventas hoy' : `Ventas ${labelFecha}`}
+        value={transacciones}
+        sub={transacciones === 1 ? '1 transacción' : `${transacciones} transacciones`}
+        icon={<ShoppingCart size={20} className="text-primary-600" />}
+        color="bg-primary-50"
+        accent="bg-primary-500"
+      />
+      <StatCard
+        label={isHoy ? 'Ingresos hoy' : `Ingresos ${labelFecha}`}
+        value={formatCurrency(totalVentas)}
+        sub={totalEfectivo > 0 ? `${formatCurrency(totalEfectivo)} en efectivo` : 'sin ventas aún'}
+        icon={<DollarSign size={20} className="text-emerald-600" />}
+        color="bg-emerald-50"
+        accent="bg-emerald-500"
+      />
+      <StatCard
+        label={isHoy ? 'Gastos hoy' : `Gastos ${labelFecha}`}
+        value={formatCurrency(totalGastos)}
+        sub={totalVentas > 0 && totalGastos > 0
+          ? `${((totalGastos / totalVentas) * 100).toFixed(1)}% de ingresos`
+          : 'sin gastos registrados'}
+        icon={<TrendingDown size={20} className="text-amber-600" />}
+        color="bg-amber-50"
+        accent="bg-amber-400"
+      />
+      <StatCard
+        label="Stock bajo"
+        value={stockCount}
+        sub={stockCount === 0 ? 'inventario en orden' : `artículo${stockCount !== 1 ? 's' : ''} crítico${stockCount !== 1 ? 's' : ''}`}
+        icon={<AlertTriangle size={20} className={stockCount > 0 ? 'text-rose-500' : 'text-navy-300'} />}
+        color={stockCount > 0 ? 'bg-rose-50' : 'bg-navy-50'}
+        accent={stockCount > 0 ? 'bg-rose-500' : 'bg-navy-300'}
+        alert={stockCount > 0}
+      />
+    </div>
+    </div>
+  );
+}

@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: pos_backend
+    ports:
+      - "4000:4000"
+    environment:
+      - DB_HOST=sqlserver
+      - DB_PORT=1433
+      - DB_USER=sa
+      - DB_PASS=Misael0530!
+      - DB_NAME=pos_melania
+      - JWT_SECRET=pos_melania_jwt_secret_change_in_production
+      - JWT_EXPIRES_IN=8h
+      - JWT_REFRESH_SECRET=pos_melania_refresh_secret_change_in_production
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - FRONTEND_URL=http://localhost:3000
+      - REDIS_URL=redis://redis:6379
+      - PORT=4000
+      - NODE_ENV=production
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: pos_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: pos_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Misael0530!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Misael0530!" -Q "SELECT 1" -C || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Misael0530!" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: pos_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+  redis_data:
