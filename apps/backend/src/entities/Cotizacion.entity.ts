@@ -4,6 +4,7 @@ import {
 } from 'typeorm';
 import { Cliente }  from './Cliente.entity';
 import { Usuario }  from './Usuario.entity';
+import { Tenant } from './Tenant.entity';
 import { CotizacionDetalle } from './CotizacionDetalle.entity';
 
 export type EstadoCotizacion = 'BORRADOR' | 'ENVIADA' | 'ACEPTADA' | 'RECHAZADA' | 'VENCIDA';
@@ -12,6 +13,10 @@ export type EstadoCotizacion = 'BORRADOR' | 'ENVIADA' | 'ACEPTADA' | 'RECHAZADA'
 export class Cotizacion {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ type: 'varchar', length: 20, default: 'BORRADOR' })
   estado: EstadoCotizacion;

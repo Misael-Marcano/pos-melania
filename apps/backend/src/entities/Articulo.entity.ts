@@ -1,8 +1,9 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn,
+  ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn,
 } from 'typeorm';
 import { Categoria } from './Categoria.entity';
+import { Tenant } from './Tenant.entity';
 import { VentaDetalle } from './VentaDetalle.entity';
 import { KitDetalle } from './KitDetalle.entity';
 
@@ -11,7 +12,11 @@ export class Articulo {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 50, unique: true })
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
+
+  @Column({ length: 50 })
   codigoBarras: string;
 
   @Column({ length: 200 })
@@ -28,6 +33,10 @@ export class Articulo {
 
   @Column({ length: 50, nullable: true })
   tamanio?: string;
+
+  /** Unidad de medida de venta/stock (ej. und, kg, lb, ml) — opcional */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  unidadMedida: string | null;
 
   @Column({ nullable: true, length: 500 })
   foto?: string;

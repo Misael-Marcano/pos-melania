@@ -1,0 +1,155 @@
+name: CI
+
+# Integración (job `integration`) solo en push a `main`: levanta SQL Server + Redis,
+# migraciones y seed; es más lento que el job de PR. Los PRs siguen con typecheck,
+# unit tests y build del frontend. Tras merge a main, el push dispara integración.
+# No usamos paths-ignore para PRs solo-docs: el workflow no tiene lint de markdown y
+# un filtro amplio podría saltarse comprobaciones si el PR mezcla rutas; si hiciera
+# falta acortar CI en documentación, valorar `dorny/paths-filter` o jobs condicionales explícitos.
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ── TypeScript + Unit tests (sin BD) ─────────────────────────────────────────
+  typecheck-and-unit:
+    name: TypeScript + Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: TypeScript check — backend
+        working-directory: apps/backend
+        run: npx tsc --noEmit
+
+      - name: TypeScript check — frontend
+        working-directory: apps/frontend
+        run: npx tsc --noEmit
+
+      - name: Production build — frontend
+        working-directory: apps/frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:4000/api/v1
+
+      # Paridad con local: mismo chequeo que `npm run verify` en la raíz (package.json → verify:landing-plans).
+      - name: Verify landing plans vs plan-limits.ts
+        run: node scripts/verify-plan-limits-landing.mjs
+
+      # If this step fails in CI, reproduce locally from repo root: node scripts/check-docs-links.mjs --verbose
+      - name: Verify docs internal .md links
+        run: npm run verify:docs-links
+
+      - name: Unit tests — backend
+        working-directory: apps/backend
+        run: npm test
+        env:
+          NODE_ENV: test
+
+  # ── Integration tests (con SQL Server + Redis) ────────────────────────────────
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    # Solo en push a main (no en PRs — más lento y requiere servicios reales)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          SA_PASSWORD: 'CI_Test_Pass123!'
+          MSSQL_PID: Express
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'CI_Test_Pass123!' -Q 'SELECT 1' -C || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'CI_Test_Pass123!' -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 60s
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: npm ci
+
+      - name: Run migrations + seed
+        working-directory: apps/backend
+        run: |
+          npm run migration:run
+          npm run seed
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 1433
+          DB_USER: sa
+          DB_PASS: CI_Test_Pass123!
+          DB_NAME: pos_ci
+          JWT_SECRET: ci_jwt_secret_at_least_16chars
+          JWT_REFRESH_SECRET: ci_refresh_secret_at_least_16chars
+          REDIS_URL: redis://localhost:6379
+
+      - name: Integration tests
+        working-directory: apps/backend
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 1433
+          DB_USER: sa
+          DB_PASS: CI_Test_Pass123!
+          DB_NAME: pos_ci
+          JWT_SECRET: ci_jwt_secret_at_least_16chars
+          JWT_REFRESH_SECRET: ci_refresh_secret_at_least_16chars
+          REDIS_URL: redis://localhost:6379
+          BILLING_PROVIDER: none
+          FISCAL_JURISDICTION: NONE

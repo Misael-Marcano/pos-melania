@@ -25,19 +25,21 @@ function GreetingBanner() {
   const nombre = user?.nombre?.split(' ')[0] ?? '';
 
   return (
-    <div className="relative bg-gradient-to-br from-[#273727] to-[#3D4E3D] rounded-[12px] px-6 py-5 text-white overflow-hidden">
-      {/* decorative circles */}
-      <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/5" />
-      <div className="absolute -bottom-8 right-16 w-20 h-20 rounded-full bg-white/5" />
-      <div className="absolute top-4 right-36 w-8 h-8 rounded-full bg-white/10" />
+    <div
+      className="relative rounded-[12px] px-6 py-6 text-white overflow-hidden shadow-card
+        bg-gradient-to-br from-[#273727] via-[#2f3d2f] to-[#3D4E3D]"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_55%)] pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/[0.06] blur-2xl" />
+      <div className="absolute -bottom-12 right-24 w-28 h-28 rounded-full bg-primary-200/10 blur-xl" />
 
       <div className="relative">
-        <p className="text-sm text-white/60 capitalize">{formatFechaLarga()}</p>
-        <h1 className="text-2xl font-bold mt-0.5">
+        <p className="text-sm text-white/55 capitalize tracking-wide font-medium">{formatFechaLarga()}</p>
+        <h1 className="text-2xl sm:text-[1.75rem] font-bold mt-1 font-display tracking-tight">
           {getGreeting()}{nombre ? `, ${nombre}` : ''}!
         </h1>
-        <p className="text-sm text-white/70 mt-1">
-          Aquí tienes el resumen de hoy. Que sea un excelente día.
+        <p className="text-sm text-white/65 mt-2 max-w-xl leading-relaxed">
+          Resumen del día en un vistazo. Ventas, inventario y cuentas al día.
         </p>
       </div>
     </div>
@@ -46,7 +48,7 @@ function GreetingBanner() {
 
 export default function PanelPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <GreetingBanner />
       <StatsCards />
 

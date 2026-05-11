@@ -18,7 +18,7 @@ export class ClientesController {
 
   async findById(req: AuthRequest, res: Response) {
     try {
-      const data = await service.findById(Number(req.params.id));
+      const data = await service.findById(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error', 404);
@@ -28,7 +28,7 @@ export class ClientesController {
   async create(req: AuthRequest, res: Response) {
     try {
       const dto  = createClienteSchema.parse(req.body);
-      const data = await service.create(dto);
+      const data = await service.create(dto, req.user!);
       return sendSuccess(res, data, 'Cliente creado', 201);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
@@ -38,7 +38,7 @@ export class ClientesController {
   async update(req: AuthRequest, res: Response) {
     try {
       const dto  = updateClienteSchema.parse(req.body);
-      const data = await service.update(Number(req.params.id), dto);
+      const data = await service.update(Number(req.params.id), dto, req.user!);
       return sendSuccess(res, data, 'Cliente actualizado');
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
@@ -47,7 +47,7 @@ export class ClientesController {
 
   async delete(req: AuthRequest, res: Response) {
     try {
-      await service.delete(Number(req.params.id));
+      await service.delete(Number(req.params.id), req.user!);
       return sendSuccess(res, null, 'Cliente eliminado');
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
@@ -56,7 +56,7 @@ export class ClientesController {
 
   async getHistorial(req: AuthRequest, res: Response) {
     try {
-      const data = await service.getHistorialVentas(Number(req.params.id));
+      const data = await service.getHistorialVentas(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
@@ -65,7 +65,7 @@ export class ClientesController {
 
   async getEstadoCuenta(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.getEstadoCuenta(Number(req.params.id)));
+      return sendSuccess(res, await service.getEstadoCuenta(Number(req.params.id), req.user!));
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
     }
@@ -74,7 +74,7 @@ export class ClientesController {
   async registrarAbono(req: AuthRequest, res: Response) {
     try {
       const { monto, notas } = req.body as { monto: number; notas?: string };
-      const result = await service.registrarAbono(Number(req.params.id), monto, notas, req.user!.id);
+      const result = await service.registrarAbono(Number(req.params.id), monto, notas, req.user!.id, req.user!);
       return sendSuccess(res, result, 'Pago registrado');
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
@@ -83,7 +83,7 @@ export class ClientesController {
 
   async getConSaldo(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.getClientesConSaldo());
+      return sendSuccess(res, await service.getClientesConSaldo(req.user!));
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error');
     }

@@ -47,3 +47,11 @@ export function useTopClientes(desde: string, hasta: string, limit = 10) {
     enabled:  !!(desde && hasta),
   });
 }
+
+export function useResumenPorSucursal(tiendaId: number | null, desde: string, hasta: string) {
+  return useQuery({
+    queryKey: ['reportes', 'por-sucursal', tiendaId, desde, hasta],
+    queryFn:  () => reportesService.resumenPorSucursal(tiendaId!, desde, hasta),
+    enabled:  !!(tiendaId && desde && hasta),
+  });
+}

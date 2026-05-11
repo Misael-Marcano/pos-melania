@@ -1,13 +1,19 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   OneToMany, CreateDateColumn, UpdateDateColumn,
+  ManyToOne, JoinColumn,
 } from 'typeorm';
 import { Venta } from './Venta.entity';
+import { Tenant } from './Tenant.entity';
 
 @Entity('clientes')
 export class Cliente {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 200 })
   nombre: string;

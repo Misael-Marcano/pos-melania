@@ -1,5 +1,5 @@
 import { AppDataSource } from '../config/database';
-import { AuditLog, AuditOperacion } from '../entities/AuditLog.entity';
+import { AuditLog, type AuditOperacion } from '../entities/AuditLog.entity';
 
 interface AuditOptions {
   tabla:        string;

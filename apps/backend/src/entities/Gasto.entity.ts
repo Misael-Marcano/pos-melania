@@ -3,11 +3,17 @@ import {
   ManyToOne, CreateDateColumn, JoinColumn,
 } from 'typeorm';
 import { Usuario } from './Usuario.entity';
+import { Tienda } from './Tienda.entity';
+import { Tenant } from './Tenant.entity';
 
 @Entity('gastos')
 export class Gasto {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 200 })
   escribe: string;
@@ -33,6 +39,10 @@ export class Gasto {
   @ManyToOne(() => Usuario, { eager: false })
   @JoinColumn({ name: 'aprobadoPorId' })
   aprobadoPor: Usuario;
+
+  @ManyToOne(() => Tienda, { nullable: true, eager: false })
+  @JoinColumn({ name: 'tiendaId' })
+  tienda?: Tienda;
 
   @CreateDateColumn()
   createdAt: Date;

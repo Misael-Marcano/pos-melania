@@ -1,13 +1,18 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  OneToMany, CreateDateColumn,
+  OneToMany, CreateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { KitDetalle } from './KitDetalle.entity';
+import { Tenant } from './Tenant.entity';
 
 @Entity('kits')
 export class Kit {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 200 })
   nombre: string;

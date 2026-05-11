@@ -24,7 +24,7 @@ export class CotizacionesController {
 
   async findById(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.findById(Number(req.params.id)));
+      return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
     } catch (e: unknown) {
       return sendError(res, e instanceof Error ? e.message : 'Error', 404);
     }
@@ -33,7 +33,7 @@ export class CotizacionesController {
   async create(req: AuthRequest, res: Response) {
     try {
       const dto  = createCotizacionSchema.parse(req.body);
-      const data = await service.create(dto, req.user!.id);
+      const data = await service.create(dto, req.user!.id, req.user!);
       registrarAudit({
         tabla: 'cotizaciones', operacion: 'CREATE', registroId: data.id,
         descripcion: `Creó cotización #${data.id} por RD$${data.total}`,
@@ -49,7 +49,7 @@ export class CotizacionesController {
     try {
       const id   = Number(req.params.id);
       const dto  = updateCotizacionSchema.parse(req.body);
-      const data = await service.update(id, dto);
+      const data = await service.update(id, dto, req.user!);
       registrarAudit({
         tabla: 'cotizaciones', operacion: 'UPDATE', registroId: id,
         descripcion: `Editó cotización #${id}`,
@@ -65,7 +65,7 @@ export class CotizacionesController {
     try {
       const id   = Number(req.params.id);
       const dto  = cambiarEstadoSchema.parse(req.body);
-      const data = await service.cambiarEstado(id, dto);
+      const data = await service.cambiarEstado(id, dto, req.user!);
       registrarAudit({
         tabla: 'cotizaciones', operacion: 'UPDATE', registroId: id,
         descripcion: `Cambió estado de cotización #${id} a ${dto.estado}`,
@@ -95,7 +95,7 @@ export class CotizacionesController {
   async delete(req: AuthRequest, res: Response) {
     try {
       const id = Number(req.params.id);
-      await service.delete(id);
+      await service.delete(id, req.user!);
       registrarAudit({
         tabla: 'cotizaciones', operacion: 'DELETE', registroId: id,
         descripcion: `Eliminó cotización #${id}`,
@@ -107,9 +107,9 @@ export class CotizacionesController {
     }
   }
 
-  async checkVencidas(_req: AuthRequest, res: Response) {
+  async checkVencidas(req: AuthRequest, res: Response) {
     try {
-      const count = await service.checkVencidas();
+      const count = await service.checkVencidas(req.user!);
       return sendSuccess(res, { actualizadas: count }, `${count} cotización(es) marcadas como vencidas`);
     } catch (e: unknown) {
       return sendError(res, e instanceof Error ? e.message : 'Error');

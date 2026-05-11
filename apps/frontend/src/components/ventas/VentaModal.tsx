@@ -8,6 +8,7 @@ import { useAnularVenta, useFullEditarVenta } from '@/hooks/useVentas';
 import { useClientes } from '@/hooks/useClientes';
 import { inventarioService } from '@/services/inventario.service';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { nombreArticuloConUnidad } from '@/lib/format-articulo';
 import { toast } from '@/store/toast.store';
 import {
   X, Pencil, Ban, Loader2, Trash2, Search,
@@ -63,10 +64,10 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: artData } = useQuery({
+  const { data: artData, isFetching: artSearchLoading } = useQuery({
     queryKey: ['art-search', busqueda],
-    queryFn:  () => inventarioService.getAll(1, 8, busqueda),
-    enabled:  busqueda.length >= 1,
+    queryFn:  () => inventarioService.getAll(1, 8, busqueda.trim()),
+    enabled:  busqueda.trim().length >= 2,
     staleTime: 500,
   });
   const articulos: IArticulo[] = artData?.data ?? [];
@@ -203,8 +204,14 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
           </button>
         </div>
 
-        {/* ── Body ─────────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── Body: en edición, scroll solo arriba; la búsqueda de artículos va abajo (sin clip) ── */}
+        <div
+          className={
+            modo === 'editar'
+              ? 'flex-1 min-h-0 flex flex-col overflow-hidden'
+              : 'flex-1 overflow-y-auto'
+          }
+        >
 
           {/* ── VIEW MODE ──────────────────────────────────────────────────── */}
           {modo === 'ver' && (
@@ -241,7 +248,9 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
                   <tbody>
                     {(venta.detalles ?? []).map((d, i) => (
                       <tr key={i} className="border-b border-navy-50 last:border-0">
-                        <td className="table-cell font-medium text-navy-700">{d.articulo?.nombre ?? '—'}</td>
+                        <td className="table-cell font-medium text-navy-700">
+                          {d.articulo ? nombreArticuloConUnidad(d.articulo) : '—'}
+                        </td>
                         <td className="table-cell text-center text-navy-600">{d.cantidad}</td>
                         <td className="table-cell text-right text-navy-600">{formatCurrency(d.precioUnitario)}</td>
                         <td className="table-cell text-right text-navy-400">{d.descuento > 0 ? `${d.descuento}%` : '—'}</td>
@@ -279,117 +288,137 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
 
           {/* ── EDIT MODE ──────────────────────────────────────────────────── */}
           {modo === 'editar' && (
-            <div className="p-6 space-y-5">
-              {/* Header fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-navy-600 mb-1.5">Método de pago</label>
-                  <select value={metodoPago} onChange={e => setMetodoPago(e.target.value as any)} className="input-field w-full">
-                    {METODOS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+            <>
+              <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-5">
+                {/* Header fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-navy-600 mb-1.5">Método de pago</label>
+                    <select value={metodoPago} onChange={e => setMetodoPago(e.target.value as any)} className="input-field w-full">
+                      {METODOS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-navy-600 mb-1.5">Cliente</label>
+                    <select value={clienteId ?? ''} onChange={e => setClienteId(e.target.value ? Number(e.target.value) : null)} className="input-field w-full">
+                      <option value="">Consumidor final</option>
+                      {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-navy-600 mb-1.5">Descuento global (RDS)</label>
+                    <input type="number" min={0} value={descuento} onChange={e => setDescuento(Math.max(0, Number(e.target.value)))} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-navy-600 mb-1.5">Notas</label>
+                    <input value={notas} onChange={e => setNotas(e.target.value)} maxLength={500} className="input-field w-full" placeholder="Opcional..." />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-navy-600 mb-1.5">Cliente</label>
-                  <select value={clienteId ?? ''} onChange={e => setClienteId(e.target.value ? Number(e.target.value) : null)} className="input-field w-full">
-                    <option value="">Consumidor final</option>
-                    {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
+
+                <div className="border border-navy-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2 bg-navy-50 border-b border-navy-100/40 flex items-center justify-between rounded-t-xl">
+                    <p className="text-xs font-semibold text-navy-600 uppercase tracking-wider">Artículos</p>
+                    <span className="text-[10px] text-navy-400">{lineas.length} ítem(s)</span>
+                  </div>
+
+                  {lineas.length === 0 ? (
+                    <div className="py-8 text-center text-navy-400 text-sm">Sin artículos. Usa el buscador de abajo para agregar.</div>
+                  ) : (
+                    <div className="divide-y divide-navy-50 overflow-x-auto max-h-[min(40vh,320px)] overflow-y-auto">
+                      {lineas.map((l, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2.5">
+                          <span className="flex-1 text-sm font-medium text-navy-700 truncate min-w-0">{l.nombre}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <label className="text-[10px] text-navy-400">Cant.</label>
+                            <input type="number" min={1} value={l.cantidad}
+                              onChange={e => updateLinea(i, 'cantidad', parseInt(e.target.value) || 1)}
+                              className="w-16 input-field py-1 text-xs text-center" />
+                            <label className="text-[10px] text-navy-400">Precio</label>
+                            <input type="number" min={0} step={0.01} value={l.precioUnitario}
+                              onChange={e => updateLinea(i, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                              className="w-24 input-field py-1 text-xs text-right" />
+                            <label className="text-[10px] text-navy-400">Desc%</label>
+                            <input type="number" min={0} max={100} value={l.descuento}
+                              onChange={e => updateLinea(i, 'descuento', parseFloat(e.target.value) || 0)}
+                              className="w-14 input-field py-1 text-xs text-center" />
+                            <span className="text-xs font-semibold text-navy-700 w-20 text-right shrink-0">
+                              {formatCurrency(l.precioUnitario * l.cantidad * (1 - l.descuento / 100))}
+                            </span>
+                            <button type="button" onClick={() => removeLinea(i)} className="text-rose-400 hover:text-rose-600 ml-1">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-navy-600 mb-1.5">Descuento global (RDS)</label>
-                  <input type="number" min={0} value={descuento} onChange={e => setDescuento(Math.max(0, Number(e.target.value)))} className="input-field w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-navy-600 mb-1.5">Notas</label>
-                  <input value={notas} onChange={e => setNotas(e.target.value)} maxLength={500} className="input-field w-full" placeholder="Opcional..." />
+
+                {/* Edit totals */}
+                <div className="flex justify-end">
+                  <div className="w-56 space-y-2 text-sm">
+                    <div className="flex justify-between text-navy-600"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+                    {descuento > 0 && (
+                      <div className="flex justify-between text-rose-500"><span>Descuento</span><span>- {formatCurrency(descuento)}</span></div>
+                    )}
+                    <div className="flex justify-between font-bold text-navy-900 border-t border-navy-100/40 pt-2"><span>Total</span><span>{formatCurrency(total)}</span></div>
+                  </div>
                 </div>
               </div>
 
-              {/* Items */}
-              <div className="border border-navy-100 rounded-xl overflow-hidden">
-                <div className="px-4 py-2 bg-navy-50 border-b border-navy-100/40 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-navy-600 uppercase tracking-wider">Artículos</p>
-                  <span className="text-[10px] text-navy-400">{lineas.length} ítem(s)</span>
-                </div>
-
-                {lineas.length === 0 ? (
-                  <div className="py-8 text-center text-navy-400 text-sm">Sin artículos. Agrega al menos uno.</div>
-                ) : (
-                  <div className="divide-y divide-navy-50">
-                    {lineas.map((l, i) => (
-                      <div key={i} className="flex items-center gap-2 px-3 py-2.5">
-                        <span className="flex-1 text-sm font-medium text-navy-700 truncate min-w-0">{l.nombre}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <label className="text-[10px] text-navy-400">Cant.</label>
-                          <input type="number" min={1} value={l.cantidad}
-                            onChange={e => updateLinea(i, 'cantidad', parseInt(e.target.value) || 1)}
-                            className="w-16 input-field py-1 text-xs text-center" />
-                          <label className="text-[10px] text-navy-400">Precio</label>
-                          <input type="number" min={0} step={0.01} value={l.precioUnitario}
-                            onChange={e => updateLinea(i, 'precioUnitario', parseFloat(e.target.value) || 0)}
-                            className="w-24 input-field py-1 text-xs text-right" />
-                          <label className="text-[10px] text-navy-400">Desc%</label>
-                          <input type="number" min={0} max={100} value={l.descuento}
-                            onChange={e => updateLinea(i, 'descuento', parseFloat(e.target.value) || 0)}
-                            className="w-14 input-field py-1 text-xs text-center" />
-                          <span className="text-xs font-semibold text-navy-700 w-20 text-right shrink-0">
-                            {formatCurrency(l.precioUnitario * l.cantidad * (1 - l.descuento / 100))}
-                          </span>
-                          <button onClick={() => removeLinea(i)} className="text-rose-400 hover:text-rose-600 ml-1">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              {/* Búsqueda fuera del área scroll: lista hacia arriba para no quedar bajo el pie del modal */}
+              <div className="shrink-0 px-6 py-3 border-t border-navy-200/80 bg-navy-50/50 relative z-[70]">
+                <p className="text-[10px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Agregar artículo</p>
+                <div className="relative" ref={dropdownRef}>
+                  <div className="flex items-center gap-2 input-field py-2 bg-white">
+                    <Search size={14} className="text-navy-400 shrink-0" />
+                    <input
+                      value={busqueda}
+                      onChange={e => { setBusqueda(e.target.value); setShowDropdown(true); }}
+                      onFocus={() => setShowDropdown(true)}
+                      className="flex-1 bg-transparent outline-none text-sm text-navy-800 placeholder:text-navy-400"
+                      placeholder="Escribe 2+ letras para buscar…"
+                      autoComplete="off"
+                    />
                   </div>
-                )}
-
-                {/* Add article search */}
-                <div className="border-t border-navy-100/40 p-3">
-                  <div className="relative" ref={dropdownRef}>
-                    <div className="flex items-center gap-2 input-field py-2">
-                      <Search size={14} className="text-navy-400 shrink-0" />
-                      <input
-                        value={busqueda}
-                        onChange={e => { setBusqueda(e.target.value); setShowDropdown(true); }}
-                        onFocus={() => setShowDropdown(true)}
-                        className="flex-1 bg-transparent outline-none text-sm text-navy-700 placeholder-navy-300"
-                        placeholder="Buscar artículo para agregar..."
-                      />
-                    </div>
-                    {showDropdown && busqueda.length >= 1 && articulos.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 z-50 bg-white border border-navy-200 rounded-[12px] shadow-float mt-1 max-h-52 overflow-y-auto">
-                        {articulos.map(art => (
-                          <button key={art.id} onMouseDown={() => addArticulo(art)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-navy-50 text-left">
+                  {showDropdown && busqueda.trim().length >= 1 && (
+                    <div
+                      className="absolute bottom-full left-0 right-0 z-[100] mb-1 bg-white border border-navy-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                      role="listbox"
+                    >
+                      {busqueda.trim().length < 2 ? (
+                        <p className="px-3 py-2.5 text-xs text-navy-500">Escribe al menos 2 caracteres para buscar.</p>
+                      ) : artSearchLoading ? (
+                        <p className="px-3 py-2.5 text-xs text-navy-500 flex items-center gap-2">
+                          <Loader2 size={14} className="animate-spin shrink-0" /> Buscando…
+                        </p>
+                      ) : articulos.length === 0 ? (
+                        <p className="px-3 py-2.5 text-xs text-navy-500">No hay artículos con ese criterio.</p>
+                      ) : (
+                        articulos.map(art => (
+                          <button
+                            key={art.id}
+                            type="button"
+                            onMouseDown={e => { e.preventDefault(); addArticulo(art); }}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-primary-50 text-left border-b border-navy-50 last:border-0"
+                          >
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-navy-800 truncate">{art.nombre}</p>
-                              <p className="text-xs text-navy-400">
+                              <p className="text-sm font-medium text-navy-900">{art.nombre}</p>
+                              <p className="text-xs text-navy-500">
                                 Stock: {art.cantidad ?? '∞'}
                               </p>
                             </div>
-                            <span className="text-sm font-semibold text-primary-600 ml-3 shrink-0">
+                            <span className="text-sm font-semibold text-primary-600 shrink-0 tabular-nums">
                               {formatCurrency(art.precioVenta)}
                             </span>
                           </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Edit totals */}
-              <div className="flex justify-end">
-                <div className="w-56 space-y-2 text-sm">
-                  <div className="flex justify-between text-navy-600"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-                  {descuento > 0 && (
-                    <div className="flex justify-between text-rose-500"><span>Descuento</span><span>- {formatCurrency(descuento)}</span></div>
+                        ))
+                      )}
+                    </div>
                   )}
-                  <div className="flex justify-between font-bold text-navy-900 border-t border-navy-100/40 pt-2"><span>Total</span><span>{formatCurrency(total)}</span></div>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
         </div>
@@ -445,7 +474,7 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
     </ModalOverlay>
 
     {showReceipt && (
-      <Receipt venta={venta} onClose={() => setShowReceipt(false)} autoPrint={false} />
+      <Receipt variant="detalle" venta={venta} onClose={() => setShowReceipt(false)} autoPrint={false} />
     )}
     </>
   );

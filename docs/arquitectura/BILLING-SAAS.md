@@ -2,6 +2,10 @@
 
 Integración con **Stripe** para suscripciones por organización (`tenants`). Los **límites por plan** (`plan-limits.ts`, `enforce-plan.ts`) siguen siendo la fuente de verdad en la app; Stripe **actualiza** `tenants.planCode` y el estado de facturación vía webhooks.
 
+**Ver también:** [Plan de cierre del proyecto (ejecución)](../PLAN-CIERRE-PROYECTO.md) — criterios go-live, workstreams y evidencia operativa alineada con el checklist SaaS.
+
+**Higiene de docs:** si editas muchos archivos Markdown bajo `docs/`, desde la raíz del repositorio ejecuta `npm run verify:docs-links`. Convenciones generales: [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
 ## Variables de entorno
 
 | Variable | Descripción |
@@ -13,7 +17,9 @@ Integración con **Stripe** para suscripciones por organización (`tenants`). Lo
 | `STRIPE_PRICE_STANDARD` | ID de precio para `standard`. |
 | `STRIPE_PRICE_ENTERPRISE` | ID de precio para `enterprise`. |
 | `BILLING_ENFORCE_PAYMENT` | `true` para activar el bloqueo por impago (402). Defecto `false` (opt-in). |
+| `TRIAL_ENFORCE_EXPIRED` | `true` para bloquear (402) cuando `trialEndsAt` ya pasó y no hay suscripción `active`/`trialing`. Defecto `false` (opt-in). |
 | `TEST_STRIPE_CUSTOMER_ID` | `cus_…` de Stripe para el happy-path del test de integración del portal. |
+| `CRON_SECRET` | Secreto para `POST /api/v1/internal/cron/trial-reminders` (recordatorios email antes del fin del trial). |
 
 Crea los **Products / Prices** en el dashboard de Stripe (modo recurring) y copia los `price_…` a `.env`.
 
@@ -33,7 +39,8 @@ Rol **plataforma**: enviar **`X-Tenant-Id`** para operar sobre la organización 
 1. URL pública: `https://<tu-api>/api/v1/billing/webhook`.
 2. Eventos recomendados: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
 3. Copiar el **signing secret** a `STRIPE_WEBHOOK_SECRET`.
-4. Para checklist operativo completo de salida a producción, ver `docs/operacion/STRIPE-PROD-CHECKLIST.md`.
+4. Añadir `invoice.payment_failed` a los eventos (emails de aviso y actualización a `past_due`).
+5. Para checklist operativo completo de salida a producción, ver `docs/operacion/STRIPE-PROD-CHECKLIST.md`.
 
 El handler verifica la firma con el SDK y actualiza `tenants`:
 
@@ -56,6 +63,7 @@ Migración `1700000000031-TenantStripeBilling`: columnas opcionales en `tenants`
 | Archivo | Cobertura |
 |---------|-----------|
 | `src/__tests__/integration/billing-portal.integration.test.ts` | `POST /billing/create-portal-session` — 401 sin token, 422 body inválido, 400 sin `stripeCustomerId`, 400 `BILLING_PROVIDER=none`, 503 sin clave Stripe, 200 happy-path (requiere `TEST_STRIPE_CUSTOMER_ID` en `.env`). |
+| `src/__tests__/integration/billing-guard.integration.test.ts` | 402 `BILLING_SUSPENDED` / `TRIAL_EXPIRED`, exención de `GET /saas/context`. |
 
 Variable opcional para el happy-path:
 
@@ -63,16 +71,17 @@ Variable opcional para el happy-path:
 |----------|-------------|
 | `TEST_STRIPE_CUSTOMER_ID` | ID de customer Stripe de test (`cus_…`) para el happy-path del test de integración. Si no se define, ese caso se omite con `console.warn`. |
 
-## Política de impago (`billingGuard`)
+## Política de impago y trial (`billingGuard`)
 
 Middleware global en `apps/backend/src/middlewares/billing-guard.middleware.ts`.
 
-- **Opt-in**: solo activo con `BILLING_ENFORCE_PAYMENT=true`; por defecto `false`.
-- **Respuesta**: `402 Payment Required` con mensaje que apunta a `/configuracion`.
-- **Estados bloqueados**: `past_due`, `canceled`, `unpaid`, `incomplete_expired`.
-- **Rutas exentas**: `/api/v1/auth/**` (login/refresh), `/api/v1/billing/**` (pagar), `/health`.
-- **Roles exentos**: `plataforma` (soporte/plataforma siempre pasa).
-- **Caché Redis** con TTL 5 min (`billing:status:{tenantId}`). El webhook invalida la clave al recibir un evento que cambia el estado.
+- **Opt-in impago**: `BILLING_ENFORCE_PAYMENT=true`; **opt-in trial vencido**: `TRIAL_ENFORCE_EXPIRED=true`. Si ambas son `false`, el guard no aplica.
+- **Respuesta**: `402 Payment Required` con `data.code`: `BILLING_SUSPENDED` o `TRIAL_EXPIRED`, y mensaje orientado a **Configuración → Plan**. El frontend redirige a `/cuenta-suspendida`.
+- **Estados de facturación bloqueados** (si `BILLING_ENFORCE_PAYMENT=true`): `past_due`, `canceled`, `unpaid`, `incomplete_expired`.
+- **Trial** (si `TRIAL_ENFORCE_EXPIRED=true`): `trialEndsAt` en el pasado y `billingStatus` distinto de `active` / `trialing`.
+- **Rutas exentas**: `/api/v1/auth/**`, `/api/v1/billing/**`, `/api/v1/saas/**`, `GET /api/v1/configuracion` (solo lectura; los PUT siguen sujetos al guard), `/health`.
+- **Roles exentos**: `plataforma` (JWT sin tenant de negocio).
+- **Caché Redis** TTL 5 min (`tenant:guard:v2:{tenantId}`). El webhook invalida la clave al cambiar facturación.
 
 ## Auditoría de eventos Stripe
 

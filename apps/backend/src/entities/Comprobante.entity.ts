@@ -1,12 +1,17 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn,
+  Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { TipoComprobante } from '@pos/shared';
+import { Tenant } from './Tenant.entity';
 
 @Entity('comprobantes')
 export class Comprobante {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 100 })
   descripcion: string;

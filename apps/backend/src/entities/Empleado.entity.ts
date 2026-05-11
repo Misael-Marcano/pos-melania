@@ -1,18 +1,23 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { Rol } from '@pos/shared';
+import { Tenant } from './Tenant.entity';
 
 @Entity('empleados')
 export class Empleado {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
+
   @Column({ length: 200 })
   nombre: string;
 
-  @Column({ length: 200, unique: true })
+  @Column({ length: 200 })
   correo: string;
 
   @Column({ length: 20, nullable: true })

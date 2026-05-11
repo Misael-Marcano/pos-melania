@@ -8,6 +8,7 @@ export interface CreateEmpleadoPayload {
   rol:       'admin' | 'cajero' | 'soporte';
   password:  string;
   foto?:     string;
+  tiendaId?: number | null;
 }
 
 export interface UpdateEmpleadoPayload {
@@ -16,6 +17,7 @@ export interface UpdateEmpleadoPayload {
   telefono?:  string;
   rol?:       'admin' | 'cajero' | 'soporte';
   password?:  string;
+  tiendaId?:  number | null;
 }
 
 export const empleadosService = {

@@ -4,11 +4,16 @@ import {
   CreateDateColumn, UpdateDateColumn,
 } from 'typeorm';
 import { Articulo } from './Articulo.entity';
+import { Tenant } from './Tenant.entity';
 
 @Entity('recetas')
 export class Receta {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 200 })
   nombre: string;

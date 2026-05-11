@@ -2,13 +2,14 @@ import { Response } from 'express';
 import { AuditoriaService } from './auditoria.service';
 import { AuthRequest }      from '../../middlewares/auth.middleware';
 import { sendSuccess, sendError } from '../../utils/response';
+import { tenantIdOrThrow } from '../../utils/tenant-access';
 
 const service = new AuditoriaService();
 
 export class AuditoriaController {
   async findAll(req: AuthRequest, res: Response) {
     try {
-      const result = await service.findAll(req);
+      const result = await service.findAll(req, tenantIdOrThrow(req.user));
       return res.json({
         success: true,
         data: result.data,
@@ -22,9 +23,9 @@ export class AuditoriaController {
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
-  async getTablas(_req: AuthRequest, res: Response) {
+  async getTablas(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.getTablas());
+      return sendSuccess(res, await service.getTablas(tenantIdOrThrow(req.user)));
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 }

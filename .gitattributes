@@ -1,0 +1,14 @@
+* text=auto eol=lf
+
+# Binarios: añadir reglas `binary` al aparecer assets en el repo (p. ej. imágenes, fuentes).
+# Recomendado cuando existan archivos:
+#   *.png binary
+#   *.jpg binary
+#   *.jpeg binary
+#   *.gif binary
+#   *.webp binary
+#   *.ico binary
+#   *.woff binary
+#   *.woff2 binary
+#   *.ttf binary
+#   *.eot binary

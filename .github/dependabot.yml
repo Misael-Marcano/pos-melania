@@ -1,0 +1,16 @@
+# After merging dependency bumps that could affect lockfile-driven doc tooling,
+# maintainers may run `npm run verify` from the repository root to confirm checks pass.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /apps/backend
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /apps/frontend
+    schedule:
+      interval: monthly

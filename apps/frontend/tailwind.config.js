@@ -45,11 +45,12 @@ module.exports = {
         display: ['var(--font-manrope)', 'Manrope', 'Inter', 'sans-serif'],
       },
       boxShadow: {
-        'card':        '0 2px 16px 0 rgb(24 28 28 / 0.06)',
-        'card-hover':  '0 8px 32px 0 rgb(24 28 28 / 0.10)',
-        'sidebar':     '2px 0 12px 0 rgb(0 0 0 / 0.20)',
+        // Editorial Intelligence — ambient diffusion (Stitch reference)
+        'card':        '0 4px 40px 0 rgb(24 28 28 / 0.05)',
+        'card-hover':  '0 8px 48px 0 rgb(24 28 28 / 0.08)',
+        'sidebar':     '2px 0 24px 0 rgb(0 0 0 / 0.12)',
         'ambient':     '0 4px 40px 0 rgb(24 28 28 / 0.05)',
-        'float':       '0 8px 40px 0 rgb(24 28 28 / 0.12)',
+        'float':       '0 12px 48px 0 rgb(24 28 28 / 0.10)',
       },
       borderRadius: {
         'card': '12px',

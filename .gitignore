@@ -7,3 +7,8 @@ dist/
 .DS_Store
 coverage/
 scripts/ops/reports/
+apps/frontend/playwright-report/
+apps/frontend/test-results/
+
+# OpenAPI generado (npm run openapi:export en apps/backend); ver docs/operacion/OPENAPI.md
+apps/backend/openapi/

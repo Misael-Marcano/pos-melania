@@ -22,7 +22,7 @@ export class TarjetasRegaloController {
 
   async findById(req: AuthRequest, res: Response) {
     try {
-      const data = await service.findById(Number(req.params.id));
+      const data = await service.findById(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error', 404);
@@ -31,7 +31,7 @@ export class TarjetasRegaloController {
 
   async findByCodigo(req: AuthRequest, res: Response) {
     try {
-      const data = await service.findByCodigo(req.params.codigo);
+      const data = await service.findByCodigo(req.params.codigo, req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error', 404);
@@ -57,7 +57,7 @@ export class TarjetasRegaloController {
     try {
       const id   = Number(req.params.id);
       const dto  = recargarTarjetaSchema.parse(req.body);
-      const data = await service.recargar(id, dto);
+      const data = await service.recargar(id, dto, req.user!);
       registrarAudit({
         tabla: 'tarjetas_regalo', operacion: 'UPDATE', registroId: id,
         descripcion: `Recargó tarjeta ${data.codigo} con RD$${dto.monto}`,
@@ -73,7 +73,7 @@ export class TarjetasRegaloController {
     try {
       const id   = Number(req.params.id);
       const dto  = usarTarjetaSchema.parse(req.body);
-      const data = await service.usar(id, dto);
+      const data = await service.usar(id, dto, req.user!);
       registrarAudit({
         tabla: 'tarjetas_regalo', operacion: 'UPDATE', registroId: id,
         descripcion: `Usó RD$${dto.monto} de tarjeta ${data.codigo}`,
@@ -89,7 +89,7 @@ export class TarjetasRegaloController {
     try {
       const id   = Number(req.params.id);
       const dto  = updateTarjetaSchema.parse(req.body);
-      const data = await service.update(id, dto);
+      const data = await service.update(id, dto, req.user!);
       registrarAudit({
         tabla: 'tarjetas_regalo', operacion: 'UPDATE', registroId: id,
         descripcion: `Actualizó tarjeta ${data.codigo}`,
@@ -104,7 +104,7 @@ export class TarjetasRegaloController {
   async delete(req: AuthRequest, res: Response) {
     try {
       const id = Number(req.params.id);
-      await service.delete(id);
+      await service.delete(id, req.user!);
       registrarAudit({
         tabla: 'tarjetas_regalo', operacion: 'DELETE', registroId: id,
         descripcion: `Eliminó tarjeta #${id}`,

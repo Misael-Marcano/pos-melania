@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventarioService }  from '@/services/inventario.service';
 import { clientesService }    from '@/services/clientes.service';
@@ -9,21 +9,27 @@ import { useCartStore }       from '@/store/cart.store';
 import { usePausedCartsStore } from '@/store/pausedCarts.store';
 import { useCajaActiva }      from '@/hooks/useVentas';
 import { toast }              from '@/store/toast.store';
-import { IArticulo, ICliente } from '@pos/shared';
+import { IArticulo, ICliente, IVenta } from '@pos/shared';
+import { useAuthStore } from '@/store/auth.store';
 import { formatCurrency }     from '@/lib/utils';
+import { nombreArticuloConUnidad } from '@/lib/format-articulo';
 import { AperturaCaja }       from './AperturaCaja';
 import { CierreCaja }         from './CierreCaja';
 import { Receipt }            from './Receipt';
+import { VentaModal }         from './VentaModal';
+import { BarcodeCamera }      from '@/components/common/BarcodeCamera';
 import {
   ShoppingCart, Grid3X3, Plus, Minus, Trash2,
   UserPlus, X, Search, Lock, ArrowLeft,
   Banknote, CreditCard, Smartphone, BookOpen,
   CheckCircle, ChevronDown, PauseCircle, PlayCircle, Clock,
-  Gift, Loader2,
+  Gift, Loader2, Bike, Camera,
 } from 'lucide-react';
 import { tarjetasRegaloService, ITarjetaRegalo } from '@/services/tarjetas-regalo.service';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
+import { useCajas } from '@/hooks/useCajas';
 import { promocionesService } from '@/services/promociones.service';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 type MetodoPago = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'CREDITO' | 'TARJETA_REGALO';
 type TipoNCF    = '01' | '02' | '04' | '14' | '15';
@@ -54,18 +60,83 @@ export function POSScreen() {
     setDescuentoGlobal,
   } = useCartStore();
 
-  // ── Config ────────────────────────────────────────────────────────────────
+  // ── Config + caja (por sucursal; admin elige entre todas) ─────────────────
   const { data: cfg } = useConfiguracion();
-  const CAJA_NOMBRE = cfg?.nombreCaja ?? 'CAJA 1';
+  const user    = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol === 'admin';
+
+  const cajasQueryEnabled = !!user && (isAdmin || user.tiendaId != null);
+  const { data: cajasLista = [], isLoading: cajasLoading } = useCajas(
+    isAdmin ? undefined : user?.tiendaId,
+    { enabled: cajasQueryEnabled }
+  );
+
+  const cajasElegibles = useMemo(() => {
+    if (!user) return [];
+    if (isAdmin) return cajasLista;
+    return cajasLista.filter((c) => c.tienda?.id === user.tiendaId);
+  }, [user, isAdmin, cajasLista]);
+
+  const [selectedCajaId, setSelectedCajaId] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (!user || cajasLoading || !cajasQueryEnabled) return;
+    if (!isAdmin && user.tiendaId == null) return;
+    const eligible = cajasElegibles;
+    if (eligible.length === 0) return;
+
+    setSelectedCajaId((prev) => {
+      if (prev !== '' && eligible.some((c) => c.id === prev)) return prev;
+
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = sessionStorage.getItem('pos_caja_seleccion');
+          if (raw) {
+            const { cajaId } = JSON.parse(raw) as { cajaId?: number };
+            if (cajaId && eligible.some((c) => c.id === cajaId)) return cajaId;
+          }
+        } catch { /* ignore */ }
+      }
+      if (cfg?.cajaId && eligible.some((c) => c.id === cfg.cajaId)) return cfg.cajaId;
+      return eligible[0].id;
+    });
+  }, [user, cajasLoading, cajasQueryEnabled, cajasElegibles, cfg?.cajaId]);
+
+  const effectiveCajaId =
+    selectedCajaId === '' ? undefined : Number(selectedCajaId);
+
+  const effectiveNombre = useMemo(() => {
+    const c = cajasElegibles.find((x) => x.id === effectiveCajaId);
+    return c?.nombre ?? cfg?.caja?.nombre ?? cfg?.nombreCaja ?? 'CAJA 1';
+  }, [cajasElegibles, effectiveCajaId, cfg?.caja?.nombre, cfg?.nombreCaja]);
+
+  const effectiveTiendaId = useMemo(() => {
+    const c = cajasElegibles.find((x) => x.id === effectiveCajaId);
+    return c?.tienda?.id ?? cfg?.tiendaId ?? undefined;
+  }, [cajasElegibles, effectiveCajaId, cfg?.tiendaId]);
+
+  const handleSelectCajaPos = (id: number) => {
+    setSelectedCajaId(id);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('pos_caja_seleccion', JSON.stringify({ cajaId: id }));
+    }
+  };
 
   // ── Caja ─────────────────────────────────────────────────────────────────
-  const { data: cajaActiva, isLoading: cajaLoading } = useCajaActiva(CAJA_NOMBRE);
-  const [aperturaId, setAperturaId]   = useState<number | null>(null);
-  const [mostrarCierre, setMostrarCierre] = useState(false);
+  const { data: cajaActiva, isLoading: cajaLoading } = useCajaActiva(
+    effectiveNombre,
+    effectiveCajaId
+  );
 
-  // sync apertura
-  const [synced, setSynced] = useState(false);
-  if (cajaActiva && !synced) { setAperturaId(cajaActiva.id); setSynced(true); }
+  /** Solo con caja cerrada: admin o cajero con varias cajas en la sucursal. Oculto al tener sesión abierta. */
+  const showCajaSelector = cajasElegibles.length > 1 && !cajaActiva;
+  const [mostrarCierre, setMostrarCierre] = useState(false);
+  /** Datos de la sesión al abrir “Cerrar caja” — no depender de `cajaActiva` tras el cierre (la query pasa a null) */
+  const [cierreCtx, setCierreCtx] = useState<{
+    aperturaId:    number;
+    montoApertura: number;
+    fechaApertura: string;
+  } | null>(null);
 
   // ── POS ──────────────────────────────────────────────────────────────────
   const [inputVal, setInputVal]           = useState('');
@@ -77,8 +148,8 @@ export function POSScreen() {
   const [clienteNombre, setClienteNombre] = useState('');
   const [clienteObj, setClienteObj] = useState<ICliente | null>(null);
   const [descGlobalInput, setDescGlobalInput] = useState('');
-  const [receipt, setReceipt]             = useState<any>(null);
-
+  const [receipt, setReceipt]             = useState<IVenta | null>(null);
+  const [ventaEditar, setVentaEditar]     = useState<IVenta | null>(null);
   // ── Ventas en pausa ──────────────────────────────────────────────────────
   const { carts: pausedCarts, pause: pauseCart, restore: restoreCart, remove: removeCart } = usePausedCartsStore();
   const [showPaused, setShowPaused]         = useState(false);
@@ -100,13 +171,19 @@ export function POSScreen() {
   const [pagoMixto, setPagoMixto]               = useState(false);
   const [metodoPago, setMetodoPago]             = useState<MetodoPago>('EFECTIVO');
   const [efectivoRecibido, setEfectivoRecibido] = useState<number | ''>('');
+  // Delivery
+  const [esDelivery, setEsDelivery]               = useState(false);
+  const [deliveryCargo, setDeliveryCargo]         = useState<number | ''>('');
+  const [deliveryDireccion, setDeliveryDireccion] = useState('');
   // Gift card
   const [gcCodigo, setGcCodigo]       = useState('');
   const [gcData, setGcData]           = useState<ITarjetaRegalo | null>(null);
   const [gcLoading, setGcLoading]     = useState(false);
   const [gcError, setGcError]         = useState('');
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const [scanFlash,   setScanFlash]   = useState(false);
+  const [showCamera,  setShowCamera]  = useState(false);
 
   // Re-enfocar el escáner al volver al modo carrito o cerrar el recibo
   useEffect(() => {
@@ -114,6 +191,32 @@ export function POSScreen() {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode, receipt]);
+
+  // ── Lógica compartida: procesar código detectado (scanner físico o cámara) ─
+  const handleCodigoDetectado = useCallback(async (codigo: string) => {
+    setNotFound(false);
+    try {
+      const art = await inventarioService.getByBarcode(codigo);
+      addItem(art);
+      setScanFlash(true);
+      setTimeout(() => setScanFlash(false), 400);
+      setShowCamera(false);
+    } catch {
+      setShowCamera(false);
+      setInputVal(codigo);
+      inputRef.current?.focus();
+    }
+  }, [addItem]);
+
+  // ── Scanner físico global (USB / Bluetooth keyboard-wedge) ───────────────
+  // Captura escaneos aunque el foco esté fuera del input de búsqueda
+  useBarcodeScanner(
+    async (codigo) => {
+      if (mode !== 'cart' || !!receipt) return;
+      handleCodigoDetectado(codigo);
+    },
+    { disabled: mode !== 'cart' || !!receipt || showCamera },
+  );
 
   // ── Artículos grid ────────────────────────────────────────────────────────
   const { data: articulosData } = useQuery({
@@ -167,7 +270,10 @@ export function POSScreen() {
       setGcCodigo(''); setGcData(null); setGcError('');
       setNotas('');
       setUsarNCF(false);
-      setReceipt(venta);
+      setEsDelivery(false);
+      setDeliveryCargo('');
+      setDeliveryDireccion('');
+      setReceipt(venta as IVenta);
       toast.success(`Venta registrada — Factura F-${String(venta.id).padStart(6, '0')}`);
     },
     onError: (e: unknown) => {
@@ -228,7 +334,8 @@ export function POSScreen() {
     setDescGlobalInput('');
   };
 
-  const totalFinal   = Math.max(0, total() - promoDescuento);
+  const cargoDelivery = esDelivery ? (deliveryCargo === '' ? 0 : Number(deliveryCargo)) : 0;
+  const totalFinal   = Math.max(0, total() - promoDescuento + cargoDelivery);
   const totalPagado  = pagos.reduce((s, p) => s + p.monto, 0);
   const restante     = Math.max(0, totalFinal - totalPagado);
   const efectivoPago = pagos.find((p) => p.metodo === 'EFECTIVO')?.monto ?? 0;
@@ -239,7 +346,8 @@ export function POSScreen() {
   const creditoDisponible = clienteObj
     ? Number(clienteObj.limiteCredito) - Number(clienteObj.saldo)
     : 0;
-  const puedeConfirmar = items.length > 0 && (
+  const deliveryMontoValido = !esDelivery || (deliveryCargo !== '' && Number(deliveryCargo) > 0);
+  const puedeConfirmar = items.length > 0 && deliveryMontoValido && (
     pagoMixto
       ? restante <= 0.01
       : metodoPago === 'EFECTIVO'
@@ -315,6 +423,11 @@ export function POSScreen() {
       usarNCF,
       tipoNCF:    usarNCF ? tipoNCF : undefined,
       notas:      notas || undefined,
+      efectivoRecibido: metodoPrincipal === 'EFECTIVO' && efectivoRecibido !== '' ? Number(efectivoRecibido) : undefined,
+      esDelivery,
+      deliveryCargo: cargoDelivery,
+      deliveryDireccion: esDelivery && deliveryDireccion.trim() ? deliveryDireccion.trim() : undefined,
+      cajaAperturaId: cajaActiva?.id,
       detalles: items.map((i) => ({
         articuloId:     i.articulo.id,
         cantidad:       i.cantidad,
@@ -360,6 +473,44 @@ export function POSScreen() {
   };
 
   // ── Guard: caja ───────────────────────────────────────────────────────────
+  if (user && !isAdmin && user.tiendaId == null) {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-8 bg-navy-50">
+        <div className="bg-white rounded-[12px] shadow-card max-w-md p-8 text-center">
+          <Lock className="mx-auto text-amber-500 mb-3" size={32} />
+          <p className="font-semibold text-navy-800 mb-2">Sin sucursal asignada</p>
+          <p className="text-sm text-navy-500">
+            Tu usuario debe tener una sucursal para usar el POS. Pide al administrador que asigne tu tienda en Empleados.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (cajasQueryEnabled && cajasLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (cajasQueryEnabled && !cajasLoading && cajasElegibles.length === 0) {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-8 bg-navy-50">
+        <div className="bg-white rounded-[12px] shadow-card max-w-md p-8 text-center">
+          <Lock className="mx-auto text-navy-300 mb-3" size={32} />
+          <p className="font-semibold text-navy-800 mb-2">No hay cajas disponibles</p>
+          <p className="text-sm text-navy-500">
+            {isAdmin
+              ? 'Registra cajas en el menú «Cajas» y asígnalas a una sucursal.'
+              : 'No hay cajas registradas para tu sucursal. Contacta al administrador.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (cajaLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -367,28 +518,72 @@ export function POSScreen() {
       </div>
     );
   }
-  if (!aperturaId) {
-    return <AperturaCaja cajaNombre={CAJA_NOMBRE} onAbierta={(id) => { setAperturaId(id); setSynced(false); }} />;
-  }
-  if (mostrarCierre && cajaActiva) {
+  /* Cierre: usar snapshot — tras cerrar en API, `cajaActiva` es null pero el usuario sigue en pantalla de resultado */
+  if (mostrarCierre && cierreCtx) {
     return (
       <div className="p-6">
         <CierreCaja
-          aperturaId={cajaActiva.id}
-          montoApertura={cajaActiva.montoApertura}
-          fechaApertura={cajaActiva.fechaApertura}
-          cajaNombre={CAJA_NOMBRE}
-          onCerrada={() => { setMostrarCierre(false); setAperturaId(null); setSynced(false); }}
-          onVolver={() => setMostrarCierre(false)}
+          aperturaId={cierreCtx.aperturaId}
+          montoApertura={cierreCtx.montoApertura}
+          fechaApertura={cierreCtx.fechaApertura}
+          cajaNombre={effectiveNombre}
+          onCerrada={() => {
+            setMostrarCierre(false);
+            setCierreCtx(null);
+          }}
+          onVolver={() => {
+            setMostrarCierre(false);
+            setCierreCtx(null);
+          }}
         />
       </div>
+    );
+  }
+
+  /* Sin caja abierta en servidor → apertura (useAbrirCaja invalida la query y aparece el POS) */
+  if (!cajaActiva) {
+    return (
+      <>
+        {showCajaSelector && (
+          <div className="bg-navy-100/80 border-b border-navy-200 px-4 py-3 flex flex-wrap items-center gap-3 justify-center shrink-0">
+            <span className="text-sm font-medium text-navy-700">
+              {isAdmin ? 'Caja para esta sesión' : 'Elige la caja a abrir'}
+            </span>
+            <select
+              className="input-field max-w-md min-w-[220px]"
+              value={selectedCajaId === '' ? '' : String(selectedCajaId)}
+              onChange={(e) => handleSelectCajaPos(Number(e.target.value))}
+            >
+              {cajasElegibles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.tienda?.nombre ? `${c.tienda.nombre} — ` : ''}{c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <AperturaCaja
+          cajaNombre={effectiveNombre}
+          cajaId={effectiveCajaId}
+          tiendaId={effectiveTiendaId}
+          onAbierta={() => {
+            /* la query `caja/activa` se actualiza sola */
+          }}
+        />
+      </>
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex h-[calc(100vh-3.5rem)] -m-4 lg:-m-6 overflow-hidden">
+      {/* Mientras el comprobante post-venta está abierto, el POS queda oculto hasta «Nueva venta» */}
+      <div
+        className={`-m-4 lg:-m-6 ${receipt ? 'min-h-[calc(100vh-3.5rem)]' : ''}`}
+      >
+      <div
+        className={`flex h-[calc(100vh-3.5rem)] overflow-hidden ${receipt ? 'hidden' : ''}`}
+      >
 
         {/* ═══ Panel izquierdo: búsqueda + carrito ══════════════════════════ */}
         <div className={`flex-col bg-navy-50 overflow-hidden flex-1 ${mode === 'payment' ? 'hidden md:flex' : 'flex'}`}>
@@ -410,7 +605,9 @@ export function POSScreen() {
                 onFocus={() => { if (inputVal.trim().length >= 2) setShowSuggestions(true); }}
                 placeholder="Código de barras o nombre del artículo…"
                 className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors ${
-                  notFound ? 'border-red-400 bg-red-50' : 'border-navy-200'
+                  notFound   ? 'border-red-400 bg-red-50' :
+                  scanFlash  ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300' :
+                  'border-navy-200'
                 }`}
                 autoFocus
               />
@@ -449,6 +646,14 @@ export function POSScreen() {
                 </div>
               )}
             </div>
+            <button
+              onClick={() => setShowCamera(true)}
+              title="Escanear con cámara"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-navy-500 hover:border-primary-400 hover:text-primary-600 text-sm font-medium transition-colors"
+            >
+              <Camera size={15} />
+              <span className="hidden sm:inline">Cámara</span>
+            </button>
             <button
               onClick={() => setShowGrid((v) => !v)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
@@ -510,7 +715,7 @@ export function POSScreen() {
                   {items.map((item) => (
                     <tr key={item.articulo.id} className="hover:bg-white/80 group border-b border-navy-100/40">
                       <td className="table-cell pl-4">
-                        <p className="font-medium text-navy-800 text-sm">{item.articulo.nombre}</p>
+                        <p className="font-medium text-navy-800 text-sm">{nombreArticuloConUnidad(item.articulo)}</p>
                         {item.articulo.categoria && (
                           <p className="text-[10px] text-navy-400">{item.articulo.categoria.nombre}</p>
                         )}
@@ -586,12 +791,21 @@ export function POSScreen() {
                 <ArrowLeft size={15} /> Volver
               </button>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-navy-400 uppercase tracking-wide">{CAJA_NOMBRE}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex flex-col min-w-0 gap-0.5">
+                  <span className="text-xs font-semibold text-navy-400 uppercase tracking-wide">
+                    {cajaActiva?.cajaNombre ?? effectiveNombre}
+                  </span>
+                  {cajaActiva?.tienda?.nombre && (
+                    <span className="text-[10px] text-navy-400 truncate" title={cajaActiva.tienda.nombre}>
+                      {cajaActiva.tienda.nombre}
+                    </span>
+                  )}
+                </div>
                 {pausedCarts.length > 0 && (
                   <button
                     onClick={() => setShowPaused((v) => !v)}
-                    className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-700 transition-colors font-medium"
+                    className="flex items-center gap-1 text-xs text-amber-500 hover:text-amber-700 transition-colors font-medium shrink-0"
                   >
                     <Clock size={12} />
                     <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
@@ -603,7 +817,16 @@ export function POSScreen() {
             )}
             {mode === 'cart' && (
               <button
-                onClick={() => setMostrarCierre(true)}
+                type="button"
+                onClick={() => {
+                  if (!cajaActiva) return;
+                  setCierreCtx({
+                    aperturaId:    cajaActiva.id,
+                    montoApertura: cajaActiva.montoApertura,
+                    fechaApertura: cajaActiva.fechaApertura,
+                  });
+                  setMostrarCierre(true);
+                }}
                 className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors"
               >
                 <Lock size={13} /> Cerrar caja
@@ -721,6 +944,12 @@ export function POSScreen() {
                     </div>
                   )}
 
+                  {cargoDelivery > 0 && (
+                    <div className="flex justify-between text-sm text-amber-600">
+                      <span className="flex items-center gap-1"><Bike size={12} /> Delivery</span>
+                      <span>+{formatCurrency(cargoDelivery)}</span>
+                    </div>
+                  )}
                   <div className="border-t border-navy-200 pt-2 flex justify-between items-center">
                     <span className="font-semibold text-navy-800">Total</span>
                     <span className="text-xl font-bold text-primary-600">{formatCurrency(totalFinal)}</span>
@@ -735,7 +964,7 @@ export function POSScreen() {
                     </p>
                     {items.slice(0, 4).map((item) => (
                       <div key={item.articulo.id} className="flex justify-between text-xs">
-                        <span className="text-navy-400 truncate max-w-[60%]">{item.cantidad}× {item.articulo.nombre}</span>
+                        <span className="text-navy-400 truncate max-w-[60%]">{item.cantidad}× {nombreArticuloConUnidad(item.articulo)}</span>
                         <span className="text-navy-700 font-medium shrink-0">{formatCurrency(item.total)}</span>
                       </div>
                     ))}
@@ -787,7 +1016,12 @@ export function POSScreen() {
                   <p className="text-xs opacity-75 mb-1">Total a cobrar</p>
                   <p className="text-3xl font-bold tracking-tight">{formatCurrency(totalFinal)}</p>
                   {descuentoGlobal > 0 && (
-                    <p className="text-xs opacity-60 mt-1">Desc.: {formatCurrency(descuentoGlobal)}</p>
+                    <p className="text-xs opacity-60 mt-1">Desc.: -{formatCurrency(descuentoGlobal)}</p>
+                  )}
+                  {cargoDelivery > 0 && (
+                    <p className="text-xs opacity-75 mt-0.5 flex items-center gap-1">
+                      <Bike size={11} /> Delivery: +{formatCurrency(cargoDelivery)}
+                    </p>
                   )}
                 </div>
 
@@ -1134,6 +1368,57 @@ export function POSScreen() {
                   )}
                 </div>
 
+                {/* Delivery */}
+                <div className="border border-navy-100/40 rounded-[12px] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setEsDelivery((v) => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-navy-50 transition-colors"
+                  >
+                    <span className="flex items-center gap-2 font-medium text-navy-700">
+                      <Bike size={15} /> Delivery
+                    </span>
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${esDelivery ? 'bg-primary-500' : 'bg-navy-300'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${esDelivery ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </div>
+                  </button>
+                  {esDelivery && (
+                    <div className="px-4 pb-3 border-t border-navy-100/40 space-y-2 pt-3">
+                      <div>
+                        <label className="text-xs font-medium text-navy-500 block mb-1">Cargo de delivery (RD$)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={deliveryCargo}
+                          onChange={(e) => {
+                            const v = e.target.value === '' ? '' : Number(e.target.value);
+                            setDeliveryCargo(v);
+                          }}
+                          className="w-full border border-navy-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-navy-500 block mb-1">Dirección / zona</label>
+                        <input
+                          type="text"
+                          value={deliveryDireccion}
+                          onChange={(e) => setDeliveryDireccion(e.target.value)}
+                          maxLength={300}
+                          className="w-full border border-navy-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                          placeholder="Calle, sector, referencias…"
+                        />
+                      </div>
+                      {cargoDelivery > 0 && (
+                        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                          Se añadirán {formatCurrency(cargoDelivery)} al total del cliente.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Notas */}
                 <div>
                   <label className="text-xs font-semibold text-navy-400 uppercase tracking-wide block mb-1.5">
@@ -1154,6 +1439,11 @@ export function POSScreen() {
                 {usarNCF && !clienteId && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
                     Selecciona un cliente para emitir el comprobante fiscal
+                  </p>
+                )}
+                {esDelivery && !deliveryMontoValido && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                    Ingresa el cargo de delivery para continuar
                   </p>
                 )}
                 <button
@@ -1178,9 +1468,10 @@ export function POSScreen() {
           )}
         </div>
       </div>
+      </div>
 
       {/* Mobile bottom bar — only in cart mode on small screens */}
-      {mode === 'cart' && (
+      {mode === 'cart' && !receipt && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-navy-200 px-4 py-3 z-30 shadow-[0_-4px_16px_0_rgb(24_28_28/0.08)]">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-sm text-navy-400">{items.length} artículo{items.length !== 1 ? 's' : ''}</span>
@@ -1197,8 +1488,45 @@ export function POSScreen() {
         </div>
       )}
 
-      {/* Recibo — autoPrint dispara window.print() automáticamente */}
-      {receipt && <Receipt venta={receipt} onClose={() => setReceipt(null)} autoPrint />}
+      {/* Comprobante tras cobrar: Imprimir / Editar (admin) / Continuar — sin auto-print */}
+      {receipt && (
+        <Receipt
+          variant="pos"
+          venta={receipt}
+          onClose={() => setReceipt(null)}
+          onContinue={() => setReceipt(null)}
+          onEdit={
+            isAdmin
+              ? async () => {
+                  try {
+                    const v = await ventasService.getById(receipt.id);
+                    setReceipt(null);
+                    setVentaEditar(v);
+                  } catch (e: unknown) {
+                    toast.error(e instanceof Error ? e.message : 'No se pudo cargar la venta');
+                  }
+                }
+              : undefined
+          }
+          autoPrint
+        />
+      )}
+
+      {ventaEditar && (
+        <VentaModal
+          venta={ventaEditar}
+          isAdmin={isAdmin}
+          onClose={() => setVentaEditar(null)}
+          onRefresh={() => setVentaEditar(null)}
+        />
+      )}
+
+      {showCamera && (
+        <BarcodeCamera
+          onDetect={handleCodigoDetectado}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </>
   );
 }

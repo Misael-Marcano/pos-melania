@@ -7,12 +7,15 @@ const repo = () => AppDataSource.getRepository(AuditLog);
 
 export class AuditoriaService {
 
-  async findAll(req: Request) {
+  /** Solo entradas cuyo `usuarioId` pertenece a la organización (vía `usuarios.tenantId`). */
+  async findAll(req: Request, tenantId: number) {
     const { page, limit, skip } = getPagination(req);
     const { tabla, operacion, usuarioId, desde, hasta } = req.query as Record<string, string>;
 
     const qb = repo()
       .createQueryBuilder('a')
+      .innerJoin('a.usuario', 'u')
+      .where('u.tenantId = :tenantId', { tenantId })
       .orderBy('a.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
@@ -27,10 +30,12 @@ export class AuditoriaService {
     return { data, total, page, limit };
   }
 
-  async getTablas(): Promise<string[]> {
+  async getTablas(tenantId: number): Promise<string[]> {
     const rows = await repo()
       .createQueryBuilder('a')
       .select('DISTINCT a.tabla', 'tabla')
+      .innerJoin('a.usuario', 'u')
+      .where('u.tenantId = :tenantId', { tenantId })
       .getRawMany();
     return rows.map((r) => r.tabla).sort();
   }

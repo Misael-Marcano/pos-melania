@@ -23,7 +23,7 @@ export function StockBajoWidget() {
           </div>
         </div>
         <Link href="/inventario"
-          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
+          className="flex items-center gap-1 text-xs text-secondary font-medium hover:opacity-90 transition-opacity">
           Ver todo <ArrowRight size={12} />
         </Link>
       </div>
@@ -43,9 +43,9 @@ export function StockBajoWidget() {
             <p className="text-xs text-navy-400 mt-0.5">Todos los artículos tienen stock suficiente</p>
           </div>
         ) : (
-          <ul className="divide-y divide-navy-100/40">
+          <ul className="flex flex-col gap-0.5 px-2 pb-2">
             {data.map((art) => (
-              <li key={art.id} className="flex items-center gap-3 px-5 py-3">
+              <li key={art.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-navy-50/80 transition-colors">
                 <div className={`w-2 h-2 rounded-full shrink-0 ${
                   art.cantidad === 0 ? 'bg-rose-500' : 'bg-amber-400'
                 }`} />

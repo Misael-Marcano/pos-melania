@@ -4,7 +4,8 @@ import {
 } from 'typeorm';
 import { Usuario } from './Usuario.entity';
 
-export type AuditOperacion = 'CREATE' | 'UPDATE' | 'DELETE';
+/** EXPORT: descarga de informes (p. ej. PDF). READ: consulta sensible (opcional). */
+export type AuditOperacion = 'CREATE' | 'UPDATE' | 'DELETE' | 'EXPORT' | 'READ';
 
 @Entity('audit_logs')
 export class AuditLog {

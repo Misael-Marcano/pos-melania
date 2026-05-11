@@ -15,10 +15,18 @@ export const createVentaSchema = z.object({
   tipoNCF:      z.enum(['01', '02', '04', '14', '15']).optional(),
   notas:        z.string().max(500).optional(),
   fechaVenta:   z.string().optional(),
+  /** Sesión de caja POS (caja_aperturas.id) — obligatorio para auditoría */
+  cajaAperturaId: z.number().int().positive(),
   pagos: z.array(z.object({
     metodo: z.enum(['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'CREDITO']),
     monto:  z.number().min(0.01),
   })).optional(),
+  /** Efectivo entregado por el cliente (para calcular cambio; solo pago EFECTIVO) */
+  efectivoRecibido: z.number().min(0).optional(),
+  /** Delivery */
+  esDelivery:          z.boolean().default(false),
+  deliveryCargo:       z.number().min(0).default(0),
+  deliveryDireccion:   z.string().max(300).optional(),
   detalles:     z.array(createVentaDetalleSchema).min(1, 'Debe tener al menos un artículo'),
 }).refine(
   (d) => !d.usarNCF || (d.usarNCF && d.tipoNCF),
@@ -26,9 +34,15 @@ export const createVentaSchema = z.object({
 );
 
 export const aperturaCajaSchema = z.object({
-  cajaNombre:     z.string().min(1).max(50),
+  /** Catálogo de cajas — si se envía, tiene prioridad sobre cajaNombre */
+  cajaId:         z.number().int().positive().optional(),
+  cajaNombre:     z.string().min(1).max(100).optional(),
   denominaciones: z.record(z.string(), z.number().min(0)),
   montoApertura:  z.number().min(0),
+  tiendaId:       z.number().int().positive().optional(),
+}).refine((d) => d.cajaId != null || (d.cajaNombre != null && d.cajaNombre.trim().length > 0), {
+  message: 'Indique cajaId (catálogo) o cajaNombre',
+  path:    ['cajaNombre'],
 });
 
 export const cierreCajaSchema = z.object({

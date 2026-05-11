@@ -2,8 +2,18 @@ import apiClient from './api.client';
 import { TokenResponse } from '@pos/shared';
 
 export const authService = {
-  login: async (email: string, password: string): Promise<TokenResponse> => {
-    const { data } = await apiClient.post('/auth/login', { email, password });
+  login: async (
+    email: string,
+    password: string,
+    tenantSlug?: string,
+  ): Promise<TokenResponse> => {
+    const headers: Record<string, string> = {};
+    if (tenantSlug) headers['X-Tenant-Slug'] = tenantSlug;
+    const { data } = await apiClient.post(
+      '/auth/login',
+      { email, password },
+      { headers },
+    );
     return data.data;
   },
 

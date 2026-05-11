@@ -17,7 +17,37 @@ export class VentasController {
 
   async findById(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.findById(Number(req.params.id)));
+      return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
+    } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error', 404); }
+  }
+
+  /**
+   * Trazabilidad fiscal: impresión o reimpresión de recibo (NCF en descripción si aplica).
+   * Admin/soporte: cualquier venta. Cajero: solo ventas registradas por él.
+   */
+  async auditarReciboImpresion(req: AuthRequest, res: Response) {
+    try {
+      const id    = Number(req.params.id);
+      const u     = req.user!;
+      const venta = await service.findById(id, u);
+      if (u.rol === 'cajero') {
+        const ownerId = venta.usuario?.id;
+        if (ownerId == null || ownerId !== u.id) {
+          return sendError(res, 'No autorizado a auditar esta venta', 403);
+        }
+      }
+      const ncf = venta.comprobante ? ` · NCF ${venta.comprobante}` : '';
+      registrarAudit({
+        tabla:         'ventas',
+        operacion:     'READ',
+        registroId:    id,
+        descripcion:   `Impresión o vista de recibo (venta #${id}${ncf})`,
+        valorNuevo:    { comprobante: venta.comprobante ?? null, total: Number(venta.total) },
+        usuarioId:     u.id,
+        usuarioNombre: u.nombre,
+        ip:            req.ip,
+      });
+      return sendSuccess(res, { ok: true });
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error', 404); }
   }
 
@@ -34,7 +64,7 @@ export class VentasController {
     try {
       const id   = Number(req.params.id);
       const dto  = updateVentaSchema.parse(req.body);
-      const data = await service.update(id, dto);
+      const data = await service.update(id, dto, req.user!);
       registrarAudit({ tabla: 'ventas', operacion: 'UPDATE', registroId: id, descripcion: `Editó venta #${id}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, data, 'Venta actualizada');
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
@@ -44,7 +74,7 @@ export class VentasController {
     try {
       const id   = Number(req.params.id);
       const dto  = fullUpdateVentaSchema.parse(req.body);
-      const data = await service.fullUpdate(id, dto);
+      const data = await service.fullUpdate(id, dto, req.user!);
       registrarAudit({ tabla: 'ventas', operacion: 'UPDATE', registroId: id, descripcion: `Editó ítems de venta #${id}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, data, 'Venta actualizada');
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
@@ -53,14 +83,14 @@ export class VentasController {
   async anular(req: AuthRequest, res: Response) {
     try {
       const id = Number(req.params.id);
-      await service.anular(id, req.user?.id);
+      await service.anular(id, req.user!, req.user?.id);
       registrarAudit({ tabla: 'ventas', operacion: 'UPDATE', registroId: id, descripcion: `Anuló venta #${id}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, null, 'Venta anulada');
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
-  async resumenHoy(_req: AuthRequest, res: Response) {
-    try { return sendSuccess(res, await service.resumenHoy()); }
+  async resumenHoy(req: AuthRequest, res: Response) {
+    try { return sendSuccess(res, await service.resumenHoy(req.user!)); }
     catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
@@ -68,26 +98,64 @@ export class VentasController {
   async abrirCaja(req: AuthRequest, res: Response) {
     try {
       const dto  = aperturaCajaSchema.parse(req.body);
-      return sendSuccess(res, await service.abrirCaja(dto, req.user!), 'Caja abierta', 201);
+      const data = await service.abrirCaja(dto, req.user!);
+      registrarAudit({
+        tabla:         'caja_aperturas',
+        operacion:     'CREATE',
+        registroId:    data.id,
+        descripcion:   `Abrió caja "${data.cajaNombre}" · monto apertura RD$${data.montoApertura}`,
+        valorNuevo:    {
+          cajaNombre:    data.cajaNombre,
+          montoApertura: Number(data.montoApertura),
+          cajaId:        dto.cajaId ?? null,
+          tiendaId:      dto.tiendaId ?? null,
+        },
+        usuarioId:     req.user?.id,
+        usuarioNombre: req.user?.nombre,
+        ip:            req.ip,
+      });
+      return sendSuccess(res, data, 'Caja abierta', 201);
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
   async cerrarCaja(req: AuthRequest, res: Response) {
     try {
       const dto  = cierreCajaSchema.parse(req.body);
-      return sendSuccess(res, await service.cerrarCaja(dto), 'Caja cerrada');
+      const data = await service.cerrarCaja(dto, req.user!);
+      registrarAudit({
+        tabla:         'caja_aperturas',
+        operacion:     'UPDATE',
+        registroId:    data.id,
+        descripcion:   `Cerró sesión de caja "${data.cajaNombre}" (sesión #${data.id}) · contado RD$${dto.montoCierre}`,
+        valorNuevo:    {
+          aperturaId:  dto.aperturaId,
+          montoCierre: dto.montoCierre,
+          notas:       dto.notas ?? null,
+          fechaCierre: data.fechaCierre,
+        },
+        usuarioId:     req.user?.id,
+        usuarioNombre: req.user?.nombre,
+        ip:            req.ip,
+      });
+      return sendSuccess(res, data, 'Caja cerrada');
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
   async getCajaActiva(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.getCajaActiva(req.params.nombre));
+      return sendSuccess(res, await service.getCajaActiva(req.params.nombre, req.user!));
+    } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+  }
+
+  async getCajaActivaPorCajaId(req: AuthRequest, res: Response) {
+    try {
+      return sendSuccess(res, await service.getCajaActivaPorCajaId(Number(req.params.cajaId), req.user!));
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
   async resumenCaja(req: AuthRequest, res: Response) {
     try {
-      return sendSuccess(res, await service.resumenCaja(Number(req.params.id)));
+      return sendSuccess(res, await service.resumenCaja(Number(req.params.id), req.user!));
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
@@ -95,15 +163,31 @@ export class VentasController {
     try {
       const page  = Number(req.query.page)  || 1;
       const limit = Number(req.query.limit) || 20;
-      const { data, total } = await service.getHistorialCajas(page, limit);
+      const { data, total } = await service.getHistorialCajas(page, limit, req.user);
       return sendPaginated(res, data, total, page, limit);
+    } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+  }
+
+  async listCajasAbiertas(req: AuthRequest, res: Response) {
+    try {
+      return sendSuccess(res, await service.listCajasAbiertas(req.user!));
     } catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
   }
 
   async pdfCierre(req: AuthRequest, res: Response) {
     try {
       const id  = Number(req.params.id);
-      const buf = await service.generarPDFCierre(id);
+      const buf = await service.generarPDFCierre(id, req.user!);
+      registrarAudit({
+        tabla:         'caja_aperturas',
+        operacion:     'EXPORT',
+        registroId:    id,
+        descripcion:   `Generó / descargó PDF de cierre de caja (sesión #${id})`,
+        valorNuevo:    { tipo: 'application/pdf', bytes: buf.length },
+        usuarioId:     req.user?.id,
+        usuarioNombre: req.user?.nombre,
+        ip:            req.ip,
+      });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="cierre-caja-${id}.pdf"`);
       res.end(buf);

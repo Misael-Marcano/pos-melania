@@ -2,34 +2,49 @@ import { ILike } from 'typeorm';
 import { AppDataSource } from '../../config/database';
 import { Promocion, TipoPromocion } from '../../entities/Promocion.entity';
 import { AppError } from '../../middlewares/error.middleware';
+import { assertTenantMatch, tenantIdOrThrow } from '../../utils/tenant-access';
+import { assertFeatureEnabled } from '../../saas/enforce-plan';
+import { AuthUser } from '@pos/shared';
 
 const repo = () => AppDataSource.getRepository(Promocion);
 
 export class PromocionesService {
 
-  async findAll(q?: string) {
-    const where = q ? [{ codigo: ILike(`%${q}%`) }, { nombre: ILike(`%${q}%`) }] : {};
-    return repo().find({ where, order: { createdAt: 'DESC' } });
+  async findAll(q: string | undefined, user: AuthUser) {
+    const tid = tenantIdOrThrow(user);
+    if (q) {
+      return repo().find({
+        where: [
+          { tenant: { id: tid }, codigo: ILike(`%${q}%`) },
+          { tenant: { id: tid }, nombre: ILike(`%${q}%`) },
+        ],
+        order: { createdAt: 'DESC' },
+      });
+    }
+    return repo().find({ where: { tenant: { id: tid } }, order: { createdAt: 'DESC' } });
   }
 
-  async findById(id: number): Promise<Promocion> {
-    const p = await repo().findOne({ where: { id } });
+  async findById(id: number, user: AuthUser): Promise<Promocion> {
+    const p = await repo().findOne({ where: { id }, relations: ['tenant'] });
     if (!p) throw new AppError('Promoción no encontrada', 404);
+    assertTenantMatch(user, p.tenant?.id);
     return p;
   }
 
-  async findByCodigo(codigo: string): Promise<Promocion> {
-    const p = await repo().findOne({ where: { codigo: codigo.toUpperCase() } });
+  async findByCodigo(codigo: string, user: AuthUser): Promise<Promocion> {
+    const tid = tenantIdOrThrow(user);
+    const p = await repo().findOne({
+      where: { codigo: codigo.toUpperCase(), tenant: { id: tid } },
+    });
     if (!p) throw new AppError('Código de descuento no válido', 404);
     return p;
   }
 
-  /** Valida y devuelve el descuento calculado para un total dado */
-  async validar(codigo: string, totalCompra: number): Promise<{
+  async validar(codigo: string, totalCompra: number, user: AuthUser): Promise<{
     promocion: Promocion;
     descuentoMonto: number;
   }> {
-    const p = await this.findByCodigo(codigo);
+    const p = await this.findByCodigo(codigo, user);
 
     if (!p.activa) throw new AppError('Esta promoción no está activa', 400);
     if (p.usoMaximo !== null && p.usoMaximo !== undefined && p.usosActuales >= p.usoMaximo) {
@@ -53,28 +68,43 @@ export class PromocionesService {
     codigo: string; nombre: string; tipo: TipoPromocion; valor: number;
     montoMinimo?: number; usoMaximo?: number;
     fechaInicio?: string; fechaFin?: string;
-  }): Promise<Promocion> {
-    const existing = await repo().findOne({ where: { codigo: data.codigo.toUpperCase() } });
+  }, user: AuthUser): Promise<Promocion> {
+    const tid = tenantIdOrThrow(user);
+    await assertFeatureEnabled(tid, 'promociones');
+    const cod = data.codigo.toUpperCase();
+    const existing = await repo().findOne({ where: { codigo: cod, tenant: { id: tid } } });
     if (existing) throw new AppError('Ya existe una promoción con ese código', 400);
 
-    const p = repo().create({ ...data, codigo: data.codigo.toUpperCase() });
+    const p = repo().create({
+      ...data,
+      codigo: cod,
+      tenant: { id: tid } as any,
+    });
     return repo().save(p);
   }
 
-  async update(id: number, data: Partial<Parameters<typeof this.create>[0] & { activa?: boolean }>): Promise<Promocion> {
-    const p = await this.findById(id);
+  async update(
+    id: number,
+    data: Partial<{
+      codigo: string; nombre: string; tipo: TipoPromocion; valor: number;
+      montoMinimo?: number; usoMaximo?: number; fechaInicio?: string; fechaFin?: string; activa?: boolean;
+    }>,
+    user: AuthUser,
+  ): Promise<Promocion> {
+    const p = await this.findById(id, user);
     if (data.codigo) data.codigo = data.codigo.toUpperCase();
     Object.assign(p, data);
     return repo().save(p);
   }
 
-  async delete(id: number): Promise<void> {
-    const p = await this.findById(id);
+  async delete(id: number, user: AuthUser): Promise<void> {
+    const p = await this.findById(id, user);
     p.activa = false;
     await repo().save(p);
   }
 
-  async incrementarUso(id: number): Promise<void> {
+  async incrementarUso(id: number, user: AuthUser): Promise<void> {
+    await this.findById(id, user);
     await repo().increment({ id }, 'usosActuales', 1);
   }
 }

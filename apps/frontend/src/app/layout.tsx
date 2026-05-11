@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter, Manrope } from 'next/font/google';
-import './globals.css';
 import 'react-toastify/dist/ReactToastify.css';
+import './globals.css';
 import { Providers } from './providers';
+import { appBrand } from '@/lib/app-brand';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -17,8 +18,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'POS Melania Sopa',
-  description: 'Sistema de punto de venta — Melania Sopa EIRL',
+  title:       appBrand.title,
+  description: appBrand.description,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

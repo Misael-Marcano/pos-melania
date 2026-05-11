@@ -38,25 +38,41 @@ export const AppDataSource = new DataSource({
   },
 });
 
-export const initDatabase = async (): Promise<void> => {
+/**
+ * Conecta a SQL Server, crea la BD si no existe y aplica migraciones.
+ * Reutilizable en tests (sin `process.exit`); idempotente si `AppDataSource` ya está inicializado.
+ */
+export async function initDatabaseForTests(): Promise<void> {
+  if (AppDataSource.isInitialized) return;
+
+  await masterSource.initialize();
   try {
-    // 1. Crear la base de datos si no existe
-    await masterSource.initialize();
     await masterSource.query(
       `IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '${env.DB_NAME}')
        CREATE DATABASE [${env.DB_NAME}]`
     );
-    await masterSource.destroy();
-
-    // 2. Conectar a la base de datos de la aplicación
-    await AppDataSource.initialize();
-    console.log('✅ SQL Server conectado');
-
-    // 3. Ejecutar migraciones pendientes
-    const applied = await AppDataSource.runMigrations();
-    if (applied.length > 0) {
-      console.log(`✅ ${applied.length} migración(es) aplicada(s)`);
+  } finally {
+    try {
+      await masterSource.destroy();
+    } catch {
+      /* ignore */
     }
+  }
+
+  await AppDataSource.initialize();
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('✅ SQL Server conectado');
+  }
+
+  const applied = await AppDataSource.runMigrations();
+  if (applied.length > 0 && process.env.NODE_ENV !== 'test') {
+    console.log(`✅ ${applied.length} migración(es) aplicada(s)`);
+  }
+}
+
+export const initDatabase = async (): Promise<void> => {
+  try {
+    await initDatabaseForTests();
   } catch (error) {
     console.error('❌ Error conectando a SQL Server:', error);
     process.exit(1);

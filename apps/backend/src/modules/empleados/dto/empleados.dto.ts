@@ -7,6 +7,8 @@ export const createEmpleadoSchema = z.object({
   rol:      z.enum(['admin', 'cajero', 'soporte']),
   password: z.string().min(6),
   foto:     z.string().url().optional(),
+  /** Obligatorio para cajero y soporte; omitir o null para administrador */
+  tiendaId: z.number().int().positive().optional().nullable(),
 });
 
 export const updateEmpleadoSchema = createEmpleadoSchema.omit({ password: true }).partial().extend({

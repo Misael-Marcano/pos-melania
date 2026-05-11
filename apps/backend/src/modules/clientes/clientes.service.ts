@@ -1,25 +1,28 @@
 import { ILike, FindOptionsWhere } from 'typeorm';
-import { Request } from 'express';
 import { AppDataSource } from '../../config/database';
 import { Cliente }     from '../../entities/Cliente.entity';
 import { Venta }       from '../../entities/Venta.entity';
 import { PagoCredito } from '../../entities/PagoCredito.entity';
 import { AppError }    from '../../middlewares/error.middleware';
+import { AuthRequest } from '../../middlewares/auth.middleware';
 import { getPagination } from '../../utils/pagination';
+import { tenantIdOrThrow } from '../../utils/tenant-access';
+import { AuthUser } from '@pos/shared';
 import { CreateClienteDto, UpdateClienteDto } from './dto/cliente.dto';
 
 const repo = () => AppDataSource.getRepository(Cliente);
 
 export class ClientesService {
-  async findAll(req: Request) {
+  async findAll(req: AuthRequest) {
     const { page, limit, skip } = getPagination(req);
     const q = req.query.q as string | undefined;
+    const tid = tenantIdOrThrow(req.user);
 
-    let where: FindOptionsWhere<Cliente> | FindOptionsWhere<Cliente>[] = { activo: true };
+    let where: FindOptionsWhere<Cliente> | FindOptionsWhere<Cliente>[] = { activo: true, tenant: { id: tid } };
     if (q) {
       where = [
-        { activo: true, nombre:               ILike(`%${q}%`) },
-        { activo: true, numeroIdentificacion: ILike(`%${q}%`) },
+        { activo: true, tenant: { id: tid }, nombre:               ILike(`%${q}%`) },
+        { activo: true, tenant: { id: tid }, numeroIdentificacion: ILike(`%${q}%`) },
       ];
     }
 
@@ -32,32 +35,35 @@ export class ClientesService {
     return { data, total, page, limit };
   }
 
-  async findById(id: number): Promise<Cliente> {
-    const c = await repo().findOne({ where: { id, activo: true } });
+  async findById(id: number, user: AuthUser): Promise<Cliente> {
+    const tid = tenantIdOrThrow(user);
+    const c = await repo().findOne({ where: { id, activo: true, tenant: { id: tid } } });
     if (!c) throw new AppError('Cliente no encontrado', 404);
     return c;
   }
 
-  async create(dto: CreateClienteDto): Promise<Cliente> {
-    const c = repo().create(dto);
+  async create(dto: CreateClienteDto, user: AuthUser): Promise<Cliente> {
+    const tid = tenantIdOrThrow(user);
+    const c = repo().create({ ...dto, tenant: { id: tid } as any });
     return repo().save(c);
   }
 
-  async update(id: number, dto: UpdateClienteDto): Promise<Cliente> {
-    const c = await this.findById(id);
+  async update(id: number, dto: UpdateClienteDto, user: AuthUser): Promise<Cliente> {
+    const c = await this.findById(id, user);
     Object.assign(c, dto);
     return repo().save(c);
   }
 
-  async delete(id: number): Promise<void> {
-    const c = await this.findById(id);
+  async delete(id: number, user: AuthUser): Promise<void> {
+    const c = await this.findById(id, user);
     c.activo = false;
     await repo().save(c);
   }
 
-  async getHistorialVentas(id: number) {
+  async getHistorialVentas(id: number, user: AuthUser) {
+    const tid = tenantIdOrThrow(user);
     const c = await repo().findOne({
-      where: { id },
+      where: { id, tenant: { id: tid } },
       relations: ['ventas', 'ventas.detalles', 'ventas.detalles.articulo'],
       order: { ventas: { fecha: 'DESC' } },
     });
@@ -67,13 +73,13 @@ export class ClientesService {
 
   // ── Crédito ───────────────────────────────────────────────────────────────
 
-  async getEstadoCuenta(clienteId: number) {
-    const cliente = await this.findById(clienteId);
+  async getEstadoCuenta(clienteId: number, user: AuthUser) {
+    const cliente = await this.findById(clienteId, user);
 
     // Ventas en crédito (cargos)
     const ventaRepo = AppDataSource.getRepository(Venta);
     const ventasCredito = await ventaRepo.find({
-      where: { cliente: { id: clienteId }, metodoPago: 'CREDITO' },
+      where: { cliente: { id: clienteId, tenant: { id: tenantIdOrThrow(user) } }, metodoPago: 'CREDITO' },
       relations: ['detalles', 'detalles.articulo'],
       order: { fecha: 'DESC' },
     });
@@ -81,7 +87,7 @@ export class ClientesService {
     // Pagos recibidos (abonos)
     const pagoRepo = AppDataSource.getRepository(PagoCredito);
     const pagos = await pagoRepo.find({
-      where: { cliente: { id: clienteId } },
+      where: { cliente: { id: clienteId, tenant: { id: tenantIdOrThrow(user) } } },
       relations: ['creadoPor'],
       order: { createdAt: 'DESC' },
     });
@@ -119,8 +125,8 @@ export class ClientesService {
     };
   }
 
-  async registrarAbono(clienteId: number, monto: number, notas: string | undefined, usuarioId: number) {
-    const cliente = await this.findById(clienteId);
+  async registrarAbono(clienteId: number, monto: number, notas: string | undefined, usuarioId: number, user: AuthUser) {
+    const cliente = await this.findById(clienteId, user);
 
     if (monto <= 0) throw new AppError('El monto debe ser mayor a cero', 400);
     if (monto > Number(cliente.saldo)) {
@@ -143,9 +149,10 @@ export class ClientesService {
     });
   }
 
-  async getClientesConSaldo() {
+  async getClientesConSaldo(user: AuthUser) {
+    const tid = tenantIdOrThrow(user);
     const [data, total] = await repo().findAndCount({
-      where: { activo: true },
+      where: { activo: true, tenant: { id: tid } },
       order: { saldo: 'DESC' },
     });
     // Solo los que tienen saldo > 0

@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { useHistorialCajas } from '@/hooks/useVentas';
+import { useQueryClient } from '@tanstack/react-query';
+import { useHistorialCajas, useCajasAbiertas, CAJA_KEY } from '@/hooks/useVentas';
 import { ICajaApertura }     from '@/services/ventas.service';
 import { ventasService }     from '@/services/ventas.service';
 import { PageHeader }        from '@/components/layout/PageHeader';
 import { formatCurrency }    from '@/lib/utils';
 import { toast }             from '@/store/toast.store';
+import { useAuthStore }      from '@/store/auth.store';
+import { ModalOverlay }      from '@/components/ui/ModalOverlay';
+import { CierreCaja }        from '@/components/ventas/CierreCaja';
 import {
   Store, Calendar, User, DollarSign, ChevronLeft, ChevronRight,
-  Download, CheckCircle, Clock,
+  Download, CheckCircle, Clock, Lock, Building2,
 } from 'lucide-react';
 
 function fmt(dateStr?: string) {
@@ -154,11 +158,21 @@ function CajaCard({ caja }: { caja: ICajaApertura }) {
 export default function CierresCajaPage() {
   const [page, setPage] = useState(1);
   const LIMIT = 12;
+  const [cerrando, setCerrando] = useState<ICajaApertura | null>(null);
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol === 'admin';
 
   const { data, isLoading } = useHistorialCajas(page, LIMIT);
   const cierres  = data?.data ?? [];
   const total    = data?.total ?? 0;
   const totalPag = Math.ceil(total / LIMIT);
+
+  const { data: abiertas = [], isLoading: loadingAbiertas } = useCajasAbiertas();
+
+  const invalidateCaja = () => {
+    qc.invalidateQueries({ queryKey: [CAJA_KEY] });
+  };
 
   return (
     <div className="space-y-6">
@@ -166,6 +180,78 @@ export default function CierresCajaPage() {
         title="Historial de Cierres"
         breadcrumb={['Panel', 'Ventas', 'Cierres de Caja']}
       />
+
+      {!loadingAbiertas && abiertas.length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50/90 to-white border border-amber-100 rounded-[12px] p-5 shadow-card">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <Lock size={20} className="text-amber-700" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-navy-800">Cajas abiertas ahora</h2>
+              <p className="text-xs text-navy-500 mt-1">
+                {isAdmin
+                  ? 'Como administrador puedes cerrar la sesión de cualquier caja y sucursal sin usar el POS.'
+                  : 'Sesiones abiertas en tu sucursal. Puedes cerrar desde aquí sin ir al punto de venta.'}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {abiertas.map((c) => (
+              <div
+                key={c.id}
+                className="bg-white border border-navy-100 rounded-xl p-4 flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-navy-800 text-sm">{c.cajaNombre}</p>
+                  <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Abierta
+                  </span>
+                </div>
+                {c.tienda && (
+                  <p className="text-xs text-navy-500 flex items-center gap-1">
+                    <Building2 size={12} className="shrink-0" /> {c.tienda.nombre}
+                  </p>
+                )}
+                {c.usuario && (
+                  <p className="text-xs text-navy-400 flex items-center gap-1">
+                    <User size={12} /> {c.usuario.nombre}
+                  </p>
+                )}
+                <p className="text-[11px] text-navy-400">
+                  Apertura · {fmt(c.fechaApertura)} · {formatCurrency(Number(c.montoApertura))}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCerrando(c)}
+                  className="mt-1 btn-primary text-xs py-2 w-full"
+                >
+                  Cerrar esta caja
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {cerrando && (
+        <ModalOverlay onClose={() => setCerrando(null)} zIndex="z-[300]">
+          <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[12px] shadow-float">
+            <CierreCaja
+              aperturaId={cerrando.id}
+              montoApertura={Number(cerrando.montoApertura)}
+              fechaApertura={cerrando.fechaApertura}
+              cajaNombre={cerrando.cajaNombre}
+              onCerrada={() => {
+                setCerrando(null);
+                invalidateCaja();
+                toast.success('Caja cerrada');
+              }}
+              onVolver={() => setCerrando(null)}
+            />
+          </div>
+        </ModalOverlay>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center h-48">

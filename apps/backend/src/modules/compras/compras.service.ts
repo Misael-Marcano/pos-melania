@@ -2,12 +2,17 @@ import { AppDataSource } from '../../config/database';
 import { OrdenCompra, EstadoOrden } from '../../entities/OrdenCompra.entity';
 import { OrdenCompraDetalle } from '../../entities/OrdenCompraDetalle.entity';
 import { Articulo } from '../../entities/Articulo.entity';
+import { Proveedor } from '../../entities/Proveedor.entity';
 import { AppError } from '../../middlewares/error.middleware';
 import { registrarMovimiento } from '../inventario/inventario.service';
+import { assertTenantMatch, tenantIdOrThrow } from '../../utils/tenant-access';
+import { assertFeatureEnabled } from '../../saas/enforce-plan';
+import { AuthUser } from '@pos/shared';
 
-const repo       = () => AppDataSource.getRepository(OrdenCompra);
+const repo        = () => AppDataSource.getRepository(OrdenCompra);
 const detalleRepo = () => AppDataSource.getRepository(OrdenCompraDetalle);
-const artRepo    = () => AppDataSource.getRepository(Articulo);
+const artRepo     = () => AppDataSource.getRepository(Articulo);
+const provRepo    = () => AppDataSource.getRepository(Proveedor);
 
 export interface DetalleInput {
   articuloId:    number;
@@ -29,38 +34,55 @@ export interface RecibirDetalleInput {
 
 export class ComprasService {
 
-  async findAll(estado?: string) {
+  async findAll(estado: string | undefined, user: AuthUser) {
+    const tid = tenantIdOrThrow(user);
     const qb = repo()
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.proveedor', 'prov')
       .leftJoinAndSelect('o.creadoPor', 'usr')
       .leftJoinAndSelect('o.detalles', 'd')
       .leftJoinAndSelect('d.articulo', 'art')
+      .where('o.tenantId = :tid', { tid })
       .orderBy('o.createdAt', 'DESC');
 
-    if (estado) qb.where('o.estado = :estado', { estado });
+    if (estado) qb.andWhere('o.estado = :estado', { estado });
 
     return qb.getMany();
   }
 
-  async findById(id: number): Promise<OrdenCompra> {
+  async findById(id: number, user: AuthUser): Promise<OrdenCompra> {
     const o = await repo().findOne({
       where: { id },
-      relations: ['proveedor', 'creadoPor', 'detalles', 'detalles.articulo'],
+      relations: ['proveedor', 'creadoPor', 'detalles', 'detalles.articulo', 'tenant'],
     });
     if (!o) throw new AppError('Orden no encontrada', 404);
+    assertTenantMatch(user, o.tenant?.id);
     return o;
   }
 
-  async create(data: CreateOrdenInput, usuarioId: number): Promise<OrdenCompra> {
+  async create(data: CreateOrdenInput, usuarioId: number, user: AuthUser): Promise<OrdenCompra> {
     if (!data.detalles || data.detalles.length === 0) {
       throw new AppError('La orden debe tener al menos un artículo', 400);
+    }
+
+    const tid = tenantIdOrThrow(user);
+    await assertFeatureEnabled(tid, 'compras');
+
+    if (data.proveedorId) {
+      const prov = await provRepo().findOne({ where: { id: data.proveedorId, tenant: { id: tid } } });
+      if (!prov) throw new AppError('Proveedor no encontrado', 404);
+    }
+
+    for (const d of data.detalles) {
+      const art = await artRepo().findOne({ where: { id: d.articuloId, tenant: { id: tid } } });
+      if (!art) throw new AppError(`Artículo ID ${d.articuloId} no encontrado en su organización`, 404);
     }
 
     const orden = repo().create({
       estado:        'BORRADOR',
       notas:         data.notas,
       fechaEsperada: data.fechaEsperada,
+      tenant:        { id: tid } as any,
       proveedor:     data.proveedorId ? { id: data.proveedorId } as any : undefined,
       creadoPor:     { id: usuarioId } as any,
     });
@@ -80,10 +102,16 @@ export class ComprasService {
     return repo().save(orden);
   }
 
-  async update(id: number, data: Partial<CreateOrdenInput>): Promise<OrdenCompra> {
-    const orden = await this.findById(id);
+  async update(id: number, data: Partial<CreateOrdenInput>, user: AuthUser): Promise<OrdenCompra> {
+    const tid = tenantIdOrThrow(user);
+    const orden = await this.findById(id, user);
     if (orden.estado !== 'BORRADOR') {
       throw new AppError('Solo se pueden editar órdenes en estado BORRADOR', 400);
+    }
+
+    if (data.proveedorId) {
+      const prov = await provRepo().findOne({ where: { id: data.proveedorId, tenant: { id: tid } } });
+      if (!prov) throw new AppError('Proveedor no encontrado', 404);
     }
 
     if (data.notas         !== undefined) orden.notas         = data.notas;
@@ -93,7 +121,10 @@ export class ComprasService {
     }
 
     if (data.detalles && data.detalles.length > 0) {
-      // Reemplazar detalles
+      for (const d of data.detalles) {
+        const art = await artRepo().findOne({ where: { id: d.articuloId, tenant: { id: tid } } });
+        if (!art) throw new AppError(`Artículo ID ${d.articuloId} no encontrado en su organización`, 404);
+      }
       await detalleRepo().delete({ orden: { id } });
       orden.detalles = data.detalles.map((d) =>
         detalleRepo().create({
@@ -109,8 +140,8 @@ export class ComprasService {
     return repo().save(orden);
   }
 
-  async cambiarEstado(id: number, nuevoEstado: EstadoOrden): Promise<OrdenCompra> {
-    const orden = await this.findById(id);
+  async cambiarEstado(id: number, nuevoEstado: EstadoOrden, user: AuthUser): Promise<OrdenCompra> {
+    const orden = await this.findById(id, user);
 
     const transiciones: Record<EstadoOrden, EstadoOrden[]> = {
       BORRADOR:  ['ENVIADA', 'CANCELADA'],
@@ -132,8 +163,10 @@ export class ComprasService {
   async recibirOrden(
     id: number,
     recepciones: RecibirDetalleInput[],
+    user: AuthUser,
   ): Promise<OrdenCompra> {
-    const orden = await this.findById(id);
+    const tid = tenantIdOrThrow(user);
+    const orden = await this.findById(id, user);
 
     if (orden.estado !== 'ENVIADA' && orden.estado !== 'BORRADOR') {
       throw new AppError('Solo se pueden recibir órdenes ENVIADAS o BORRADORES', 400);
@@ -150,12 +183,12 @@ export class ComprasService {
         detalle.cantidadRecibida += recibir;
         await em.save(OrdenCompraDetalle, detalle);
 
-        // Actualizar stock y costo promedio ponderado
-        const art = await em.findOne(Articulo, { where: { id: detalle.articulo.id } });
+        const art = await em.findOne(Articulo, {
+          where: { id: detalle.articulo.id, tenant: { id: tid } },
+        });
         if (art) {
           const stockAntes = art.cantidad ?? 0;
           const costoAntes = Number(art.costo ?? 0);
-          // Costo promedio ponderado: (costoActual * stockActual + nuevoCosto * nuevaCantidad) / stockTotal
           const nuevoCosto = stockAntes > 0
             ? (costoAntes * stockAntes + Number(detalle.costoUnitario) * recibir) / (stockAntes + recibir)
             : Number(detalle.costoUnitario);
@@ -175,7 +208,6 @@ export class ComprasService {
         }
       }
 
-      // Si todos los detalles están completamente recibidos → RECIBIDA
       const todosRecibidos = orden.detalles.every(
         (d) => d.cantidadRecibida >= d.cantidad
       );
@@ -183,17 +215,16 @@ export class ComprasService {
         orden.estado        = 'RECIBIDA';
         orden.fechaRecibida = new Date();
       } else {
-        // Recepción parcial → dejar en ENVIADA
         orden.estado = 'ENVIADA';
       }
 
       await em.save(OrdenCompra, orden);
     });
 
-    return this.findById(id);
+    return this.findById(id, user);
   }
 
-  async cancelar(id: number): Promise<OrdenCompra> {
-    return this.cambiarEstado(id, 'CANCELADA');
+  async cancelar(id: number, user: AuthUser): Promise<OrdenCompra> {
+    return this.cambiarEstado(id, 'CANCELADA', user);
   }
 }

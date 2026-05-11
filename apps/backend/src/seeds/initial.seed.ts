@@ -5,6 +5,7 @@ import { Usuario } from '../entities/Usuario.entity';
 import { Configuracion } from '../entities/Configuracion.entity';
 import { Comprobante } from '../entities/Comprobante.entity';
 import { Tienda } from '../entities/Tienda.entity';
+import { Tenant } from '../entities/Tenant.entity';
 
 async function seed() {
   await AppDataSource.initialize();
@@ -14,12 +15,21 @@ async function seed() {
   const configRepo       = AppDataSource.getRepository(Configuracion);
   const comprobanteRepo  = AppDataSource.getRepository(Comprobante);
   const tiendaRepo       = AppDataSource.getRepository(Tienda);
+  const tenantRepo       = AppDataSource.getRepository(Tenant);
+
+  let tenantDefault = await tenantRepo.findOne({ where: { slug: 'default' } });
+  if (!tenantDefault) {
+    tenantDefault = await tenantRepo.save(
+      tenantRepo.create({ nombre: 'Organización por defecto', slug: 'default', activo: true }),
+    );
+  }
 
   // ── Usuarios por rol ──────────────────────────────────────────────────────
   const usuarios = [
     { nombre: 'Administrador',      email: 'admin@pos.com',                 password: 'Admin123!',    rol: 'admin'    as const },
     { nombre: 'Cajero Principal',   email: 'cajero@pos.com',                password: 'Cajero123!',   rol: 'cajero'   as const },
     { nombre: 'Soporte Técnico',    email: 'soporte@wilmaxdigital.com',      password: 'Soporte123!',  rol: 'soporte'  as const },
+    { nombre: 'Plataforma',         email: 'plataforma@pos.com',             password: 'Plataforma123!', rol: 'plataforma' as const },
   ];
 
   for (const u of usuarios) {
@@ -28,6 +38,7 @@ async function seed() {
       const hash = await bcrypt.hash(u.password, 10);
       await usuarioRepo.save(usuarioRepo.create({
         nombre: u.nombre, email: u.email, passwordHash: hash, rol: u.rol,
+        tenant: tenantDefault,
       }));
       console.log(`  ✅ Usuario creado: ${u.email} (${u.rol})`);
     } else {
@@ -36,10 +47,11 @@ async function seed() {
   }
 
   // ── Configuración inicial ─────────────────────────────────────────────────
-  const cfgExiste = await configRepo.findOne({ where: {} });
+  const cfgExiste = await configRepo.findOne({ where: { tenant: { id: tenantDefault.id } } });
   if (!cfgExiste) {
     await configRepo.save(configRepo.create({
-      nombreCompania:          'MELANIA SOPA EIRL',
+      tenant:                  tenantDefault,
+      nombreCompania:          'Mi empresa (demo)',
       rnc:                     '132428668',
       simboloMoneda:           'RDS',
       numeroDecimales:         2,
@@ -63,7 +75,7 @@ async function seed() {
   for (const c of comprobantes) {
     const existe = await comprobanteRepo.findOne({ where: { tipo: c.tipo } });
     if (!existe) {
-      await comprobanteRepo.save(comprobanteRepo.create(c));
+      await comprobanteRepo.save(comprobanteRepo.create({ ...c, tenant: tenantDefault }));
       console.log(`  ✅ Comprobante ${c.tipo} creado`);
     }
   }
@@ -75,6 +87,7 @@ async function seed() {
       nombre:    'PRINCIPAL',
       direccion: 'EL EJIDO, CALLE 15 NUMERO 26, SANTIAGO DE LOS CABALLEROS.',
       telefono:  '809 583 1012',
+      tenant:    tenantDefault,
     }));
     console.log('  ✅ Tienda principal creada');
   }

@@ -13,9 +13,9 @@ interface Props {
   onClose: () => void;
 }
 
-const EJEMPLO_CSV = `codigoBarras,nombre,precioVenta,costo,cantidad,tamanio,categoriaId
-001,Producto de ejemplo,150.00,80.00,100,Grande,1
-002,Otro producto,200.00,110.00,50,,1`;
+const EJEMPLO_CSV = `codigoBarras,nombre,precioVenta,costo,cantidad,tamanio,unidadMedida,categoriaId
+001,Producto de ejemplo,150.00,80.00,100,Grande,und,1
+002,Otro producto,200.00,110.00,50,,kg,1`;
 
 export function ImportarCSVModal({ open, onClose }: Props) {
   const qc = useQueryClient();
@@ -87,7 +87,7 @@ export function ImportarCSVModal({ open, onClose }: Props) {
           <p className="font-semibold text-navy-700">Columnas requeridas:</p>
           <p className="font-mono">codigoBarras, nombre, precioVenta, categoriaId</p>
           <p className="font-semibold text-navy-700 pt-1">Columnas opcionales:</p>
-          <p className="font-mono">costo, cantidad, tamanio</p>
+          <p className="font-mono">costo, cantidad, tamanio, unidadMedida</p>
           <button onClick={descargarEjemplo} className="flex items-center gap-1.5 text-primary-600 hover:underline mt-2 font-medium">
             <Download size={12} /> Descargar ejemplo
           </button>

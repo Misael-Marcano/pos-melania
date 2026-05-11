@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
 import { toast } from '@/store/toast.store';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,19 @@ function CrearModal({ onClose }: { onClose: () => void }) {
     const sel = seleccion[d.id];
     return s + (sel?.cantidad ?? 0) * Number(d.precioUnitario);
   }, 0);
+
+  // Scanner en paso detalle: escanear el código de un artículo lo marca/desmarca
+  useBarcodeScanner((codigo) => {
+    if (step !== 'detalle' || !venta) return;
+    const detalle = venta.detalles.find(
+      (d) => d.articulo?.codigoBarras === codigo
+    );
+    if (detalle) {
+      toggleDetalle(detalle.id);
+    } else {
+      toast.info(`Artículo con código "${codigo}" no está en esta venta`);
+    }
+  }, { disabled: step !== 'detalle' });
 
   const handleSubmit = async () => {
     if (!venta) return;

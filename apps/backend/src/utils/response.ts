@@ -12,9 +12,10 @@ export const sendSuccess = <T>(
 export const sendError = (
   res: Response,
   message: string,
-  statusCode = 400
+  statusCode = 400,
+  data: unknown = null,
 ) => {
-  return res.status(statusCode).json({ success: false, message, data: null });
+  return res.status(statusCode).json({ success: false, message, data });
 };
 
 export const sendPaginated = <T>(

@@ -2,34 +2,39 @@
 
 import { useState } from 'react';
 import { useEmpleados, useCrearEmpleado, useActualizarEmpleado, useEliminarEmpleado } from '@/hooks/useEmpleados';
+import { useTiendas } from '@/hooks/useTiendas';
 import { useAuthStore } from '@/store/auth.store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { IEmpleado } from '@pos/shared';
-import { Plus, Pencil, Trash2, X, Loader2, Users, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Loader2, Users, AlertTriangle, Eye, EyeOff, Store } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
 import { toast } from '@/store/toast.store';
+import type { CreateEmpleadoPayload, UpdateEmpleadoPayload } from '@/services/empleados.service';
 
 const ROL_BADGE: Record<string, string> = {
-  admin:   'badge-red',
-  cajero:  'badge-green',
-  soporte: 'badge-blue',
+  admin:       'badge-red',
+  cajero:      'badge-green',
+  soporte:     'badge-blue',
+  plataforma:  'badge-orange',
 };
 
 const ROL_LABEL: Record<string, string> = {
-  admin:   'Administrador',
-  cajero:  'Cajero',
-  soporte: 'Soporte',
+  admin:       'Administrador',
+  cajero:      'Cajero',
+  soporte:     'Soporte',
+  plataforma:  'Plataforma',
 };
 
 interface FormState {
   nombre:    string;
   correo:    string;
   telefono:  string;
-  rol:       'admin' | 'cajero' | 'soporte';
+  rol:       'admin' | 'cajero' | 'soporte' | 'plataforma';
   password:  string;
+  tiendaId:  number | '';
 }
 
-const EMPTY: FormState = { nombre: '', correo: '', telefono: '', rol: 'cajero', password: '' };
+const EMPTY: FormState = { nombre: '', correo: '', telefono: '', rol: 'cajero', password: '', tiendaId: '' };
 
 function EmpleadoModal({
   empleado,
@@ -38,9 +43,18 @@ function EmpleadoModal({
   empleado: IEmpleado | null;
   onClose: () => void;
 }) {
+  const { data: tiendas = [] } = useTiendas();
+
   const [form, setForm] = useState<FormState>(
     empleado
-      ? { nombre: empleado.nombre, correo: empleado.correo, telefono: empleado.telefono ?? '', rol: empleado.rol, password: '' }
+      ? {
+          nombre:   empleado.nombre,
+          correo:   empleado.correo,
+          telefono: empleado.telefono ?? '',
+          rol:      empleado.rol,
+          password: '',
+          tiendaId: empleado.tiendaId != null ? empleado.tiendaId : '',
+        }
       : EMPTY
   );
   const [error, setError]       = useState('');
@@ -50,17 +64,33 @@ function EmpleadoModal({
   const actualizar = useActualizarEmpleado();
   const isPending  = crear.isPending || actualizar.isPending;
 
-  const set = (k: keyof FormState, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof FormState, v: string | number | '') => setForm((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async () => {
     if (!form.nombre.trim()) { setError('El nombre es obligatorio'); return; }
     if (!form.correo.trim()) { setError('El correo es obligatorio'); return; }
     if (!empleado && !form.password) { setError('La contraseña es obligatoria'); return; }
     if (form.password && form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (form.rol !== 'admin' && form.rol !== 'plataforma' && form.tiendaId === '') {
+      setError('Selecciona la sucursal asignada a este usuario');
+      return;
+    }
     try {
       setError('');
+      if (form.rol === 'plataforma' && !empleado) {
+        setError('El rol plataforma no se asigna desde este formulario');
+        return;
+      }
       if (empleado) {
-        const payload: any = { nombre: form.nombre, correo: form.correo, telefono: form.telefono || undefined, rol: form.rol };
+        const payload: UpdateEmpleadoPayload = {
+          nombre: form.nombre,
+          correo: form.correo,
+          telefono: form.telefono || undefined,
+          tiendaId: form.rol === 'admin' || form.rol === 'plataforma' ? null : Number(form.tiendaId),
+        };
+        if (form.rol !== 'plataforma') {
+          payload.rol = form.rol;
+        }
         if (form.password) payload.password = form.password;
         await actualizar.mutateAsync({ id: empleado.id, payload });
       } else {
@@ -68,8 +98,9 @@ function EmpleadoModal({
           nombre:   form.nombre,
           correo:   form.correo,
           telefono: form.telefono || undefined,
-          rol:      form.rol,
+          rol:      form.rol as CreateEmpleadoPayload['rol'],
           password: form.password,
+          tiendaId: form.rol === 'admin' ? null : Number(form.tiendaId),
         });
       }
       onClose();
@@ -110,7 +141,10 @@ function EmpleadoModal({
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Rol del sistema</label>
             <div className="grid grid-cols-3 gap-2">
               {(['cajero', 'soporte', 'admin'] as const).map((r) => (
-                <button key={r} type="button" onClick={() => set('rol', r)}
+                <button key={r} type="button" onClick={() => {
+                  set('rol', r);
+                  if (r === 'admin') set('tiendaId', '');
+                }}
                   className={`py-2 rounded-lg border text-sm font-medium transition-all ${
                     form.rol === r
                       ? 'bg-gradient-to-br from-primary-600 to-primary-500 text-white border-transparent'
@@ -122,8 +156,32 @@ function EmpleadoModal({
             </div>
             <p className="text-xs text-navy-400 mt-1.5">
               {form.rol === 'admin' && 'Acceso completo al sistema'}
+              {form.rol === 'plataforma' && 'Operador de plataforma (multi-organización)'}
               {form.rol === 'cajero' && 'Puede hacer ventas y gestionar inventario'}
               {form.rol === 'soporte' && 'Acceso de solo lectura y reportes'}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-navy-700 mb-1.5 flex items-center gap-1.5">
+              <Store size={14} className="text-navy-400" />
+              Sucursal {form.rol !== 'admin' && form.rol !== 'plataforma' ? '*' : '(solo no administradores)'}
+            </label>
+            <select
+              className="input-field"
+              value={form.tiendaId === '' ? '' : String(form.tiendaId)}
+              onChange={(e) => set('tiendaId', e.target.value === '' ? '' : Number(e.target.value))}
+              disabled={form.rol === 'admin' || form.rol === 'plataforma'}
+            >
+              <option value="">{(form.rol === 'admin' || form.rol === 'plataforma') ? '— No aplica (ve todas las sucursales) —' : 'Seleccionar…'}</option>
+              {tiendas.filter((t) => t.activo).map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+            <p className="text-xs text-navy-400 mt-1">
+              {form.rol === 'admin' || form.rol === 'plataforma'
+                ? 'Los administradores y plataforma no llevan sucursal fija en este formulario.'
+                : 'El usuario solo podrá abrir caja y vender en esta sucursal.'}
             </p>
           </div>
 
@@ -186,7 +244,7 @@ export default function EmpleadosPage() {
     finally { setConfirmId(null); }
   };
 
-  const isAdmin = currentUser?.rol === 'admin';
+  const isAdmin = currentUser?.rol === 'admin' || currentUser?.rol === 'plataforma';
 
   return (
     <>
@@ -242,6 +300,12 @@ export default function EmpleadosPage() {
                     </div>
                     <p className="text-sm text-navy-400 mt-0.5">{emp.correo}</p>
                     {emp.telefono && <p className="text-xs text-navy-400">{emp.telefono}</p>}
+                    {emp.rol !== 'admin' && emp.rol !== 'plataforma' && (emp.tiendaNombre || emp.tiendaId) && (
+                      <p className="text-xs text-navy-500 mt-1">
+                        <span className="text-navy-400">Sucursal:</span>{' '}
+                        {emp.tiendaNombre ?? `#${emp.tiendaId}`}
+                      </p>
+                    )}
                   </div>
 
                   {/* Acciones */}

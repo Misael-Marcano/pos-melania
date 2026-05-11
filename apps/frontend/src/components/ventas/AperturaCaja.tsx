@@ -21,10 +21,14 @@ const DENOMINACIONES = [
 
 interface Props {
   cajaNombre: string;
+  /** Catálogo (configuración) — abre sesión vinculada a la caja */
+  cajaId?:    number | null;
+  /** Sucursal (de configuración) — varias tiendas / una caja por sucursal */
+  tiendaId?:  number | null;
   onAbierta:  (aperturaId: number) => void;
 }
 
-export function AperturaCaja({ cajaNombre, onAbierta }: Props) {
+export function AperturaCaja({ cajaNombre, cajaId, tiendaId, onAbierta }: Props) {
   const [cantidades, setCantidades] = useState<Record<string, number>>(
     Object.fromEntries(DENOMINACIONES.map((d) => [d.value, 0]))
   );
@@ -43,9 +47,12 @@ export function AperturaCaja({ cajaNombre, onAbierta }: Props) {
   const handleAbrir = async () => {
     try {
       const result = await abrir.mutateAsync({
-        cajaNombre,
         denominaciones: cantidades,
         montoApertura:  montoTotal,
+        ...(cajaId != null && cajaId > 0
+          ? { cajaId }
+          : { cajaNombre }),
+        ...(tiendaId && (!cajaId || cajaId <= 0) ? { tiendaId } : {}),
       });
       onAbierta(result.id);
     } catch (e: unknown) {

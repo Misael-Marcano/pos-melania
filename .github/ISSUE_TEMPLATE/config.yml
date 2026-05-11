@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing
+    url: https://github.com/Misael-Marcano/pos-melania/blob/main/CONTRIBUTING.md
+    about: Guía para clonar, desarrollar y abrir PRs en el monorepo.
+  - name: Security policy
+    url: https://github.com/Misael-Marcano/pos-melania/blob/main/SECURITY.md
+    about: Divulgación responsable de vulnerabilidades.

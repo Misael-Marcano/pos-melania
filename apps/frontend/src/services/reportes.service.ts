@@ -46,6 +46,26 @@ export interface TopCliente {
   saldo: number; totalTransacciones: number; totalCompras: number;
 }
 
+export interface ResumenPorSucursal {
+  tienda: { id: number; nombre: string };
+  desde: string;
+  hasta: string;
+  ventas: { transacciones: number; total: number };
+  ventasPorMetodo: { metodoPago: string; cantidad: number; total: number }[];
+  gastos: { registros: number; total: number };
+  gastosPorCategoria: { categoria: string; total: number; n: number }[];
+  sesionesCaja: {
+    id: number;
+    cajaNombre: string;
+    cajaId: number | null;
+    montoApertura: number;
+    montoCierre: number | null;
+    fechaApertura: string;
+    fechaCierre: string | null;
+    abierta: boolean;
+  }[];
+}
+
 export const reportesService = {
   ventasPorDia: async (desde: string, hasta: string): Promise<VentaDia[]> => {
     const { data } = await apiClient.get('/reportes/ventas-por-dia', { params: { desde, hasta } });
@@ -74,6 +94,11 @@ export const reportesService = {
 
   topClientes: async (desde: string, hasta: string, limit = 10): Promise<TopCliente[]> => {
     const { data } = await apiClient.get('/reportes/top-clientes', { params: { desde, hasta, limit } });
+    return data.data;
+  },
+
+  resumenPorSucursal: async (tiendaId: number, desde: string, hasta: string): Promise<ResumenPorSucursal> => {
+    const { data } = await apiClient.get(`/reportes/por-sucursal/${tiendaId}`, { params: { desde, hasta } });
     return data.data;
   },
 

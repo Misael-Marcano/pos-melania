@@ -1,0 +1,11 @@
+---
+description: Priorizar siguiente trabajo sin preguntar al usuario en cada turno
+alwaysApply: true
+---
+
+# Desarrollo autónomo (roadmap)
+
+- No pedir confirmación de “con qué seguimos” en cada mensaje: elegir el siguiente paso según `docs/PLAN-EVOLUCION-POS-GENERICO.md`, `docs/PLAN-MEJORAS.md` y el estado real del código.
+- Orden de criterio: correcciones de bugs / deuda técnica que bloqueen → mejoras alineadas al plan → documentación solo cuando cierre una pieza relevante.
+- Mantener cambios acotados; ejecutar tests o typecheck del paquete tocado cuando aplique.
+- Si hay ambigüedad fuerte (producto, legal, claves de terceros), entonces sí acotar con el usuario.

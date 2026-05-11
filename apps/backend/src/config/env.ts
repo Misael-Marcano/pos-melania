@@ -21,6 +21,11 @@ const envSchema = z.object({
 
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
+
+  /**
+   * Si `true` o `1`, `POST /auth/login` exige cabecera `X-Tenant-Slug` (despliegue multi-org estricto).
+   */
+  LOGIN_REQUIRE_TENANT_SLUG: z.string().default('false'),
 });
 
 const parsed = envSchema.safeParse(process.env);

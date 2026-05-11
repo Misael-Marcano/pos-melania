@@ -24,20 +24,21 @@ export function SalesChart() {
   });
 
   return (
-    <div className="bg-white rounded-[12px] shadow-card p-5">
+    <div className="bg-white rounded-[12px] shadow-card p-5 transition-shadow hover:shadow-card-hover">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="font-bold text-navy-800 font-display">Ventas</h3>
+          <h3 className="font-bold text-navy-800 font-display text-lg tracking-tight">Ventas</h3>
           <p className="text-xs text-navy-400 mt-0.5">Resumen del período</p>
         </div>
-        <div className="flex gap-1 bg-navy-50 p-1 rounded-lg">
+        <div className="flex gap-1 bg-navy-50/80 p-1 rounded-xl">
           {(['mes', 'semana'] as const).map((v) => (
             <button
               key={v}
+              type="button"
               onClick={() => setView(v)}
-              className={`px-3 py-1.5 text-xs rounded-md font-semibold transition-all duration-150 ${
+              className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all duration-150 ${
                 view === v
-                  ? 'bg-white text-navy-800 shadow-sm'
+                  ? 'bg-white text-navy-800 shadow-ambient'
                   : 'text-navy-500 hover:text-navy-700'
               }`}
             >
@@ -49,7 +50,7 @@ export function SalesChart() {
 
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E8EBEA" vertical={false} />
           <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} width={40} />
           <Tooltip

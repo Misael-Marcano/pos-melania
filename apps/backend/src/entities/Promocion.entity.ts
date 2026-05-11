@@ -1,7 +1,8 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
+import { Tenant } from './Tenant.entity';
 
 export type TipoPromocion = 'PORCENTAJE' | 'MONTO_FIJO';
 
@@ -10,7 +11,11 @@ export class Promocion {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 50, unique: true })
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
+
+  @Column({ length: 50 })
   codigo: string;
 
   @Column({ length: 200 })

@@ -2,23 +2,23 @@ import { AppDataSource }     from '../../config/database';
 import { Cotizacion }        from '../../entities/Cotizacion.entity';
 import { CotizacionDetalle } from '../../entities/CotizacionDetalle.entity';
 import { Articulo }          from '../../entities/Articulo.entity';
+import { Cliente }           from '../../entities/Cliente.entity';
 import { Venta }             from '../../entities/Venta.entity';
 import { VentaDetalle }      from '../../entities/VentaDetalle.entity';
 import { AppError }          from '../../middlewares/error.middleware';
 import { getPagination }     from '../../utils/pagination';
+import { tenantIdOrThrow } from '../../utils/tenant-access';
+import { assertFeatureEnabled } from '../../saas/enforce-plan';
 import { CreateCotizacionDto, UpdateCotizacionDto, CambiarEstadoDto } from './dto/cotizaciones.dto';
 import { AuthUser }          from '@pos/shared';
-import { Request }           from 'express';
-import { LessThan }          from 'typeorm';
+import { AuthRequest }       from '../../middlewares/auth.middleware';
 
 const cotizRepo  = () => AppDataSource.getRepository(Cotizacion);
-const artRepo    = () => AppDataSource.getRepository(Articulo);
-const ventaRepo  = () => AppDataSource.getRepository(Venta);
 
 export class CotizacionesService {
 
-  // ── Listar ────────────────────────────────────────────────────────────────
-  async findAll(req: Request) {
+  async findAll(req: AuthRequest) {
+    const tid = tenantIdOrThrow(req.user);
     const { page, limit, skip } = getPagination(req);
     const { estado, clienteId } = req.query as Record<string, string>;
 
@@ -28,35 +28,39 @@ export class CotizacionesService {
       .leftJoinAndSelect('c.creadoPor',  'creadoPor')
       .leftJoinAndSelect('c.detalles',   'detalles')
       .leftJoinAndSelect('detalles.articulo', 'articulo')
+      .where('c.tenantId = :tid', { tid })
       .orderBy('c.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
     if (estado)    qb.andWhere('c.estado = :estado',       { estado });
-    if (clienteId) qb.andWhere('cliente.id = :clienteId', { clienteId: parseInt(clienteId) });
+    if (clienteId) qb.andWhere('cliente.id = :clienteId', { clienteId: parseInt(clienteId, 10) });
 
     const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
 
-  // ── Detalle ───────────────────────────────────────────────────────────────
-  async findById(id: number): Promise<Cotizacion> {
+  async findById(id: number, user: AuthUser): Promise<Cotizacion> {
+    const tid = tenantIdOrThrow(user);
     const c = await cotizRepo().findOne({
-      where: { id },
+      where: { id, tenant: { id: tid } },
       relations: ['cliente', 'creadoPor', 'detalles', 'detalles.articulo', 'detalles.articulo.categoria'],
     });
     if (!c) throw new AppError('Cotización no encontrada', 404);
     return c;
   }
 
-  // ── Crear ─────────────────────────────────────────────────────────────────
-  async create(dto: CreateCotizacionDto, usuarioId: number): Promise<Cotizacion> {
+  async create(dto: CreateCotizacionDto, usuarioId: number, user: AuthUser): Promise<Cotizacion> {
+    const tid = tenantIdOrThrow(user);
+    await assertFeatureEnabled(tid, 'cotizaciones');
     return AppDataSource.transaction(async (manager) => {
       let subtotal = 0;
       const detallesEntidades: CotizacionDetalle[] = [];
 
       for (const d of dto.detalles) {
-        const art = await manager.findOne(Articulo, { where: { id: d.articuloId, activo: true } });
+        const art = await manager.findOne(Articulo, {
+          where: { id: d.articuloId, activo: true, tenant: { id: tid } },
+        });
         if (!art) throw new AppError(`Artículo ID ${d.articuloId} no encontrado`, 404);
 
         const lineaTotal = d.precioUnitario * d.cantidad * (1 - (d.descuento ?? 0) / 100);
@@ -75,6 +79,11 @@ export class CotizacionesService {
       const descuentoGlobal = dto.descuento ?? 0;
       const total = subtotal * (1 - descuentoGlobal / 100);
 
+      if (dto.clienteId) {
+        const cli = await manager.findOne(Cliente, { where: { id: dto.clienteId, tenant: { id: tid } } });
+        if (!cli) throw new AppError('Cliente no encontrado', 404);
+      }
+
       const cotiz = manager.create(Cotizacion, {
         estado:      'BORRADOR',
         notas:       dto.notas,
@@ -82,6 +91,7 @@ export class CotizacionesService {
         subtotal,
         descuento:   descuentoGlobal,
         total,
+        tenant:      { id: tid } as any,
         cliente:     dto.clienteId ? { id: dto.clienteId } as any : undefined,
         creadoPor:   { id: usuarioId } as any,
         detalles:    detallesEntidades,
@@ -91,11 +101,11 @@ export class CotizacionesService {
     });
   }
 
-  // ── Actualizar (solo BORRADOR) ────────────────────────────────────────────
-  async update(id: number, dto: UpdateCotizacionDto): Promise<Cotizacion> {
+  async update(id: number, dto: UpdateCotizacionDto, user: AuthUser): Promise<Cotizacion> {
+    const tid = tenantIdOrThrow(user);
     return AppDataSource.transaction(async (manager) => {
       const cotiz = await manager.findOne(Cotizacion, {
-        where: { id },
+        where: { id, tenant: { id: tid } },
         relations: ['detalles'],
       });
       if (!cotiz) throw new AppError('Cotización no encontrada', 404);
@@ -103,7 +113,6 @@ export class CotizacionesService {
         throw new AppError('Solo se pueden editar cotizaciones en estado BORRADOR', 400);
       }
 
-      // Actualizar detalles si se envían
       if (dto.detalles && dto.detalles.length > 0) {
         await manager.delete(CotizacionDetalle, { cotizacion: { id } });
 
@@ -111,7 +120,9 @@ export class CotizacionesService {
         const nuevosDetalles: CotizacionDetalle[] = [];
 
         for (const d of dto.detalles) {
-          const art = await manager.findOne(Articulo, { where: { id: d.articuloId, activo: true } });
+          const art = await manager.findOne(Articulo, {
+            where: { id: d.articuloId, activo: true, tenant: { id: tid } },
+          });
           if (!art) throw new AppError(`Artículo ID ${d.articuloId} no encontrado`, 404);
 
           const lineaTotal = d.precioUnitario * d.cantidad * (1 - (d.descuento ?? 0) / 100);
@@ -141,6 +152,10 @@ export class CotizacionesService {
       if (dto.notas       !== undefined) cotiz.notas       = dto.notas;
       if (dto.validezDias !== undefined) cotiz.validezDias = dto.validezDias;
       if (dto.clienteId   !== undefined) {
+        if (dto.clienteId) {
+          const cli = await manager.findOne(Cliente, { where: { id: dto.clienteId, tenant: { id: tid } } });
+          if (!cli) throw new AppError('Cliente no encontrado', 404);
+        }
         cotiz.cliente = dto.clienteId ? { id: dto.clienteId } as any : undefined;
       }
 
@@ -148,12 +163,10 @@ export class CotizacionesService {
     });
   }
 
-  // ── Cambiar estado ────────────────────────────────────────────────────────
-  async cambiarEstado(id: number, dto: CambiarEstadoDto): Promise<Cotizacion> {
-    const cotiz = await cotizRepo().findOne({ where: { id } });
+  async cambiarEstado(id: number, dto: CambiarEstadoDto, user: AuthUser): Promise<Cotizacion> {
+    const cotiz = await cotizRepo().findOne({ where: { id, tenant: { id: tenantIdOrThrow(user) } } });
     if (!cotiz) throw new AppError('Cotización no encontrada', 404);
 
-    // Validar transiciones
     const transitions: Record<string, string[]> = {
       BORRADOR:  ['ENVIADA', 'RECHAZADA'],
       ENVIADA:   ['ACEPTADA', 'RECHAZADA', 'VENCIDA'],
@@ -170,11 +183,11 @@ export class CotizacionesService {
     return cotizRepo().save(cotiz);
   }
 
-  // ── Convertir a venta ─────────────────────────────────────────────────────
   async convertirAVenta(id: number, currentUser: AuthUser): Promise<Venta> {
+    const tid = tenantIdOrThrow(currentUser);
     return AppDataSource.transaction(async (manager) => {
       const cotiz = await manager.findOne(Cotizacion, {
-        where: { id },
+        where: { id, tenant: { id: tid } },
         relations: ['cliente', 'detalles', 'detalles.articulo'],
       });
       if (!cotiz) throw new AppError('Cotización no encontrada', 404);
@@ -214,9 +227,9 @@ export class CotizacionesService {
     });
   }
 
-  // ── Eliminar ──────────────────────────────────────────────────────────────
-  async delete(id: number): Promise<void> {
-    const cotiz = await cotizRepo().findOne({ where: { id } });
+  async delete(id: number, user: AuthUser): Promise<void> {
+    const tid = tenantIdOrThrow(user);
+    const cotiz = await cotizRepo().findOne({ where: { id, tenant: { id: tid } } });
     if (!cotiz) throw new AppError('Cotización no encontrada', 404);
     if (['ACEPTADA'].includes(cotiz.estado)) {
       throw new AppError('No se puede eliminar una cotización aceptada', 400);
@@ -224,10 +237,10 @@ export class CotizacionesService {
     await cotizRepo().remove(cotiz);
   }
 
-  // ── Marcar vencidas ───────────────────────────────────────────────────────
-  async checkVencidas(): Promise<number> {
+  async checkVencidas(user: AuthUser): Promise<number> {
+    const tid = tenantIdOrThrow(user);
     const hoy = new Date();
-    const enviadas = await cotizRepo().find({ where: { estado: 'ENVIADA' } });
+    const enviadas = await cotizRepo().find({ where: { estado: 'ENVIADA', tenant: { id: tid } } });
 
     let count = 0;
     for (const c of enviadas) {

@@ -5,6 +5,112 @@ import { authMiddleware, canAdmin, canSell, canAll } from '../../middlewares/aut
 const router = Router();
 const ctrl   = new InventarioController();
 
+/**
+ * @openapi
+ * /api/v1/inventario:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Listar productos
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Lista }
+ *   post:
+ *     tags: [Inventario]
+ *     summary: Crear producto (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       201: { description: Creado }
+ * /api/v1/inventario/stock-bajo:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Productos bajo stock mínimo (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Lista }
+ * /api/v1/inventario/categorias:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Listar categorías
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Lista }
+ *   post:
+ *     tags: [Inventario]
+ *     summary: Crear categoría (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       201: { description: Creada }
+ * /api/v1/inventario/categorias/{id}:
+ *   delete:
+ *     tags: [Inventario]
+ *     summary: Eliminar categoría (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Eliminada }
+ * /api/v1/inventario/barcode/{codigo}:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Buscar por código de barras (venta)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: codigo, in: path, required: true, schema: { type: string } }]
+ *     responses:
+ *       200: { description: Producto }
+ * /api/v1/inventario/importar-csv:
+ *   post:
+ *     tags: [Inventario]
+ *     summary: Importar inventario desde CSV (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Importación }
+ * /api/v1/inventario/{id}:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Obtener producto por ID
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Producto }
+ *   put:
+ *     tags: [Inventario]
+ *     summary: Actualizar producto (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Actualizado }
+ *   delete:
+ *     tags: [Inventario]
+ *     summary: Eliminar producto (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Eliminado }
+ * /api/v1/inventario/{id}/movimientos:
+ *   get:
+ *     tags: [Inventario]
+ *     summary: Movimientos de stock (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Movimientos }
+ * /api/v1/inventario/{id}/clonar:
+ *   post:
+ *     tags: [Inventario]
+ *     summary: Clonar producto (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       201: { description: Clon }
+ * /api/v1/inventario/{id}/ajustar:
+ *   patch:
+ *     tags: [Inventario]
+ *     summary: Ajuste manual de inventario (admin)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+ *     responses:
+ *       200: { description: Ajustado }
+ */
+
 router.use(authMiddleware);
 
 // Lectura — todos los roles

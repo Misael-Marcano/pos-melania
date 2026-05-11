@@ -2,6 +2,8 @@
 
 Objetivo: dejar facturación SaaS operativa end-to-end con evidencia verificable.
 
+**Evidencia y plantillas:** índice en [`docs/operacion/evidence/README.md`](evidence/README.md) (qué versionar y qué no).
+
 ---
 
 ## 1) Precondiciones
@@ -184,7 +186,19 @@ El script ejecuta `scripts/ops/check-stripe-audit.sql` y reporta:
 
 ---
 
-## 8) Go-live guardrails
+## 8) Validación en modo test (Stripe test / staging)
+
+Antes de pasar a `sk_live_…`, conviene dejar evidencia en **test mode**:
+
+1. **Claves y webhook de test:** `sk_test_…`, `whsec_…` del endpoint de test apuntando a API staging (HTTPS o túnel).
+2. **Checkout y Portal:** completar un flujo con tarjeta de prueba; verificar `tenants.stripeCustomerId` / `billingStatus` y filas en `stripe_audit_logs`.
+3. **Impago simulado:** usar tarjetas o flujos de Stripe para `past_due` / `invoice.payment_failed`; comprobar email (si SMTP activo) o al menos eventos en auditoría.
+4. **Bloqueo producto:** con `BILLING_ENFORCE_PAYMENT=true`, confirmar **402** en rutas de negocio y redirección a **`/cuenta-suspendida`**; abrir **Customer Portal** desde esa pantalla o desde Configuración.
+5. **Emails desactivados:** si `NOTIFICATIONS_EMAIL_ENABLED=false`, los eventos deben quedar registrados en `stripe_audit_logs` como trazabilidad mínima.
+
+---
+
+## 9) Go-live guardrails
 
 - `BILLING_ENFORCE_PAYMENT` definido según política comercial:
   - `false`: no bloquear por impago.
@@ -194,7 +208,9 @@ El script ejecuta `scripts/ops/check-stripe-audit.sql` y reporta:
 
 ---
 
-## 9) Criterio de cierre
+## 10) Criterio de cierre
+
+**Archivo de evidencia:** copiar y rellenar la plantilla [`docs/operacion/evidence/STRIPE-VALIDATION-LOG.md`](evidence/STRIPE-VALIDATION-LOG.md) (ver también [`evidence/README.md`](evidence/README.md)).
 
 Se considera "Stripe producción listo" cuando:
 
@@ -205,7 +221,7 @@ Se considera "Stripe producción listo" cuando:
 
 ---
 
-## 10) Comando unificado (pre-go-live)
+## 11) Comando unificado (pre-go-live)
 
 Para ejecutar API + auditoria BD en una sola corrida:
 
@@ -242,4 +258,8 @@ Notas:
 - Para rol `plataforma`, agrega `-TenantId <id>`.
 - Con `-SaveReport`, el archivo se guarda en `scripts/ops/reports/pre-go-live-YYYYMMDD-HHMMSS.txt`.
 - Matriz resumida de comandos: `scripts/ops/README.md`.
+
+### Higiene (documentación)
+
+Si editas documentación de forma extensa, desde la raíz del repositorio ejecuta `npm run verify:docs-links` (sin duplicar lo ya indicado en CONTRIBUTING).
 

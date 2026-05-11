@@ -26,7 +26,7 @@ export function ClientesDeudaWidget() {
           </div>
         </div>
         <Link href="/clientes"
-          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
+          className="flex items-center gap-1 text-xs text-secondary font-medium hover:opacity-90 transition-opacity">
           Ver todo <ArrowRight size={12} />
         </Link>
       </div>
@@ -46,11 +46,11 @@ export function ClientesDeudaWidget() {
             <p className="text-xs text-navy-400 mt-0.5">Todos los clientes están al día</p>
           </div>
         ) : (
-          <ul className="divide-y divide-navy-100/40">
+          <ul className="flex flex-col gap-1 px-2 pb-2">
             {clientes.map((c) => {
               const pct = totalDeuda > 0 ? (Number(c.saldo) / totalDeuda) * 100 : 0;
               return (
-                <li key={c.id} className="px-5 py-3">
+                <li key={c.id} className="px-3 py-2.5 rounded-xl hover:bg-navy-50/80 transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm text-navy-700 font-medium truncate max-w-[60%]">{c.nombre}</span>
                     <span className="text-sm font-bold text-rose-600">{formatCurrency(Number(c.saldo))}</span>

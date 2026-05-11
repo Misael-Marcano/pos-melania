@@ -10,6 +10,12 @@ export interface CreateVentaPayload {
   tipoNCF?:     '01' | '02' | '04' | '14' | '15';
   notas?:       string;
   fechaVenta?:  string;
+  efectivoRecibido?: number;
+  esDelivery?:       boolean;
+  deliveryCargo?:    number;
+  deliveryDireccion?: string;
+  /** Sesión de caja actual (caja_aperturas.id) — obligatorio para auditoría */
+  cajaAperturaId: number;
   detalles: {
     articuloId:     number;
     cantidad:       number;
@@ -38,9 +44,32 @@ export interface FullUpdateVentaPayload {
 }
 
 export interface AperturaCajaPayload {
-  cajaNombre:     string;
+  /** Catálogo — preferido si el POS tiene caja asignada en configuración */
+  cajaId?:        number;
+  cajaNombre?:    string;
   denominaciones: Record<string, number>;
   montoApertura:  number;
+  tiendaId?:      number;
+}
+
+/** Respuesta de GET /ventas/caja/resumen/:id */
+export interface ResumenCajaDetalle {
+  totalEfectivo: number;
+  totalGastos:   number;
+  totalDelivery: number;
+  fechaApertura: string;
+  /** Fin del período usado para ventas/gastos (cierre de sesión o “ahora” si sigue abierta) */
+  fechaCierrePeriodo: string;
+  cajaNombre:    string;
+  tiendaNombre:  string | null;
+  porMetodo:     { metodoPago: string; total: number; cantidad: number }[];
+  totalesPorMetodoReal: { metodo: string; total: number }[];
+  gastos:        { id: number; escribe: string; categoria: string; cantidad: number; fecha: string }[];
+  cantidadVentas: number;
+  totalVentas:   number;
+  totalDescuentosVentas: number;
+  totalImpuestosVentas: number;
+  ventasAnuladasEnSesion: number;
 }
 
 export interface CierreCajaPayload {
@@ -59,6 +88,11 @@ export const ventasService = {
   getById: async (id: number): Promise<IVenta> => {
     const { data } = await apiClient.get(`/ventas/${id}`);
     return data.data;
+  },
+
+  /** Auditoría: impresión o reimpresión de recibo (comprobante fiscal / NCF si aplica) */
+  auditarReciboImpresion: async (id: number): Promise<void> => {
+    await apiClient.post(`/ventas/${id}/auditoria-recibo`);
   },
 
   create: async (payload: CreateVentaPayload): Promise<IVenta> => {
@@ -96,7 +130,12 @@ export const ventasService = {
   },
 
   getCajaActiva: async (nombre: string) => {
-    const { data } = await apiClient.get(`/ventas/caja/activa/${nombre}`);
+    const { data } = await apiClient.get(`/ventas/caja/activa/${encodeURIComponent(nombre)}`);
+    return data.data;
+  },
+
+  getCajaActivaPorCajaId: async (cajaId: number) => {
+    const { data } = await apiClient.get(`/ventas/caja/activa-por-caja/${cajaId}`);
     return data.data;
   },
 
@@ -112,12 +151,13 @@ export const ventasService = {
     URL.revokeObjectURL(url);
   },
 
-  resumenCaja: async (aperturaId: number): Promise<{
-    totalEfectivo: number;
-    totalGastos:   number;
-    fechaApertura: string;
-  }> => {
+  resumenCaja: async (aperturaId: number): Promise<ResumenCajaDetalle> => {
     const { data } = await apiClient.get(`/ventas/caja/resumen/${aperturaId}`);
+    return data.data;
+  },
+
+  listCajasAbiertas: async (): Promise<ICajaApertura[]> => {
+    const { data } = await apiClient.get('/ventas/caja/abiertas');
     return data.data;
   },
 
@@ -139,4 +179,6 @@ export interface ICajaApertura {
   fechaCierre?: string;
   notas?: string;
   usuario?: { id: number; nombre: string };
+  tienda?: { id: number; nombre: string };
+  caja?: { id: number; nombre: string };
 }

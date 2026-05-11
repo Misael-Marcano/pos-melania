@@ -2,6 +2,7 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, OneToMany, JoinColumn, CreateDateColumn,
 } from 'typeorm';
+import { Tenant } from './Tenant.entity';
 import { Venta }   from './Venta.entity';
 import { Usuario } from './Usuario.entity';
 import { DevolucionDetalle } from './DevolucionDetalle.entity';
@@ -13,6 +14,10 @@ export type EstadoDevolucion = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA';
 export class Devolucion {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
   estado: EstadoDevolucion;

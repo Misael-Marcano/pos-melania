@@ -3,8 +3,10 @@ import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../../config/database';
 import { cache } from '../../config/redis';
 import { env } from '../../config/env';
+import { Tenant } from '../../entities/Tenant.entity';
 import { Usuario } from '../../entities/Usuario.entity';
 import { LoginDto } from './dto/auth.dto';
+import { AppError } from '../../middlewares/error.middleware';
 import { TokenResponse, AuthUser } from '@pos/shared';
 
 const repo = () => AppDataSource.getRepository(Usuario);
@@ -18,14 +20,36 @@ const signRefresh = (id: number)  => jwt.sign({ id }, env.JWT_REFRESH_SECRET, { 
 
 export class AuthService {
 
-  async login(dto: LoginDto): Promise<TokenResponse> {
+  async login(dto: LoginDto, opts?: { tenantSlug?: string | null }): Promise<TokenResponse> {
+    const requireSlug =
+      env.LOGIN_REQUIRE_TENANT_SLUG === 'true' || env.LOGIN_REQUIRE_TENANT_SLUG === '1';
+    const rawSlug = opts?.tenantSlug?.trim() ?? '';
+    if (requireSlug && !rawSlug) {
+      throw new AppError('Debes indicar la organización (cabecera X-Tenant-Slug).', 400);
+    }
+
+    let expectedTenantId: number | null = null;
+    if (rawSlug) {
+      const slug = rawSlug.toLowerCase();
+      const tenant = await AppDataSource.getRepository(Tenant).findOne({
+        where: { slug, activo: true },
+      });
+      if (!tenant) throw new Error('Credenciales inválidas');
+      expectedTenantId = tenant.id;
+    }
+
     const bruteKey = `${BRUTE_PREFIX}${dto.email}`;
     const attempts = await cache.get<number>(bruteKey);
     if (attempts && attempts >= MAX_ATTEMPTS)
       throw new Error('Cuenta bloqueada temporalmente. Intenta en 15 minutos.');
 
-    const user = await repo().findOne({ where: { email: dto.email } });
+    const user = await repo().findOne({ where: { email: dto.email }, relations: ['tienda', 'tenant'] });
     if (!user || !user.activo) {
+      await this.incBrute(bruteKey);
+      throw new Error('Credenciales inválidas');
+    }
+
+    if (expectedTenantId != null && user.tenant?.id !== expectedTenantId) {
       await this.incBrute(bruteKey);
       throw new Error('Credenciales inválidas');
     }
@@ -38,7 +62,14 @@ export class AuthService {
 
     await cache.del(bruteKey);
 
-    const payload: AuthUser = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol };
+    const payload: AuthUser = {
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      rol: user.rol,
+      tenantId: user.tenant?.id ?? 1,
+      tiendaId: user.tienda?.id ?? undefined,
+    };
     const accessToken  = signAccess(payload);
     const refreshToken = signRefresh(user.id);
 
@@ -54,13 +85,20 @@ export class AuthService {
     try { payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { id: number }; }
     catch { throw new Error('Refresh token inválido o expirado'); }
 
-    const user = await repo().findOne({ where: { id: payload.id, activo: true } });
+    const user = await repo().findOne({ where: { id: payload.id, activo: true }, relations: ['tienda', 'tenant'] });
     if (!user?.refreshToken) throw new Error('Sesión expirada');
 
     const valid = await bcrypt.compare(token, user.refreshToken);
     if (!valid) throw new Error('Refresh token inválido');
 
-    const newPayload: AuthUser = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol };
+    const newPayload: AuthUser = {
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      rol: user.rol,
+      tenantId: user.tenant?.id ?? 1,
+      tiendaId: user.tienda?.id ?? undefined,
+    };
     const newAccess  = signAccess(newPayload);
     const newRefresh = signRefresh(user.id);
 
@@ -75,7 +113,10 @@ export class AuthService {
   }
 
   async getProfile(userId: number) {
-    const user = await repo().findOne({ where: { id: userId } });
+    const user = await repo().findOne({
+      where: { id: userId },
+      relations: ['tenant', 'tienda'],
+    });
     if (!user) throw new Error('Usuario no encontrado');
     const { passwordHash, refreshToken, ...rest } = user;
     return rest;

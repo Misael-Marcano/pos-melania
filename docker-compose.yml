@@ -22,6 +22,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - PORT=4000
       - NODE_ENV=production
+      # - FISCAL_JURISDICTION=DO
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -38,6 +39,14 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+      # Opcional — marca en UI (valores por defecto neutros en el código)
+      # - NEXT_PUBLIC_APP_SHORT_NAME=POS
+      # - NEXT_PUBLIC_APP_TAGLINE=Punto de venta
+      # - NEXT_PUBLIC_APP_COPYRIGHT_ENTITY=Mi empresa
+      # - NEXT_PUBLIC_FEATURE_RECETAS=false
+      # - NEXT_PUBLIC_LABEL_RECETAS=Listas de materiales
+      # - NEXT_PUBLIC_LABEL_REPORTES=Análisis
+      # - NEXT_PUBLIC_LABEL_REPORTES_TAB_DGII=Fiscal (DGII)
     depends_on:
       - backend
     restart: unless-stopped

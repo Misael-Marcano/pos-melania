@@ -10,12 +10,16 @@ const OP_STYLES: Record<AuditOperacion, string> = {
   CREATE: 'bg-primary-100 text-primary-600',
   UPDATE: 'bg-blue-100 text-blue-700',
   DELETE: 'bg-rose-100 text-rose-700',
+  EXPORT: 'bg-violet-100 text-violet-800',
+  READ:   'bg-navy-100 text-navy-700',
 };
 
 const OP_LABELS: Record<AuditOperacion, string> = {
   CREATE: 'Creó',
   UPDATE: 'Actualizó',
   DELETE: 'Eliminó',
+  EXPORT: 'Exportó',
+  READ:   'Consultó',
 };
 
 function JsonViewer({ label, value }: { label: string; value?: string }) {
@@ -143,6 +147,8 @@ export default function AuditoriaPage() {
               <option value="CREATE">Crear</option>
               <option value="UPDATE">Actualizar</option>
               <option value="DELETE">Eliminar</option>
+              <option value="EXPORT">Exportar / PDF</option>
+              <option value="READ">Consultar</option>
             </select>
           </div>
           <div className="flex-1 min-w-[200px]">

@@ -1,9 +1,16 @@
-import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Tenant } from './Tenant.entity';
+import { Tienda } from './Tienda.entity';
+import { Caja } from './Caja.entity';
 
 @Entity('configuracion')
 export class Configuracion {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
 
   @Column({ length: 200 })
   nombreCompania: string;
@@ -44,11 +51,31 @@ export class Configuracion {
   @Column({ nullable: true, length: 500 })
   logotipoUrl?: string;
 
+  /** Texto opcional bajo el pie estándar del recibo (políticas, horario, etc.) */
+  @Column({ type: 'nvarchar', length: 'max', nullable: true })
+  textoPieRecibo?: string;
+
   @Column({ length: 10, default: '02' })
   comprobanteDefecto: string;
 
+  /**
+   * Si está definido, tiene prioridad sobre `FISCAL_JURISDICTION` del `.env` al emitir NCF.
+   * Valores típicos: DO (DGII), NONE (sin comprobante fiscal). NULL = usar solo variable de entorno.
+   */
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  fiscalJurisdiccion?: string;
+
   @Column({ length: 100, default: 'CAJA 1' })
   nombreCaja: string;
+
+  @ManyToOne(() => Tienda, { nullable: true, eager: false })
+  @JoinColumn({ name: 'tiendaId' })
+  tienda?: Tienda | null;
+
+  /** Caja del catálogo usada en este punto de venta */
+  @ManyToOne(() => Caja, { nullable: true, eager: false })
+  @JoinColumn({ name: 'cajaId' })
+  caja?: Caja | null;
 
   @UpdateDateColumn()
   updatedAt: Date;

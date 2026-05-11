@@ -7,26 +7,23 @@ import { useStockBajo }  from '@/hooks/useInventario';
 import { formatCurrency } from '@/lib/utils';
 
 function StatCard({
-  label, value, sub, icon, color, accent, alert,
+  label, value, sub, icon, color, alert,
 }: {
   label:   string;
   value:   string | number;
   sub?:    string;
   icon:    React.ReactNode;
   color:   string;
-  accent:  string;
   alert?:  boolean;
 }) {
   return (
-    <div className="relative bg-white rounded-[12px] shadow-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 overflow-hidden">
-      {/* Accent bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${accent}`} />
-      <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+    <div className="relative bg-white rounded-[12px] shadow-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 overflow-hidden transition-shadow duration-200 hover:shadow-card-hover">
+      <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ring-1 ring-navy-200/30 ${color}`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] sm:text-xs font-medium text-navy-400 uppercase tracking-wider truncate">{label}</p>
-        <p className={`text-base sm:text-xl lg:text-2xl font-bold mt-0.5 truncate ${alert ? 'text-rose-600' : 'text-navy-900'}`}>
+        <p className="text-[10px] sm:text-xs font-medium text-navy-500 uppercase tracking-wider truncate">{label}</p>
+        <p className={`text-base sm:text-xl lg:text-2xl font-bold mt-0.5 truncate font-display ${alert ? 'text-rose-600' : 'text-navy-800'}`}>
           {typeof value === 'number' ? value.toLocaleString('es-DO') : value}
         </p>
         {sub && <p className="text-[10px] sm:text-xs text-navy-400 mt-0.5 truncate">{sub}</p>}
@@ -65,7 +62,7 @@ export function StatsCards() {
     <div className="flex items-center gap-2">
       <button
         onClick={() => setFecha(stepDate(fecha, -1))}
-        className="w-7 h-7 flex items-center justify-center rounded-lg border border-navy-200 text-navy-500 hover:border-navy-300 hover:bg-white transition-colors"
+        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white shadow-ambient text-navy-500 hover:bg-navy-50 transition-colors"
       >
         <ChevronLeft size={14} />
       </button>
@@ -83,7 +80,7 @@ export function StatsCards() {
       <button
         onClick={() => setFecha(stepDate(fecha, 1))}
         disabled={isHoy}
-        className="w-7 h-7 flex items-center justify-center rounded-lg border border-navy-200 text-navy-500 hover:border-navy-300 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white shadow-ambient text-navy-500 hover:bg-navy-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <ChevronRight size={14} />
       </button>
@@ -103,7 +100,6 @@ export function StatsCards() {
         sub={transacciones === 1 ? '1 transacción' : `${transacciones} transacciones`}
         icon={<ShoppingCart size={20} className="text-primary-600" />}
         color="bg-primary-50"
-        accent="bg-primary-500"
       />
       <StatCard
         label={isHoy ? 'Ingresos hoy' : `Ingresos ${labelFecha}`}
@@ -111,7 +107,6 @@ export function StatsCards() {
         sub={totalEfectivo > 0 ? `${formatCurrency(totalEfectivo)} en efectivo` : 'sin ventas aún'}
         icon={<DollarSign size={20} className="text-emerald-600" />}
         color="bg-emerald-50"
-        accent="bg-emerald-500"
       />
       <StatCard
         label={isHoy ? 'Gastos hoy' : `Gastos ${labelFecha}`}
@@ -121,7 +116,6 @@ export function StatsCards() {
           : 'sin gastos registrados'}
         icon={<TrendingDown size={20} className="text-amber-600" />}
         color="bg-amber-50"
-        accent="bg-amber-400"
       />
       <StatCard
         label="Stock bajo"
@@ -129,7 +123,6 @@ export function StatsCards() {
         sub={stockCount === 0 ? 'inventario en orden' : `artículo${stockCount !== 1 ? 's' : ''} crítico${stockCount !== 1 ? 's' : ''}`}
         icon={<AlertTriangle size={20} className={stockCount > 0 ? 'text-rose-500' : 'text-navy-300'} />}
         color={stockCount > 0 ? 'bg-rose-50' : 'bg-navy-50'}
-        accent={stockCount > 0 ? 'bg-rose-500' : 'bg-navy-300'}
         alert={stockCount > 0}
       />
     </div>

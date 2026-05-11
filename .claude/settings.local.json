@@ -25,7 +25,10 @@
       "Bash(find . -name '*.tsx' -exec sed -i -e 's|border-navy-100/40 >|border-navy-100/40\">|g' -e 's|border-navy-100/40  |border-navy-100/40 |g' '{}' ';')",
       "Bash(sed:*)",
       "Bash(grep -rn 'className=\"[^\"]*>$' C:/Users/creed/OneDrive/Escritorio/pos-melania/apps/frontend/src --include=\"*.tsx\")",
-      "Bash(dir \"C:\\\\Users\\\\creed\\\\OneDrive\\\\Escritorio\\\\pos-melania\\\\apps\\\\backend\\\\src\")"
+      "Bash(dir \"C:\\\\Users\\\\creed\\\\OneDrive\\\\Escritorio\\\\pos-melania\\\\apps\\\\backend\\\\src\")",
+      "Bash(xargs cat:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.get\\('dependencies',{}\\).items\\(\\) if any\\(x in k for x in ['mail','email','send','nodemailer','resend','postmark','smtp']\\)}, indent=2\\)\\)\")",
+      "Bash(yarn workspace:*)"
     ]
   }
 }

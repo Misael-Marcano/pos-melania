@@ -19,7 +19,7 @@ export class GastosController {
 
   async findById(req: AuthRequest, res: Response) {
     try {
-      const data = await service.findById(Number(req.params.id));
+      const data = await service.findById(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
       return sendError(res, err instanceof Error ? err.message : 'Error', 404);
@@ -40,7 +40,7 @@ export class GastosController {
   async update(req: AuthRequest, res: Response) {
     try {
       const dto  = updateGastoSchema.parse(req.body);
-      const data = await service.update(Number(req.params.id), dto);
+      const data = await service.update(Number(req.params.id), dto, req.user!);
       registrarAudit({ tabla: 'gastos', operacion: 'UPDATE', registroId: data.id, descripcion: `Actualizó gasto "${data.escribe}"`, valorNuevo: data, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, data, 'Gasto actualizado');
     } catch (err: unknown) {
@@ -51,7 +51,7 @@ export class GastosController {
   async delete(req: AuthRequest, res: Response) {
     try {
       const id = Number(req.params.id);
-      await service.delete(id);
+      await service.delete(id, req.user!);
       registrarAudit({ tabla: 'gastos', operacion: 'DELETE', registroId: id, descripcion: `Eliminó gasto #${id}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, null, 'Gasto eliminado');
     } catch (err: unknown) {

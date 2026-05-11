@@ -13,10 +13,13 @@ import { formatCurrency }  from '@/lib/utils';
 import {
   Plus, X, Loader2, AlertTriangle, Search, Trash2,
   ShoppingCart, ChevronDown, Package, Send, CheckCircle,
-  Ban, ClipboardList, Eye, Pencil,
+  Ban, ClipboardList, Eye, Pencil, Camera,
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
 import { toast } from '@/store/toast.store';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { BarcodeCamera } from '@/components/common/BarcodeCamera';
+import { inventarioService } from '@/services/inventario.service';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,9 +66,10 @@ function OrdenModal({
       costoUnitario: Number(d.costoUnitario),
     })) ?? []
   );
-  const [artSearch,  setArtSearch]  = useState('');
-  const [showPicker, setShowPicker] = useState(false);
-  const [error,      setError]      = useState('');
+  const [artSearch,   setArtSearch]   = useState('');
+  const [showPicker,  setShowPicker]  = useState(false);
+  const [showCamera,  setShowCamera]  = useState(false);
+  const [error,       setError]       = useState('');
 
   const { data: proveedores = [] } = useProveedores();
   const { data: artData }          = useArticulos(1, 50, artSearch);
@@ -74,6 +78,17 @@ function OrdenModal({
   const crear      = useCrearOrden();
   const actualizar = useActualizarOrden();
   const isPending  = crear.isPending || actualizar.isPending;
+
+  // Scanner físico: agrega artículo directamente si está en la lista
+  useBarcodeScanner(async (codigo) => {
+    try {
+      const art = await inventarioService.getByBarcode(codigo);
+      addArticulo(art);
+    } catch {
+      setArtSearch(codigo);
+      setShowPicker(true);
+    }
+  }, { disabled: showCamera });
 
   const total = lineas.reduce((s, l) => s + l.cantidad * l.costoUnitario, 0);
 
@@ -210,16 +225,26 @@ function OrdenModal({
 
             {/* Buscador artículos */}
             <div className="relative">
-              <div className="input-field flex items-center gap-2">
-                <Search size={13} className="text-navy-400 flex-shrink-0" />
-                <input
-                  className="flex-1 outline-none text-sm bg-transparent placeholder-navy-400"
-                  placeholder="Buscar artículo para agregar..."
-                  value={artSearch}
-                  onChange={(e) => { setArtSearch(e.target.value); setShowPicker(true); }}
-                  onFocus={() => setShowPicker(true)}
-                />
-                <ChevronDown size={13} className="text-navy-400 flex-shrink-0" />
+              <div className="flex gap-1.5">
+                <div className="input-field flex items-center gap-2 flex-1">
+                  <Search size={13} className="text-navy-400 flex-shrink-0" />
+                  <input
+                    className="flex-1 outline-none text-sm bg-transparent placeholder-navy-400"
+                    placeholder="Buscar o escanear artículo..."
+                    value={artSearch}
+                    onChange={(e) => { setArtSearch(e.target.value); setShowPicker(true); }}
+                    onFocus={() => setShowPicker(true)}
+                  />
+                  <ChevronDown size={13} className="text-navy-400 flex-shrink-0" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCamera(true)}
+                  title="Escanear con cámara"
+                  className="px-2.5 rounded-lg border border-navy-200 text-navy-400 hover:border-primary-400 hover:text-primary-600 transition-colors shrink-0"
+                >
+                  <Camera size={15} />
+                </button>
               </div>
               {showPicker && (artSearch || articulos.length > 0) && (
                 <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-navy-100 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -262,6 +287,22 @@ function OrdenModal({
           </button>
         </div>
       </div>
+
+      {showCamera && (
+        <BarcodeCamera
+          onDetect={async (codigo) => {
+            try {
+              const art = await inventarioService.getByBarcode(codigo);
+              addArticulo(art);
+            } catch {
+              setArtSearch(codigo);
+              setShowPicker(true);
+            }
+            setShowCamera(false);
+          }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </ModalOverlay>
   );
 }

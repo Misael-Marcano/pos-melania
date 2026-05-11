@@ -1,10 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useConfiguracion, useActualizarConfiguracion } from '@/hooks/useConfiguracion';
+import { useSaasContext, SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
+import { BILLING_STATUS_KEY, useBillingMutations, useBillingStatus } from '@/hooks/useBilling';
+import { useTiendas } from '@/hooks/useTiendas';
+import { useCajas } from '@/hooks/useCajas';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Building2, DollarSign, FileText, Save, Loader2, Image, Hash, Info } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
+import {
+  Building2, DollarSign, FileText, Save, Loader2, Image, Hash, Info,
+  BookOpen, Store, Users, ArrowRight, Wallet, Layers, CreditCard,
+} from 'lucide-react';
 import { toast } from '@/store/toast.store';
+
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '—';
+const APP_ENTORNO =
+  process.env.NODE_ENV === 'production'
+    ? 'Producción'
+    : process.env.NODE_ENV === 'development'
+      ? 'Desarrollo'
+      : process.env.NODE_ENV ?? '—';
 
 function SectionCard({ title, icon, description, children }: {
   title: string;
@@ -77,9 +95,153 @@ function Toggle({ checked, onChange, label, hint }: {
   );
 }
 
+function BillingStripePanel() {
+  const user = useAuthStore((s) => s.user);
+  const can =
+    user &&
+    ['admin', 'soporte', 'plataforma'].includes(user.rol);
+
+  const { data: billing, isLoading } = useBillingStatus();
+  const { checkout, portal } = useBillingMutations();
+  const [plan, setPlan] = useState<'starter' | 'standard' | 'enterprise'>('standard');
+
+  if (!can) return null;
+
+  if (isLoading) {
+    return (
+      <div className="border-t border-navy-100/40 pt-4 mt-4 flex items-center gap-2 text-sm text-navy-500">
+        <Loader2 className="animate-spin shrink-0" size={16} />
+        Cargando estado de facturación…
+      </div>
+    );
+  }
+
+  if (!billing) return null;
+
+  if (billing.provider === 'none') {
+    return (
+      <div className="border-t border-navy-100/40 pt-4 mt-4">
+        <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider mb-2">
+          Facturación SaaS
+        </p>
+        <p className="text-sm text-navy-600">{billing.hint}</p>
+      </div>
+    );
+  }
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const successUrl = `${origin}/configuracion?billing=success`;
+  const cancelUrl = `${origin}/configuracion?billing=cancel`;
+  const returnUrl = `${origin}/configuracion`;
+
+  const hasCustomer = Boolean(billing.tenant?.stripeCustomerId?.trim());
+  const canCheckout =
+    billing.configured && billing.pricesConfigured;
+
+  return (
+    <div className="border-t border-navy-100/40 pt-4 mt-4 space-y-4">
+      <div className="flex items-start gap-2">
+        <CreditCard size={16} className="text-primary-600 mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wider">
+            Facturación (Stripe)
+          </p>
+          <p className="text-xs text-navy-500 mt-1">{billing.hint}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className={`rounded-full px-2 py-0.5 border ${
+          billing.configured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'
+        }`}>
+          API: {billing.configured ? 'OK' : 'pendiente'}
+        </span>
+        <span className={`rounded-full px-2 py-0.5 border ${
+          billing.webhookConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-navy-50 border-navy-200 text-navy-600'
+        }`}>
+          Webhook: {billing.webhookConfigured ? 'OK' : 'opcional'}
+        </span>
+        <span className={`rounded-full px-2 py-0.5 border ${
+          billing.pricesConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-navy-50 border-navy-200 text-navy-600'
+        }`}>
+          Precios: {billing.pricesConfigured ? 'OK' : 'STRIPE_PRICE_*'}
+        </span>
+      </div>
+
+      {billing.tenant && (
+        <div className="text-xs text-navy-600 space-y-0.5">
+          <p>
+            <span className="text-navy-400">Estado Stripe:</span>{' '}
+            {billing.tenant.billingStatus ?? '—'}
+          </p>
+          {billing.tenant.stripeSubscriptionId && (
+            <p className="font-mono text-[11px] text-navy-500 truncate" title={billing.tenant.stripeSubscriptionId}>
+              Suscripción: {billing.tenant.stripeSubscriptionId}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+        {canCheckout && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <label className="text-xs text-navy-500 sm:sr-only" htmlFor="billing-plan">
+              Plan
+            </label>
+            <select
+              id="billing-plan"
+              className="input-field text-sm py-2 max-w-[200px]"
+              value={plan}
+              onChange={(e) =>
+                setPlan(e.target.value as 'starter' | 'standard' | 'enterprise')
+              }
+              disabled={checkout.isPending}
+            >
+              <option value="starter">Starter</option>
+              <option value="standard">Standard</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+            <button
+              type="button"
+              className="btn-primary text-sm py-2 px-4 inline-flex items-center justify-center gap-2"
+              disabled={checkout.isPending}
+              onClick={() =>
+                checkout.mutate({ successUrl, cancelUrl, planCode: plan })
+              }
+            >
+              {checkout.isPending
+                ? <Loader2 size={16} className="animate-spin" />
+                : <CreditCard size={16} />}
+              Suscribirse / cambiar plan
+            </button>
+          </div>
+        )}
+
+        {hasCustomer && (
+          <button
+            type="button"
+            className="btn-outline text-sm py-2 px-4 inline-flex items-center justify-center gap-2"
+            disabled={portal.isPending}
+            onClick={() => portal.mutate({ returnUrl })}
+          >
+            {portal.isPending
+              ? <Loader2 size={16} className="animate-spin" />
+              : <CreditCard size={16} />}
+            Portal de facturación
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ConfiguracionPage() {
+  const qc = useQueryClient();
   const { data: cfg, isLoading } = useConfiguracion();
   const actualizar = useActualizarConfiguracion();
+  const { data: saas, isSuccess: saasOk } = useSaasContext();
+  const { data: tiendas = [] } = useTiendas();
+  const { data: cajasLista = [] } = useCajas();
 
   const [form, setForm] = useState({
     nombreCompania:          '',
@@ -88,6 +250,7 @@ export default function ConfiguracionPage() {
     telefono:                '',
     sitioWeb:                '',
     logotipoUrl:             '',
+    textoPieRecibo:          '',
     simboloMoneda:           'RDS',
     numeroDecimales:         2,
     tasaImpuesto1Nombre:     '',
@@ -96,7 +259,13 @@ export default function ConfiguracionPage() {
     tasaImpuesto2:           0,
     preciosIncluyenImpuesto: true,
     comprobanteDefecto:      '02',
+    /** vacío = usar solo FISCAL_JURISDICTION del servidor */
+    fiscalJurisdiccion:      '' as '' | 'DO' | 'NONE',
     nombreCaja:              'CAJA 1',
+    /** vacío = sin sucursal fija */
+    tiendaId:                '' as number | '',
+    /** Catálogo de cajas — vacío = solo nombre manual */
+    cajaId:                  '' as number | '',
   });
   const [saved, setSaved] = useState(false);
 
@@ -109,6 +278,7 @@ export default function ConfiguracionPage() {
         telefono:                cfg.telefono                ?? '',
         sitioWeb:                cfg.sitioWeb                ?? '',
         logotipoUrl:             (cfg as any).logotipoUrl    ?? '',
+        textoPieRecibo:          (cfg as any).textoPieRecibo ?? '',
         simboloMoneda:           cfg.simboloMoneda           ?? 'RDS',
         numeroDecimales:         (cfg as any).numeroDecimales ?? 2,
         tasaImpuesto1Nombre:     cfg.tasaImpuesto1Nombre     ?? '',
@@ -117,17 +287,65 @@ export default function ConfiguracionPage() {
         tasaImpuesto2:           (cfg as any).tasaImpuesto2  ?? 0,
         preciosIncluyenImpuesto: cfg.preciosIncluyenImpuesto ?? true,
         comprobanteDefecto:      cfg.comprobanteDefecto      ?? '02',
+        fiscalJurisdiccion:
+          cfg.fiscalJurisdiccion === 'DO' || cfg.fiscalJurisdiccion === 'NONE'
+            ? cfg.fiscalJurisdiccion
+            : '',
         nombreCaja:              cfg.nombreCaja              ?? 'CAJA 1',
+        tiendaId:                cfg.tiendaId != null ? cfg.tiendaId : '',
+        cajaId:                  cfg.cajaId != null ? cfg.cajaId : '',
       });
     }
   }, [cfg]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const b = sp.get('billing');
+    if (b !== 'success' && b !== 'cancel') return;
+    void qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
+    void qc.invalidateQueries({ queryKey: [BILLING_STATUS_KEY] });
+    if (b === 'success') toast.success('Facturación actualizada');
+    if (b === 'cancel') toast.info('Checkout cerrado sin completar el pago');
+    window.history.replaceState({}, '', '/configuracion');
+  }, [qc]);
 
   const set = (key: string, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleGuardar = async () => {
+    if (!form.nombreCompania.trim()) {
+      if (!window.confirm(
+        'El nombre de la empresa está vacío. Los recibos y comprobantes pueden verse incompletos. ¿Deseas guardar de todos modos?'
+      )) return;
+    }
+
+    if (form.cajaId !== '' && form.tiendaId !== '') {
+      const c = cajasLista.find((x) => x.id === form.cajaId);
+      if (c?.tienda?.id != null && Number(form.tiendaId) !== c.tienda.id) {
+        if (!window.confirm(
+          'La caja del catálogo no pertenece a la sucursal POS seleccionada. ¿Guardar de todos modos? (Revisa que coincida con tu operación real.)'
+        )) return;
+      }
+    }
+
+    if (form.cajaId !== '' && form.tiendaId === '') {
+      const c = cajasLista.find((x) => x.id === form.cajaId);
+      if (c?.tienda) {
+        if (!window.confirm(
+          'Hay una caja del catálogo seleccionada pero no hay sucursal POS asignada. Conviene elegir la misma sucursal que la de la caja. ¿Guardar de todos modos?'
+        )) return;
+      }
+    }
+
     try {
-      await actualizar.mutateAsync(form);
+      await actualizar.mutateAsync({
+        ...form,
+        tiendaId: form.tiendaId === '' ? null : form.tiendaId,
+        cajaId:   form.cajaId === '' ? null : form.cajaId,
+        textoPieRecibo: form.textoPieRecibo.trim() || null,
+        fiscalJurisdiccion: form.fiscalJurisdiccion === '' ? null : form.fiscalJurisdiccion,
+      });
       toast.success('Configuración guardada');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -148,6 +366,94 @@ export default function ConfiguracionPage() {
     <div className="space-y-6">
       <PageHeader title="Configuración" breadcrumb={['Panel', 'Configuración']} />
 
+      {saasOk && saas ? (
+        <SectionCard
+          title="Plan y uso"
+          icon={<Layers size={16} />}
+          description="Resumen del plan comercial de esta organización (también visible en la cabecera)."
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+            <div>
+              <p className="text-xs text-navy-400 mb-0.5">Organización</p>
+              <p className="font-medium text-navy-800">{saas.tenant.nombre}</p>
+              <p className="text-xs text-navy-500 mt-0.5 font-mono">{saas.tenant.slug}</p>
+            </div>
+            <div>
+              <p className="text-xs text-navy-400 mb-0.5">Plan</p>
+              <p className="font-semibold text-navy-800">{saas.limits.label}</p>
+            </div>
+            <div>
+              <p className="text-xs text-navy-400 mb-0.5">Usuarios (asientos)</p>
+              <p className="text-navy-800">
+                {saas.usage.seats}
+                {saas.limits.maxUsers != null ? (
+                  <span className="text-navy-500"> / {saas.limits.maxUsers}</span>
+                ) : (
+                  <span className="text-navy-400 text-xs ml-1">(sin tope en este plan)</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-navy-400 mb-0.5">Sucursales activas</p>
+              <p className="text-navy-800">
+                {saas.usage.tiendasActivas}
+                {saas.limits.maxTiendas != null ? (
+                  <span className="text-navy-500"> / {saas.limits.maxTiendas}</span>
+                ) : (
+                  <span className="text-navy-400 text-xs ml-1">(sin tope en este plan)</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <BillingStripePanel />
+        </SectionCard>
+      ) : null}
+
+      <SectionCard
+        title="Guía rápida — sucursales, cajas y equipo"
+        icon={<BookOpen size={16} />}
+        description="Estos módulos trabajan junto con el POS y los recibos. Mantén los datos alineados para evitar errores al cobrar."
+      >
+        <ul className="space-y-3 text-sm text-navy-700">
+          <li className="flex items-start gap-2">
+            <span className="text-navy-400 mt-0.5">•</span>
+            <span>
+              Registra cada <strong>ubicación</strong> en{' '}
+              <Link href="/tiendas" className="text-primary-600 font-medium inline-flex items-center gap-1 hover:underline">
+                Tiendas <Store size={14} /><ArrowRight size={12} className="opacity-60" />
+              </Link>
+              {' '}antes de asignar cajas o empleados.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-navy-400 mt-0.5">•</span>
+            <span>
+              Cada <strong>caja física o lógica</strong> debe existir en{' '}
+              <Link href="/cajas" className="text-primary-600 font-medium inline-flex items-center gap-1 hover:underline">
+                Cajas <Wallet size={14} /><ArrowRight size={12} className="opacity-60" />
+              </Link>
+              {' '}vinculada a su sucursal. Los cajeros solo ven las cajas de su tienda.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-navy-400 mt-0.5">•</span>
+            <span>
+              En{' '}
+              <Link href="/empleados" className="text-primary-600 font-medium inline-flex items-center gap-1 hover:underline">
+                Empleados <Users size={14} /><ArrowRight size={12} className="opacity-60" />
+              </Link>
+              {' '}asigna la <strong>misma sucursal</strong> al cajero que la de las cajas que usará. Los administradores no llevan sucursal fija.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-navy-400 mt-0.5">•</span>
+            <span>
+              Abajo, <strong>Sucursal (POS)</strong> y <strong>Caja (catálogo)</strong> definen el terminal por defecto; el cajero con varias cajas puede elegir al abrir sesión.
+            </span>
+          </li>
+        </ul>
+      </SectionCard>
+
       {/* Información de la empresa */}
       <SectionCard
         title="Información de la Empresa"
@@ -155,7 +461,11 @@ export default function ConfiguracionPage() {
         description="Datos que aparecerán en facturas, comprobantes y reportes"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <Field label="Nombre de la empresa" col>
+          <Field
+            label="Nombre de la empresa"
+            hint="Aparece en recibos e impresiones. Si queda vacío, el sistema usará un nombre genérico."
+            col
+          >
             <input className="input-field" value={form.nombreCompania}
               onChange={(e) => set('nombreCompania', e.target.value)}
               placeholder="Ej: Mi Negocio EIRL" />
@@ -206,6 +516,19 @@ export default function ConfiguracionPage() {
             <p className="text-xs text-navy-500">Vista previa del logotipo</p>
           </div>
         )}
+
+        <Field
+          label="Texto adicional al pie del recibo"
+          hint="Opcional. Se muestra debajo de «Gracias por su compra» en ticket e impresión (varias líneas permitidas)."
+        >
+          <textarea
+            className="input-field min-h-[88px] resize-y"
+            value={form.textoPieRecibo}
+            onChange={(e) => set('textoPieRecibo', e.target.value)}
+            placeholder="Ej: Horario Lun–Sáb 8–18 h · Políticas de cambio según ticket"
+            rows={4}
+          />
+        </Field>
       </SectionCard>
 
       {/* Moneda e impuestos */}
@@ -286,6 +609,22 @@ export default function ConfiguracionPage() {
         description="Configuración de comprobantes fiscales requeridos por la DGII"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Field
+            label="Jurisdicción fiscal (instancia)"
+            hint="Vacío: se usa la variable del servidor (FISCAL_JURISDICTION). DO: NCF/DGII. NONE: no emitir comprobante fiscal desde la API."
+          >
+            <select
+              className="input-field"
+              value={form.fiscalJurisdiccion}
+              onChange={(e) =>
+                set('fiscalJurisdiccion', e.target.value as '' | 'DO' | 'NONE')
+              }
+            >
+              <option value="">Según servidor (.env)</option>
+              <option value="DO">República Dominicana (DGII / NCF)</option>
+              <option value="NONE">Sin comprobante fiscal (NCF)</option>
+            </select>
+          </Field>
           <Field label="Tipo de comprobante por defecto"
             hint="Se preseleccionará automáticamente al procesar cada venta">
             <select className="input-field" value={form.comprobanteDefecto}
@@ -297,7 +636,58 @@ export default function ConfiguracionPage() {
               <option value="15">B15 — Gubernamental</option>
             </select>
           </Field>
-          <Field label="Nombre de la caja" hint="Identifica el punto de venta en apertura/cierre de caja">
+          <Field label="Sucursal (POS)"
+            hint="Se asocia la apertura de caja y los gastos del día a esta tienda. Deja vacío si solo hay una ubicación.">
+            <select
+              className="input-field"
+              value={form.tiendaId === '' ? '' : String(form.tiendaId)}
+              onChange={(e) => {
+                const v = e.target.value;
+                set('tiendaId', v === '' ? '' : Number(v));
+                set('cajaId', '');
+              }}
+            >
+              <option value="">Sin asignar</option>
+              {tiendas.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Caja (catálogo)"
+            hint="Crea y asigna cajas en el menú «Cajas». Si eliges una, el POS abre sesión por ID (recomendado con varias sucursales).">
+            <select
+              className="input-field"
+              value={form.cajaId === '' ? '' : String(form.cajaId)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '') {
+                  set('cajaId', '');
+                  return;
+                }
+                const id = Number(v);
+                const c = cajasLista.find((x) => x.id === id);
+                setForm((prev) => ({
+                  ...prev,
+                  cajaId: id,
+                  nombreCaja: c?.nombre ?? prev.nombreCaja,
+                  tiendaId: c?.tienda?.id != null ? c.tienda.id : prev.tiendaId,
+                }));
+              }}
+            >
+              <option value="">Sin catálogo (usar nombre abajo)</option>
+              {(form.tiendaId === ''
+                ? cajasLista
+                : cajasLista.filter((c) => c.tienda?.id === form.tiendaId)
+              ).filter(
+                (c) => c.activo || (form.cajaId !== '' && c.id === form.cajaId)
+              ).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.tienda?.nombre ? `${c.tienda.nombre} — ` : ''}{c.nombre}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Nombre de la caja (texto libre)" hint="Se usa si no eliges una caja del catálogo, o como etiqueta mostrada.">
             <input className="input-field" value={form.nombreCaja}
               onChange={(e) => set('nombreCaja', e.target.value)}
               placeholder="CAJA 1" />
@@ -313,10 +703,10 @@ export default function ConfiguracionPage() {
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Versión', value: '1.0.0' },
-            { label: 'Entorno', value: 'Producción' },
+            { label: 'Versión (frontend)', value: APP_VERSION },
+            { label: 'Entorno', value: APP_ENTORNO },
             { label: 'País', value: 'República Dominicana' },
-            { label: 'Moneda base', value: 'RDS (Peso dominicano)' },
+            { label: 'Símbolo moneda (config)', value: form.simboloMoneda || 'RDS' },
           ].map((item) => (
             <div key={item.label} className="bg-navy-50 rounded-xl p-4 border border-navy-100">
               <p className="text-xs text-navy-400 mb-1">{item.label}</p>

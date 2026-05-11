@@ -6,13 +6,16 @@ import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Package, ShoppingCart, DollarSign,
-  Users2, Gift, FileText, Settings, Store, Truck, BarChart2,
+  Users2, Gift, FileText, Settings, Store, Landmark, Truck, BarChart2,
   LogOut, Box, X, ClipboardList, RotateCcw, Shield, History,
-  ChevronDown,
+  ChevronDown, Tag, ScrollText, ChefHat, Lock, Building2,
 } from 'lucide-react';
-import { Rol } from '@pos/shared';
-import { useState, useEffect } from 'react';
+import { Rol, PlanFeatures } from '@pos/shared';
+import { useState, useEffect, useMemo } from 'react';
 import { useStockBajo } from '@/hooks/useInventario';
+import { useSaasContext } from '@/hooks/useSaasContext';
+import { appBrand } from '@/lib/app-brand';
+import { uiLabels } from '@/lib/ui-labels';
 
 interface NavChild {
   label: string;
@@ -27,35 +30,42 @@ interface NavItem {
   icon:     React.ReactNode;
   roles:    Rol[];
   children?: NavChild[];
+  /** Si está definido, este item requiere que el plan tenga este feature habilitado. */
+  feature?: keyof PlanFeatures;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Panel',          href: '/',                 icon: <LayoutDashboard size={17} />, roles: ['admin','cajero','soporte'] },
-  { label: 'Clientes',       href: '/clientes',          icon: <Users size={17} />,           roles: ['admin','cajero','soporte'] },
-  { label: 'Inventario',     href: '/inventario',        icon: <Package size={17} />,         roles: ['admin','cajero','soporte'] },
-  { label: 'Kits',           href: '/kits',              icon: <Box size={17} />,             roles: ['admin','soporte'] },
-  { label: 'Proveedores',    href: '/proveedores',       icon: <Truck size={17} />,           roles: ['admin','soporte'] },
-  { label: 'Compras',        href: '/compras',           icon: <ClipboardList size={17} />,   roles: ['admin','soporte'] },
-  { label: 'Devoluciones',   href: '/devoluciones',      icon: <RotateCcw size={17} />,       roles: ['admin','soporte'] },
-  { label: 'Reportes',       href: '/reportes',          icon: <BarChart2 size={17} />,       roles: ['admin','soporte'] },
+  { label: 'Panel',          href: '/panel',             icon: <LayoutDashboard size={17} />, roles: ['admin','cajero','soporte','plataforma'] },
+  { label: 'Clientes',       href: '/clientes',          icon: <Users size={17} />,           roles: ['admin','cajero','soporte','plataforma'] },
+  { label: 'Inventario',     href: '/inventario',        icon: <Package size={17} />,         roles: ['admin','cajero','soporte','plataforma'] },
+  { label: 'Recetas',        href: '/recetas',           icon: <ChefHat size={17} />,         roles: ['admin','cajero','soporte','plataforma'],   feature: 'recetas' },
+  { label: 'Kits',           href: '/kits',              icon: <Box size={17} />,             roles: ['admin','soporte','plataforma'],             feature: 'kits' },
+  { label: 'Proveedores',    href: '/proveedores',       icon: <Truck size={17} />,           roles: ['admin','soporte','plataforma'],             feature: 'compras' },
+  { label: 'Compras',        href: '/compras',           icon: <ClipboardList size={17} />,   roles: ['admin','soporte','plataforma'],             feature: 'compras' },
+  { label: 'Devoluciones',   href: '/devoluciones',      icon: <RotateCcw size={17} />,       roles: ['admin','soporte','plataforma'] },
+  { label: 'Cotizaciones',   href: '/cotizaciones',      icon: <ScrollText size={17} />,     roles: ['admin','cajero','soporte','plataforma'],    feature: 'cotizaciones' },
+  { label: 'Promociones',    href: '/promociones',       icon: <Tag size={17} />,            roles: ['admin','soporte','plataforma'],             feature: 'promociones' },
+  { label: 'Reportes',       href: '/reportes',          icon: <BarChart2 size={17} />,       roles: ['admin','soporte','plataforma'] },
   {
     label: 'Ventas',
     href:  '/ventas',
     icon:  <ShoppingCart size={17} />,
-    roles: ['admin','cajero','soporte'],
+    roles: ['admin','cajero','soporte','plataforma'],
     children: [
-      { label: 'Nueva Venta',    href: '/ventas',                icon: <ShoppingCart size={14} />, roles: ['admin','cajero'] },
-      { label: 'Historial',      href: '/ventas/historial',      icon: <History size={14} />,      roles: ['admin','soporte'] },
-      { label: 'Cierres de Caja', href: '/ventas/cierres-caja', icon: <DollarSign size={14} />,   roles: ['admin','soporte'] },
+      { label: 'Nueva Venta',    href: '/ventas',                icon: <ShoppingCart size={14} />, roles: ['admin','cajero','plataforma'] },
+      { label: 'Historial',      href: '/ventas/historial',      icon: <History size={14} />,      roles: ['admin','soporte','plataforma'] },
+      { label: 'Cierres de Caja', href: '/ventas/cierres-caja', icon: <DollarSign size={14} />,   roles: ['admin','soporte','cajero','plataforma'] },
     ],
   },
-  { label: 'Gastos',         href: '/gastos',            icon: <DollarSign size={17} />,      roles: ['admin','soporte'] },
-  { label: 'Empleados',      href: '/empleados',         icon: <Users2 size={17} />,          roles: ['admin','soporte'] },
-  { label: 'Tarjeta Regalo', href: '/tarjeta-de-regalo', icon: <Gift size={17} />,            roles: ['admin','cajero'] },
-  { label: 'Comprobante',    href: '/comprobante',       icon: <FileText size={17} />,        roles: ['admin','soporte'] },
-  { label: 'Configuración',  href: '/configuracion',     icon: <Settings size={17} />,        roles: ['admin','soporte'] },
-  { label: 'Tiendas',        href: '/tiendas',           icon: <Store size={17} />,           roles: ['admin','soporte'] },
-  { label: 'Auditoría',      href: '/auditoria',         icon: <Shield size={17} />,          roles: ['admin'] },
+  { label: 'Gastos',         href: '/gastos',            icon: <DollarSign size={17} />,      roles: ['admin','soporte','cajero','plataforma'] },
+  { label: 'Empleados',      href: '/empleados',         icon: <Users2 size={17} />,          roles: ['admin','soporte','plataforma'] },
+  { label: 'Tarjeta Regalo', href: '/tarjeta-de-regalo', icon: <Gift size={17} />,            roles: ['admin','cajero','plataforma'],             feature: 'tarjetasRegalo' },
+  { label: 'Comprobante',    href: '/comprobante',       icon: <FileText size={17} />,        roles: ['admin','soporte','plataforma'] },
+  { label: 'Configuración',  href: '/configuracion',     icon: <Settings size={17} />,        roles: ['admin','soporte','plataforma'] },
+  { label: 'Tiendas',        href: '/tiendas',           icon: <Store size={17} />,           roles: ['admin','soporte','plataforma'] },
+  { label: 'Cajas',          href: '/cajas',             icon: <Landmark size={17} />,        roles: ['admin','soporte','plataforma'] },
+  { label: 'Auditoría',      href: '/auditoria',         icon: <Shield size={17} />,          roles: ['admin','plataforma'] },
+  { label: 'Panel instancia', href: '/plataforma',       icon: <Building2 size={17} />,       roles: ['plataforma'] },
 ];
 
 interface Props {
@@ -68,16 +78,39 @@ export function Sidebar({ open, onClose }: Props) {
   const user     = useAuthStore((s) => s.user);
   const logout   = useAuthStore((s) => s.logout);
 
-  const isAdmin = user?.rol === 'admin';
+  const isAdmin = user?.rol === 'admin' || user?.rol === 'plataforma';
   const { data: stockBajoData } = useStockBajo(10);
   const stockBajoCount = isAdmin ? (stockBajoData?.length ?? 0) : 0;
+  const { data: saas } = useSaasContext();
 
-  const visibleItems = NAV_ITEMS.filter((i) => user && i.roles.includes(user.rol));
+  /** Devuelve true si el item está bloqueado por el plan del tenant. */
+  const isLocked = (item: NavItem): boolean => {
+    if (!item.feature) return false;
+    // plataforma ve todo (gestión de la instancia)
+    if (user?.rol === 'plataforma') return false;
+    // Si no hay contexto SaaS aún, no bloquear (esperar)
+    if (!saas) return false;
+    return saas.limits.features[item.feature] === false;
+  };
+
+  const navItems = useMemo(
+    () =>
+      NAV_ITEMS
+        .filter((i) => i.href !== '/recetas' || uiLabels.featureRecetas)
+        .map((i) => {
+        if (i.href === '/recetas') return { ...i, label: uiLabels.recetas };
+        if (i.href === '/reportes') return { ...i, label: uiLabels.reportes };
+        return i;
+      }),
+    [],
+  );
+
+  const visibleItems = navItems.filter((i) => user && i.roles.includes(user.rol));
 
   // Track which parent menus are open — auto-open if current path is a child
   const getInitialOpen = () => {
     const map: Record<string, boolean> = {};
-    for (const item of NAV_ITEMS) {
+    for (const item of navItems) {
       if (item.children) {
         map[item.href] = item.children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
       }
@@ -91,7 +124,7 @@ export function Sidebar({ open, onClose }: Props) {
   useEffect(() => {
     setOpenMenus((prev) => {
       const next = { ...prev };
-      for (const item of NAV_ITEMS) {
+      for (const item of navItems) {
         if (item.children) {
           const childActive = item.children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
           if (childActive) next[item.href] = true;
@@ -114,8 +147,10 @@ export function Sidebar({ open, onClose }: Props) {
             <span className="text-white font-extrabold text-xs">POS</span>
           </div>
           <div>
-            <p className="text-white font-semibold text-sm leading-none">Melania</p>
-            <p className="text-white/40 text-[10px] mt-0.5 leading-none">Sopa EIRL</p>
+            <p className="text-white font-semibold text-sm leading-none">{appBrand.shortName}</p>
+            {appBrand.tagline.trim() ? (
+              <p className="text-white/40 text-[10px] mt-0.5 leading-none">{appBrand.tagline}</p>
+            ) : null}
           </div>
         </div>
         <button onClick={onClose} className="lg:hidden text-white/40 hover:text-white p-1 rounded-md">
@@ -194,11 +229,32 @@ export function Sidebar({ open, onClose }: Props) {
           }
 
           // ── Regular item ────────────────────────────────────────────────────
-          const active = item.href === '/'
-            ? pathname === '/'
+          const active = item.href === '/panel'
+            ? pathname === '/panel'
             : pathname === item.href || pathname.startsWith(item.href + '/');
 
           const badge = item.href === '/inventario' && stockBajoCount > 0 ? stockBajoCount : null;
+          const locked = isLocked(item);
+
+          if (locked) {
+            return (
+              <Link
+                key={item.href}
+                href="/configuracion"
+                onClick={onClose}
+                title={`Disponible desde plan Standard — ir a Configuración`}
+                className={cn(
+                  'flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  'border-l-2 pl-[10px] pr-3',
+                  'text-white/25 hover:text-white/40 hover:bg-white/5 border-transparent cursor-not-allowed',
+                )}
+              >
+                <span className="text-white/20">{item.icon}</span>
+                <span className="flex-1">{item.label}</span>
+                <Lock size={11} className="text-white/25 shrink-0" />
+              </Link>
+            );
+          }
 
           return (
             <Link

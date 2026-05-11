@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { AppDataSource } from '../config/database';
+import { Tenant } from '../entities/Tenant.entity';
 import { AuthUser, Rol } from '@pos/shared';
 import { sendError } from '../utils/response';
 
@@ -9,7 +11,7 @@ export interface AuthRequest extends Request {
 }
 
 // ── Verifica JWT ────────────────────────────────────────────────────────────
-export const authMiddleware = (
+export const authMiddleware = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -19,15 +21,48 @@ export const authMiddleware = (
 
   try {
     const payload = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+    const isPlataforma = payload.rol === 'plataforma';
+
+    if (isPlataforma) {
+      const hdr = req.headers['x-tenant-id'];
+      if (hdr !== undefined && hdr !== null && String(hdr).trim() !== '') {
+        const n = Number(hdr);
+        if (Number.isNaN(n) || n < 1) {
+          return sendError(res, 'X-Tenant-Id inválido', 400);
+        }
+        const tenant = await AppDataSource.getRepository(Tenant).findOne({ where: { id: n } });
+        if (!tenant?.activo) {
+          return sendError(res, 'Organización no encontrada o inactiva', 404);
+        }
+        payload.tenantId = n;
+      } else {
+        payload.tenantId = undefined;
+      }
+    } else {
+      if (payload.tenantId == null || payload.tenantId === undefined) {
+        payload.tenantId = 1;
+      }
+      const tid = Number(payload.tenantId);
+      const hdr = req.headers['x-tenant-id'];
+      if (hdr !== undefined && hdr !== null && String(hdr).trim() !== '') {
+        const n = Number(hdr);
+        if (Number.isNaN(n) || n !== tid) {
+          return sendError(res, 'X-Tenant-Id no coincide con la organización de la sesión', 403);
+        }
+      }
+    }
     req.user = payload;
     next();
-  } catch {
-    return sendError(res, 'Token inválido o expirado', 401);
+  } catch (e: unknown) {
+    if (e instanceof jwt.JsonWebTokenError || e instanceof jwt.TokenExpiredError) {
+      return sendError(res, 'Token inválido o expirado', 401);
+    }
+    console.error('[authMiddleware]', e);
+    return sendError(res, 'Error de autenticación', 500);
   }
 };
 
 // ── Guard por roles ─────────────────────────────────────────────────────────
-// Uso: router.get('/ruta', authMiddleware, roleGuard('admin', 'soporte'), ctrl)
 export const roleGuard = (...roles: Rol[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return sendError(res, 'No autenticado', 401);
@@ -39,7 +74,9 @@ export const roleGuard = (...roles: Rol[]) => {
 };
 
 // ── Permisos predefinidos por módulo ────────────────────────────────────────
-export const canAdmin    = roleGuard('admin');
-export const canAdminOrSoporte = roleGuard('admin', 'soporte');
-export const canAll      = roleGuard('admin', 'cajero', 'soporte');
-export const canSell     = roleGuard('admin', 'cajero');
+/** Incluye `plataforma`: mismo alcance operativo que admin al usar X-Tenant-Id. */
+export const canAdmin    = roleGuard('admin', 'plataforma');
+export const canAdminOrSoporte = roleGuard('admin', 'soporte', 'plataforma');
+export const canAll      = roleGuard('admin', 'cajero', 'soporte', 'plataforma');
+export const canSell     = roleGuard('admin', 'cajero', 'plataforma');
+export const canPlataforma = roleGuard('plataforma');

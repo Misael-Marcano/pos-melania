@@ -7,6 +7,7 @@ export const createArticuloSchema = z.object({
   precioVenta:  z.number().min(0),
   cantidad:     z.number().int().optional(),
   tamanio:      z.string().max(50).optional(),
+  unidadMedida: z.union([z.string().max(20), z.null()]).optional(),
   categoriaId:  z.number().int().positive(),
   foto:         z.string().max(500).optional(),
 });

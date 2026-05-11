@@ -45,7 +45,9 @@
   .btn-danger {
     @apply bg-rose-500 hover:bg-rose-600 active:bg-rose-700
            text-white font-medium px-4 py-2 rounded-lg text-sm
-           transition-all duration-150 shadow-sm;
+           transition-all duration-150 shadow-sm
+           disabled:bg-navy-300 disabled:text-navy-700 disabled:shadow-none
+           disabled:cursor-not-allowed disabled:hover:bg-navy-300;
   }
 
   .btn-ghost {
@@ -102,5 +104,109 @@
   /* ── Glass panel (modals / dropdowns) ─────────────────────── */
   .glass-panel {
     @apply bg-white/80 backdrop-blur-[12px] rounded-[12px] shadow-float;
+  }
+}
+
+/* ── react-toastify — alineado al POS (carga después de ReactToastify.css) ── */
+.pos-toast-container.Toastify__toast-container {
+  --toastify-z-index: 4000;
+  --toastify-toast-top: max(5rem, env(safe-area-inset-top));
+  --toastify-toast-right: max(1rem, env(safe-area-inset-right));
+  --toastify-toast-width: min(22rem, calc(100vw - 2rem));
+  --toastify-toast-min-height: auto;
+  --toastify-toast-bd-radius: 12px;
+  --toastify-toast-shadow: 0 4px 40px 0 rgb(24 28 28 / 0.06);
+  --toastify-font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  --toastify-text-color-light: #181c1c;
+  --toastify-color-progress-success: #273727;
+  --toastify-color-progress-error: #e11d48;
+  --toastify-color-progress-info: #0060ac;
+  --toastify-color-progress-warning: #d97706;
+}
+
+@media (min-width: 1024px) {
+  .pos-toast-container.Toastify__toast-container {
+    --toastify-toast-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
+.pos-toast-container .pos-toast-item.Toastify__toast {
+  @apply border border-navy-200/80 bg-white text-navy-800 shadow-card;
+  margin-bottom: 0.625rem;
+  min-height: unset;
+  align-items: center;
+  overflow: hidden;
+  padding: 0.875rem 0 0.875rem 1rem;
+}
+
+/* Icono Lucide + cuerpo: sin borde izquierdo extra (era lo que generaba el arco raro con el radius) */
+.pos-toast-container .Toastify__toast-icon {
+  margin-inline-end: 0.625rem;
+  margin-inline-start: 0;
+  width: auto;
+  min-width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pos-toast-container .Toastify__toast-body {
+  @apply text-sm font-medium leading-snug text-navy-800;
+  padding: 0 2.625rem 0 0;
+  margin: 0;
+  flex: 1;
+}
+
+/* Barra de progreso: sustituye el degradado multicolor del tema light */
+.pos-toast-container .Toastify__progress-bar-theme--light.Toastify__progress-bar--success {
+  background: #273727;
+}
+
+.pos-toast-container .Toastify__progress-bar-theme--light.Toastify__progress-bar--error {
+  background: #e11d48;
+}
+
+.pos-toast-container .Toastify__progress-bar-theme--light.Toastify__progress-bar--info {
+  background: #0060ac;
+}
+
+.pos-toast-container .Toastify__progress-bar-theme--light.Toastify__progress-bar--warning {
+  background: #d97706;
+}
+
+.pos-toast-container .Toastify__close-button--light {
+  @apply text-navy-400 opacity-100;
+}
+
+.pos-toast-container .Toastify__close-button--light:hover {
+  @apply text-navy-700;
+}
+
+.pos-toast-container .Toastify__close-button {
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+/* Barra de progreso discreta, recortada al radio del toast */
+.pos-toast-container .Toastify__progress-bar {
+  height: 3px;
+  opacity: 0.85;
+}
+
+@media only screen and (max-width: 480px) {
+  .pos-toast-container.Toastify__toast-container {
+    width: min(calc(100vw - 2rem), 100vw) !important;
+    left: auto !important;
+    right: 1rem !important;
+  }
+
+  .pos-toast-container.Toastify__toast-container--top-right {
+    top: max(5rem, env(safe-area-inset-top)) !important;
+  }
+
+  .pos-toast-container .pos-toast-item.Toastify__toast {
+    --toastify-toast-width: 100%;
+    @apply rounded-[12px];
+    margin-bottom: 0.5rem;
   }
 }

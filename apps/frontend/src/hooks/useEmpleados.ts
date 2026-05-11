@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { empleadosService, CreateEmpleadoPayload, UpdateEmpleadoPayload } from '@/services/empleados.service';
 import { toast } from '@/store/toast.store';
+import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
 
 export const EMPLEADOS_KEY = 'empleados';
 
@@ -17,6 +18,7 @@ export function useCrearEmpleado() {
     mutationFn: (payload: CreateEmpleadoPayload) => empleadosService.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [EMPLEADOS_KEY] });
+      qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
       toast.success('Empleado creado correctamente');
     },
   });
@@ -29,6 +31,7 @@ export function useActualizarEmpleado() {
       empleadosService.update(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [EMPLEADOS_KEY] });
+      qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
       toast.success('Empleado actualizado');
     },
   });
@@ -40,6 +43,7 @@ export function useEliminarEmpleado() {
     mutationFn: (id: number) => empleadosService.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [EMPLEADOS_KEY] });
+      qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
       toast.success('Empleado desactivado');
     },
   });

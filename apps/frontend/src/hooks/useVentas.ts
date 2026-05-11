@@ -89,10 +89,14 @@ export function useResumenCaja(aperturaId: number) {
 }
 
 // ── Caja activa ───────────────────────────────────────────────────────────────
-export function useCajaActiva(cajaNombre: string) {
+/** Si `cajaId` viene del catálogo (configuración), la sesión se busca por ID para evitar desfaces al renombrar. */
+export function useCajaActiva(cajaNombre: string, cajaId?: number | null) {
   return useQuery({
-    queryKey: [CAJA_KEY, 'activa', cajaNombre],
-    queryFn:  () => ventasService.getCajaActiva(cajaNombre),
+    queryKey: [CAJA_KEY, 'activa', cajaId ?? 'nombre', cajaId ?? cajaNombre],
+    queryFn: () =>
+      cajaId != null && cajaId > 0
+        ? ventasService.getCajaActivaPorCajaId(cajaId)
+        : ventasService.getCajaActiva(cajaNombre),
     staleTime: 30_000,
   });
 }
@@ -103,7 +107,10 @@ export function useAbrirCaja() {
   return useMutation({
     mutationFn: (payload: Parameters<typeof ventasService.abrirCaja>[0]) =>
       ventasService.abrirCaja(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CAJA_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CAJA_KEY] });
+      qc.invalidateQueries({ queryKey: [CAJA_KEY, 'abiertas'] });
+    },
   });
 }
 
@@ -113,7 +120,10 @@ export function useCerrarCaja() {
   return useMutation({
     mutationFn: (payload: Parameters<typeof ventasService.cerrarCaja>[0]) =>
       ventasService.cerrarCaja(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CAJA_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [CAJA_KEY] });
+      qc.invalidateQueries({ queryKey: [CAJA_KEY, 'abiertas'] });
+    },
   });
 }
 
@@ -123,5 +133,14 @@ export function useHistorialCajas(page = 1, limit = 20) {
     queryKey: [CAJA_KEY, 'historial', page, limit],
     queryFn:  () => ventasService.historialCajas(page, limit),
     placeholderData: (prev) => prev,
+  });
+}
+
+/** Sesiones de caja abiertas (varias sucursales / varias cajas) */
+export function useCajasAbiertas() {
+  return useQuery({
+    queryKey: [CAJA_KEY, 'abiertas'],
+    queryFn:  () => ventasService.listCajasAbiertas(),
+    staleTime: 30_000,
   });
 }

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useArticulos, useClonarArticulo, useEliminarArticulo } from '@/hooks/useInventario';
 import { IArticulo } from '@pos/shared';
-import { Search, Plus, Copy, Pencil, Sliders, Trash2, AlertTriangle, Tag, Loader2, History, Upload } from 'lucide-react';
+import { Search, Plus, Copy, Pencil, Sliders, Trash2, AlertTriangle, Tag, Loader2, History, Upload, ScanLine } from 'lucide-react';
+import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { ArticuloForm } from './ArticuloForm';
 import { AjustarInventarioModal } from './AjustarInventarioModal';
@@ -12,6 +13,8 @@ import { MovimientosModal } from './MovimientosModal';
 import { ImportarCSVModal } from './ImportarCSVModal';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
 import { toast } from '@/store/toast.store';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { inventarioService } from '@/services/inventario.service';
 
 export function InventarioTable() {
   const [page, setPage]       = useState(1);
@@ -36,6 +39,22 @@ export function InventarioTable() {
   const handleNuevo       = ()              => { setSelected(null); setModalOpen(true); };
   const handleAjustar     = (a: IArticulo) => { setSelected(a); setAjustarOpen(true); };
   const handleMovimientos = (a: IArticulo) => { setSelected(a); setMovimientosOpen(true); };
+
+  // Scanner global: busca por código de barras y abre el modal de ajuste
+  const anyModalOpen = modalOpen || ajustarOpen || catOpen || movimientosOpen || importarOpen || confirmId !== null;
+  useBarcodeScanner(async (codigo) => {
+    try {
+      const art = await inventarioService.getByBarcode(codigo);
+      setSelected(art);
+      setAjustarOpen(true);
+    } catch {
+      // No encontrado → poner código en el buscador
+      setSearch(codigo);
+      setQ(codigo);
+      setPage(1);
+      toast.info(`Sin artículo con código "${codigo}" — mostrando búsqueda`);
+    }
+  }, { disabled: anyModalOpen });
 
   const handleClonar = async (id: number) => {
     try { await clonar.mutateAsync(id); }
@@ -74,6 +93,14 @@ export function InventarioTable() {
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/inventario/buscar"
+              className="btn-outline flex items-center gap-2 text-navy-600"
+              title="Búsqueda rápida por código de barras"
+            >
+              <ScanLine size={14} />
+              <span className="hidden sm:inline">Búsqueda Rápida</span>
+            </Link>
             <button
               onClick={() => setCatOpen(true)}
               className="btn-outline flex items-center gap-2 text-navy-600"
@@ -114,6 +141,7 @@ export function InventarioTable() {
                 <th className="table-header">Nombre</th>
                 <th className="table-header">Categoría</th>
                 <th className="table-header hidden md:table-cell">Tamaño</th>
+                <th className="table-header hidden sm:table-cell text-xs">Unidad</th>
                 <th className="table-header hidden lg:table-cell">Costo</th>
                 <th className="table-header">Precio</th>
                 <th className="table-header">Stock</th>
@@ -123,7 +151,7 @@ export function InventarioTable() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-navy-400 text-sm">
+                  <td colSpan={10} className="text-center py-12 text-navy-400 text-sm">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                       Cargando...
@@ -132,7 +160,7 @@ export function InventarioTable() {
                 </tr>
               ) : articulos.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12">
+                  <td colSpan={10} className="text-center py-12">
                     <div className="text-navy-400">
                       <Search size={32} className="mx-auto mb-2 opacity-40" />
                       <p className="text-sm">No hay artículos{q ? ` para "${q}"` : ''}</p>
@@ -153,6 +181,7 @@ export function InventarioTable() {
                           : <span className="text-navy-300 text-xs">—</span>}
                       </td>
                       <td className="table-cell hidden md:table-cell text-navy-500 text-xs">{a.tamanio ?? '—'}</td>
+                      <td className="table-cell hidden sm:table-cell text-navy-500 text-xs">{a.unidadMedida?.trim() || '—'}</td>
                       <td className="table-cell hidden lg:table-cell text-navy-600">{formatCurrency(a.costo)}</td>
                       <td className="table-cell font-bold text-navy-900">{formatCurrency(a.precioVenta)}</td>
                       <td className="table-cell">
@@ -163,7 +192,7 @@ export function InventarioTable() {
                               : 'bg-emerald-100 text-emerald-700'
                           }`}>
                             {stockBajo && <AlertTriangle size={10} />}
-                            {a.cantidad.toLocaleString()}
+                            {a.cantidad.toLocaleString()}{a.unidadMedida?.trim() ? ` ${a.unidadMedida.trim()}` : ''}
                           </span>
                         ) : (
                           <span className="text-navy-300 text-xs italic">—</span>

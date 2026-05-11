@@ -1,9 +1,11 @@
 import { ILike } from 'typeorm';
-import { Request } from 'express';
 import { AppDataSource } from '../../config/database';
 import { TarjetaRegalo, MovimientoTarjeta } from '../../entities/TarjetaRegalo.entity';
 import { AppError } from '../../middlewares/error.middleware';
 import { getPagination } from '../../utils/pagination';
+import { AuthRequest } from '../../middlewares/auth.middleware';
+import { assertTenantMatch, tenantIdOrThrow } from '../../utils/tenant-access';
+import { assertFeatureEnabled } from '../../saas/enforce-plan';
 import { AuthUser } from '@pos/shared';
 import {
   CreateTarjetaDto, RecargarTarjetaDto,
@@ -23,14 +25,15 @@ function getMovimientos(t: TarjetaRegalo): MovimientoTarjeta[] {
 }
 
 export class TarjetasRegaloService {
-  async findAll(req: Request) {
+  async findAll(req: AuthRequest) {
     const { page, limit, skip } = getPagination(req);
     const q      = req.query.q      as string | undefined;
     const estado = req.query.estado as string | undefined;
+    const tid    = tenantIdOrThrow(req.user);
 
-    const where: Record<string, unknown> = {};
-    if (q)      where.codigo = ILike(`%${q}%`);
-    if (estado) where.estado = estado;
+    const where: Record<string, unknown> = { tenant: { id: tid } };
+    if (q)      Object.assign(where, { codigo: ILike(`%${q}%`) });
+    if (estado) Object.assign(where, { estado });
 
     const [data, total] = await repo().findAndCount({
       where,
@@ -42,22 +45,28 @@ export class TarjetasRegaloService {
     return { data, total, page, limit };
   }
 
-  async findById(id: number): Promise<TarjetaRegalo> {
-    const t = await repo().findOne({ where: { id }, relations: ['creadoPor'] });
+  async findById(id: number, user: AuthUser): Promise<TarjetaRegalo> {
+    const t = await repo().findOne({ where: { id }, relations: ['creadoPor', 'tenant'] });
     if (!t) throw new AppError('Tarjeta de regalo no encontrada', 404);
+    assertTenantMatch(user, t.tenant?.id);
     return t;
   }
 
-  async findByCodigo(codigo: string): Promise<TarjetaRegalo> {
-    const t = await repo().findOne({ where: { codigo: codigo.toUpperCase() }, relations: ['creadoPor'] });
+  async findByCodigo(codigo: string, user: AuthUser): Promise<TarjetaRegalo> {
+    const tid = tenantIdOrThrow(user);
+    const t = await repo().findOne({
+      where: { codigo: codigo.toUpperCase(), tenant: { id: tid } },
+      relations: ['creadoPor'],
+    });
     if (!t) throw new AppError('Tarjeta de regalo no encontrada', 404);
     return t;
   }
 
   async create(dto: CreateTarjetaDto, user: AuthUser): Promise<TarjetaRegalo> {
-    // Generar código único
+    const tid = tenantIdOrThrow(user);
+    await assertFeatureEnabled(tid, 'tarjetasRegalo');
     let codigo = generateCodigo();
-    while (await repo().findOne({ where: { codigo } })) {
+    while (await repo().findOne({ where: { codigo, tenant: { id: tid } } })) {
       codigo = generateCodigo();
     }
 
@@ -77,12 +86,13 @@ export class TarjetasRegaloService {
       notas:            dto.notas,
       movimientosJson:  JSON.stringify([mov]),
       creadoPor:        { id: user.id } as any,
+      tenant:           { id: tid } as any,
     });
     return repo().save(t);
   }
 
-  async recargar(id: number, dto: RecargarTarjetaDto): Promise<TarjetaRegalo> {
-    const t = await this.findById(id);
+  async recargar(id: number, dto: RecargarTarjetaDto, user: AuthUser): Promise<TarjetaRegalo> {
+    const t = await this.findById(id, user);
     if (t.estado === 'CANCELADA') throw new AppError('La tarjeta está cancelada', 400);
     if (t.estado === 'VENCIDA')   throw new AppError('La tarjeta está vencida', 400);
 
@@ -95,14 +105,13 @@ export class TarjetasRegaloService {
       estado:          'ACTIVA',
       movimientosJson: JSON.stringify(movs),
     });
-    return this.findById(id);
+    return this.findById(id, user);
   }
 
-  async usar(id: number, dto: UsarTarjetaDto): Promise<TarjetaRegalo> {
-    const t = await this.findById(id);
+  async usar(id: number, dto: UsarTarjetaDto, user: AuthUser): Promise<TarjetaRegalo> {
+    const t = await this.findById(id, user);
     if (t.estado !== 'ACTIVA') throw new AppError(`La tarjeta no está activa (estado: ${t.estado})`, 400);
 
-    // Verificar vencimiento
     if (t.fechaVencimiento && new Date(t.fechaVencimiento) < new Date()) {
       await repo().update(id, { estado: 'VENCIDA' });
       throw new AppError('La tarjeta está vencida', 400);
@@ -123,22 +132,22 @@ export class TarjetasRegaloService {
       estado:          nuevoEstado,
       movimientosJson: JSON.stringify(movs),
     });
-    return this.findById(id);
+    return this.findById(id, user);
   }
 
-  async update(id: number, dto: UpdateTarjetaDto): Promise<TarjetaRegalo> {
-    await this.findById(id);
+  async update(id: number, dto: UpdateTarjetaDto, user: AuthUser): Promise<TarjetaRegalo> {
+    await this.findById(id, user);
     const upd: Record<string, unknown> = {};
     if (dto.notas            !== undefined) upd.notas            = dto.notas;
     if (dto.estado           !== undefined) upd.estado           = dto.estado;
     if (dto.fechaVencimiento !== undefined) upd.fechaVencimiento = dto.fechaVencimiento
       ? new Date(dto.fechaVencimiento) : null;
     await repo().update(id, upd);
-    return this.findById(id);
+    return this.findById(id, user);
   }
 
-  async delete(id: number): Promise<void> {
-    const t = await this.findById(id);
+  async delete(id: number, user: AuthUser): Promise<void> {
+    const t = await this.findById(id, user);
     await repo().remove(t);
   }
 }

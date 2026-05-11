@@ -1,7 +1,7 @@
 // ============================
 // Roles del sistema
 // ============================
-export type Rol = 'admin' | 'cajero' | 'soporte';
+export type Rol = 'admin' | 'cajero' | 'soporte' | 'plataforma';
 
 // ============================
 // Respuesta genérica de la API
@@ -36,6 +36,8 @@ export interface AuthUser {
   nombre: string;
   email: string;
   rol: Rol;
+  /** Organización (multi-tenant). Si falta (token antiguo), tratar como `1`. */
+  tenantId?: number;
   tiendaId?: number;
 }
 
@@ -43,6 +45,64 @@ export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
+}
+
+/** Feature flags por plan — `false` bloquea la creación en ese módulo. */
+export interface PlanFeatures {
+  kits:           boolean;
+  cotizaciones:   boolean;
+  promociones:    boolean;
+  tarjetasRegalo: boolean;
+  recetas:        boolean;
+  compras:        boolean;
+}
+
+/** Límites declarativos del plan (producto SaaS). */
+export interface SaasPlanLimits {
+  code: string;
+  label: string;
+  maxUsers:     number | null;
+  maxTiendas:   number | null;
+  /** Artículos activos en catálogo. `null` = ilimitado. */
+  maxArticulos: number | null;
+  features: PlanFeatures;
+}
+
+/** Uso actual frente al plan (misma regla que `enforce-plan.ts`). */
+export interface SaasUsage {
+  /** Usuarios-asiento activos (sin rol plataforma). */
+  seats: number;
+  tiendasActivas: number;
+  /** Artículos activos en catálogo. */
+  articulosActivos: number;
+  /** Ventas no anuladas en el mes calendario actual (métrica informacional). */
+  ventasMesActual: number;
+}
+
+/** Respuesta de `GET /saas/context`. */
+export interface SaasContext {
+  tenant: {
+    id: number;
+    nombre: string;
+    slug: string;
+    planCode: string;
+    activo: boolean;
+  };
+  limits: SaasPlanLimits;
+  usage: SaasUsage;
+  /**
+   * `true` cuando Stripe está configurado pero el tenant no tiene aún
+   * `stripeCustomerId` (nunca ha pasado por Checkout). Señal para mostrar
+   * el banner de provisioning guiado en el dashboard.
+   */
+  needsOnboarding: boolean;
+  /** Periodo de prueba (`tenants.trialEndsAt` en BD). */
+  trial: {
+    endsAt: string | null;
+    active: boolean;
+    expired: boolean;
+    daysRemaining: number | null;
+  };
 }
 
 // ============================
@@ -60,6 +120,7 @@ export interface ICliente {
   numeroIdentificacion?: string;
   saldo: number;
   limiteCredito: number;
+  descuentoCliente: number;
   activo: boolean;
   createdAt: string;
 }
@@ -75,6 +136,8 @@ export interface IArticulo {
   precioVenta: number;
   cantidad: number | null;
   tamanio?: string;
+  /** Unidad de venta/stock (ej. und, kg, ml) */
+  unidadMedida?: string | null;
   categoria: ICategoria;
   activo: boolean;
 }
@@ -119,8 +182,28 @@ export interface IVenta {
   metodoPago: MetodoPago;
   metodosPago?: { metodo: MetodoPago; monto: number }[];
   comprobante?: string;
+  notas?: string;
+  /** Efectivo entregado por el cliente */
+  efectivoRecibido?: number | null;
+  /** Cambio entregado al cliente */
+  cambio?: number | null;
+  /** ¿Es una venta con entrega a domicilio? */
+  esDelivery?: boolean;
+  /** Cargo de delivery cobrado al cliente */
+  deliveryCargo?: number;
+  /** Dirección o zona de entrega */
+  deliveryDireccion?: string | null;
   fecha: string;
   cliente?: ICliente;
+  /** Quien registró la venta (auditoría) */
+  usuario?: { id: number; nombre: string };
+  /** Sesión de caja donde se cobró (auditoría) */
+  cajaApertura?: {
+    id: number;
+    cajaNombre: string;
+    caja?: { id: number; nombre: string } | null;
+    tienda?: { id: number; nombre: string } | null;
+  };
   detalles: IVentaDetalle[];
 }
 
@@ -139,13 +222,14 @@ export interface IVentaDetalle {
 export interface IGasto {
   id: number;
   escribe: string;
-  descripcion: string;
+  descripcion?: string;
   categoria: string;
   fecha: string;
   cantidad: number;
   impuesto: number;
-  nombreRecipiente: string;
-  aprobadoPor: string;
+  nombreRecipiente?: string;
+  aprobadoPor?: { id: number; nombre: string };
+  createdAt: string;
 }
 
 // ============================
@@ -155,34 +239,14 @@ export interface IEmpleado {
   id: number;
   nombre: string;
   correo: string;
-  telefono: string;
+  telefono?: string;
   rol: Rol;
   activo: boolean;
   foto?: string;
-}
-
-// ============================
-// Comprobante NCF
-// ============================
-export type TipoComprobante = '01' | '02' | '04' | '14' | '15';
-
-export interface IComprobante {
-  id: number;
-  descripcion: string;
-  series: string;
-  tipo: TipoComprobante;
-  desde: string;
-  hasta: string;
-  secuenciaActual: string;
-}
-
-// ============================
-// Caja
-// ============================
-export interface IAperturaCaja {
-  denominaciones: Record<string, number>;
-  montoApertura: number;
-  cajaId: number;
+  createdAt: string;
+  /** Sucursal asignada (obligatoria para roles distintos de admin) */
+  tiendaId?: number | null;
+  tiendaNombre?: string | null;
 }
 
 // ============================
@@ -198,6 +262,77 @@ export interface IProveedor {
   rnc?: string;
   activo: boolean;
   createdAt: string;
+}
+
+// ============================
+// Comprobante NCF
+// ============================
+export type TipoComprobante = '01' | '02' | '04' | '14' | '15';
+
+export interface IComprobante {
+  id: number;
+  descripcion: string;
+  series: string;
+  tipo: TipoComprobante;
+  desde: string;
+  hasta: string;
+  secuenciaActual: string;
+  activo: boolean;
+  updatedAt: string;
+}
+
+// ============================
+// Configuracion
+// ============================
+export interface IConfiguracion {
+  id: number;
+  nombreCompania: string;
+  rnc?: string;
+  direccion?: string;
+  telefono?: string;
+  sitioWeb?: string;
+  simboloMoneda: string;
+  numeroDecimales: number;
+  preciosIncluyenImpuesto: boolean;
+  tasaImpuesto1Nombre?: string;
+  tasaImpuesto1: number;
+  tasaImpuesto2Nombre?: string;
+  tasaImpuesto2: number;
+  logotipoUrl?: string;
+  /** Texto adicional al pie del recibo impreso (opcional) */
+  textoPieRecibo?: string | null;
+  comprobanteDefecto: string;
+  /** Prioridad sobre `FISCAL_JURISDICTION` del servidor; vacío en UI = usar solo `.env` */
+  fiscalJurisdiccion?: string | null;
+  nombreCaja: string;
+  /** Sucursal por defecto para apertura de caja y gastos */
+  tiendaId?: number | null;
+  /** Caja del catálogo asignada a este POS */
+  cajaId?: number | null;
+  caja?: { id: number; nombre: string; tienda?: { id: number; nombre: string } };
+  updatedAt: string;
+}
+
+// ============================
+// Cajas (catálogo por sucursal)
+// ============================
+export interface ICaja {
+  id: number;
+  nombre: string;
+  activo: boolean;
+  notas?: string | null;
+  tienda?: { id: number; nombre: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================
+// Apertura de caja
+// ============================
+export interface IAperturaCaja {
+  denominaciones: Record<string, number>;
+  montoApertura: number;
+  cajaId: number;
 }
 
 // ============================
@@ -315,9 +450,59 @@ export interface ITienda {
 }
 
 // ============================
+// Cotizaciones
+// ============================
+export type EstadoCotizacion = 'BORRADOR' | 'ENVIADA' | 'ACEPTADA' | 'RECHAZADA' | 'VENCIDA';
+
+export interface ICotizacionDetalle {
+  id: number;
+  cantidad: number;
+  precioUnitario: number;
+  descuento: number;
+  total: number;
+  articulo: IArticulo;
+}
+
+export interface ICotizacion {
+  id: number;
+  estado: EstadoCotizacion;
+  notas?: string;
+  validezDias: number;
+  subtotal: number;
+  descuento: number;
+  total: number;
+  cliente?: ICliente;
+  creadoPor?: { id: number; nombre: string };
+  detalles: ICotizacionDetalle[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================
+// Receta (producción / BOM)
+// ============================
+export interface IRecetaIngrediente {
+  id: number;
+  cantidad: number;
+  articulo: IArticulo;
+}
+
+export interface IReceta {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  cantidadResultado: number;
+  activa: boolean;
+  articuloResultado: IArticulo;
+  ingredientes: IRecetaIngrediente[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================
 // Auditoría
 // ============================
-export type AuditOperacion = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditOperacion = 'CREATE' | 'UPDATE' | 'DELETE' | 'EXPORT' | 'READ';
 
 export interface IAuditLog {
   id: number;

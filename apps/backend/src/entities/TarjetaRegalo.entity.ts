@@ -3,6 +3,7 @@ import {
   ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn,
 } from 'typeorm';
 import { Usuario } from './Usuario.entity';
+import { Tenant } from './Tenant.entity';
 
 export type EstadoTarjeta = 'ACTIVA' | 'AGOTADA' | 'VENCIDA' | 'CANCELADA';
 
@@ -18,7 +19,11 @@ export class TarjetaRegalo {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 20, unique: true })
+  @ManyToOne(() => Tenant, { nullable: false, eager: false })
+  @JoinColumn({ name: 'tenantId' })
+  tenant: Tenant;
+
+  @Column({ length: 20 })
   codigo: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })

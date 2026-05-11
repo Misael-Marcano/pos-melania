@@ -1,0 +1,201 @@
+# Plan de cierre del proyecto (ejecución)
+
+**Audiencia:** comercial, operaciones, legal, ingeniería.  
+**Objetivo:** cerrar el ciclo “listo para operar SaaS multi-tenant en producción” con pasos **accionables**, responsables y evidencia donde aplique — sin sustituir los documentos de referencia.
+
+**Alineación:** la definición de “cerrado” y el alcance de producto siguen el plan maestro SaaS y su checklist operativo en `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` (Fases 0–4 y sección *Checklist rápido «¿listo para vender SaaS multi-tenant?»*). Este archivo es el **plan de ejecución de cierre**: qué falta fuera del código, en qué orden y cómo demostrarlo.
+
+---
+
+## Definición de «proyecto cerrado» (criterio único)
+
+Se considera **cerrado para go-live / venta controlada** cuando se cumplen **simultáneamente**:
+
+1. **Checklist del plan SaaS** — todos los ítems marcados como obligatorios en `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` (*Checklist rápido*), en particular los que siguen **sin marcar** en ese documento al cierre de la última revisión (Stripe live con evidencia, backup + restore probado, revisión jurídica externa antes de escala).
+2. **Fase 0 comercial** — criterio de §6 de `docs/arquitectura/SAAS-FASE-0-DECISIONES.md`: filas *Revisión comercial* completadas y checklist de esa sección marcada tras confirmación del equipo.
+3. **Sin bloqueantes P0 abiertos** sin dueño — usar `docs/ISSUES-SAAS-BACKLOG.md` como inventario de issues; cualquier gap P0 debe tener responsable y fecha objetivo. *(Ingeniería: Issues 3–4 cerrados en repo — inventario + suites tenant-isolation incl. configuración; ver `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md`.)*
+
+Los ítems ya marcados como hechos en el checklist del plan maestro (aislamiento + tests, E2E mínimo, trial implementado, emails/auditoría, observabilidad documentada, legal mínimo en UI, landing/planes) **no se repiten aquí** salvo donde el cierre exige **evidencia en entorno real** (p. ej. observabilidad *conectada* en prod).
+
+---
+
+## Runbooks y plantillas de evidencia (enlaces)
+
+La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para validar enlaces internos de `docs/`.
+
+| Recurso | Ruta |
+|--------|------|
+| Seguridad (divulgación responsable) | `SECURITY.md` |
+| Estilo de edición común (EditorConfig) | `.editorconfig` |
+| Normalización de fin de línea (Git) | `.gitattributes` |
+| Pin de versión Node.js (local / nvm) | `.nvmrc` |
+| Guía para contribuir (clone, tests, PR) | `CONTRIBUTING.md` |
+| Workflows CI + E2E manual (GitHub Actions) | `.github/workflows/` |
+| Enlaces internos en `docs/` (Markdown) | `scripts/check-docs-links.mjs`; `npm run verify:docs-links`; CI: job **TypeScript + Unit tests** (paso *Verify docs internal .md links* en `.github/workflows/ci.yml`) (modo diagnóstico: `node scripts/check-docs-links.mjs --verbose`) |
+| Plantilla de issue (backlog SaaS / cierre) | `.github/ISSUE_TEMPLATE/saas-backlog.md` |
+| E2E contra staging / secretos CI | `docs/operacion/E2E-STAGING.md` |
+| Tests integración backend en local (SQL Server + Redis) | `docs/operacion/INTEGRATION-TESTS-LOCAL.md` |
+| Desarrollo local: PowerShell, Docker, enlaces en docs | `docs/operacion/TROUBLESHOOTING-DEV.md` |
+| Stripe producción / pre-live | `docs/operacion/STRIPE-PROD-CHECKLIST.md` |
+| Backup SQL Server | `docs/operacion/BACKUP-SQL-SERVER.md` |
+| Observabilidad y alertas | `docs/operacion/OBSERVABILITY-RUNBOOK.md` |
+| Hub de evidencia operativa (plantillas Stripe/backup, qué subir / qué no) | `docs/operacion/evidence/README.md` |
+| Decisiones Fase 0 (comercial + defaults) | `docs/arquitectura/SAAS-FASE-0-DECISIONES.md` |
+| Backlog de issues SaaS | `docs/ISSUES-SAAS-BACKLOG.md` |
+| Plantilla log Stripe | `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` |
+| Plantilla drill restore | `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` |
+| Nombres de secretos (GitHub + runtime) | `docs/operacion/SECRETS-RUNBOOK.md` |
+| Export OpenAPI local | `docs/operacion/OPENAPI.md` |
+
+---
+
+## Workstreams ordenados (ejecutar en este orden lógico)
+
+### WS1 — Comercial: cerrar Fase 0 (`SAAS-FASE-0-DECISIONES`)
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Documento **escrito** y técnicamente alineado; **pendiente** cierre formal: filas *Revisión comercial* con «(pendiente — rellenar fecha y responsable)» en §1 (registro), §2 (trial / tarjeta), §4 (fecha `BILLING_ENFORCE_PAYMENT=true`); §6 checklist no puede marcarse completa hasta esa revisión. |
+| **Próximo paso concreto** | Reunión 30–60 min con comercial + ingeniería: rellenar fechas y responsables en esas filas; decidir política única trial (BD vs Stripe); acordar fecha objetivo de enforcement tras Stripe live. |
+| **Responsable sugerido** | **Comercial** (dueño de fechas y política); **Ingeniería** (validar viabilidad técnica y orden con WS2). |
+| **Artefacto de evidencia** | Mismo `docs/arquitectura/SAAS-FASE-0-DECISIONES.md` actualizado (sin secretos); opcional: acta breve en ticket enlazado desde `docs/ISSUES-SAAS-BACKLOG.md` (Issues 1–2). |
+
+---
+
+### WS2 — Stripe live + evidencia
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Código billing/webhook/portal **implementado**; checklist del plan maestro: Stripe **live** y evidencia en log **pendientes** (`[ ]` en `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md`). Plantillas vacías o locales: `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md`. |
+| **Próximo paso concreto** | Ejecutar `docs/operacion/STRIPE-PROD-CHECKLIST.md` en entorno **live** (claves live, webhook URL prod, precios live); completar `STRIPE-VALIDATION-LOG.md` (copia en `evidence/` según `evidence/README.md`); solo entonces fijar en WS1 la fecha de `BILLING_ENFORCE_PAYMENT=true` si aplica. |
+| **Responsable sugerido** | **Ingeniería** (configuración técnica, pruebas); **Ops** (acceso dashboard Stripe, rotación secretos); **Comercial** (aceptación de mensajes de impago/suspensión). |
+| **Artefacto de evidencia** | `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` (relleno + fecha + responsable); export o notas auditable en `stripe_audit_logs` según checklist §8–10 del runbook Stripe. |
+
+---
+
+### WS3 — Backup: drill real de restore
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Runbook `docs/operacion/BACKUP-SQL-SERVER.md` y plantilla `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` **presentes**; ítem checklist plan maestro **pendiente** (restore probado con evidencia). |
+| **Próximo paso concreto** | Programar ventana en **staging** (mínimo): restore desde backup real o copia anonimizada; cronometrar; documentar en `BACKUP-RESTORE-DRILL-LOG.md`; si política lo exige, repetir trimestral en prod con procedimiento del runbook. |
+| **Responsable sugerido** | **Ops** (ejecución drill); **Ingeniería** (validación app tras restore). |
+| **Artefacto de evidencia** | `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` con resultado OK, fecha, entorno y responsable (sin rutas con credenciales). |
+
+---
+
+### WS4 — Legal externo (antes de escala)
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Rutas `/terminos` y `/privacidad` **publicadas** (checklist plan maestro marcado); **revisión jurídica externa** explícitamente pendiente antes de escala. |
+| **Próximo paso concreto** | Enviar URLs de staging/prod + flujo de datos (multi-tenant, Stripe, emails) a asesor externo; incorporar cambios de texto en frontend; registrar fecha de “aprobado para publicación” en ticket interno. |
+| **Responsable sugerido** | **Legal** / asesor externo; **Comercial** (prioridad y presupuesto); **Ingeniería** (despliegue de textos acordados). |
+| **Artefacto de evidencia** | Dictamen o email de conformidad (no necesariamente en git; referencia en wiki/ticket); enlaces finales visibles desde login/landing según `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` Fase 4.3. |
+
+---
+
+### WS5 — Observabilidad en producción
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Runbook `docs/operacion/OBSERVABILITY-RUNBOOK.md` y prácticas en código (p. ej. `X-Request-Id`) **hechos** según checklist plan maestro; **pendiente** por entorno: conectar proveedor (logs/APM/uptime) y **alertas reales** en prod. |
+| **Próximo paso concreto** | Seguir runbook: integrar destino de logs/métricas del entorno prod; crear 2–3 alertas (p. ej. tasa 5xx, fallos webhook Stripe); documentar canal de guardia y enlace al dashboard en el mismo runbook o wiki ops. Guía «ante alerta» en `OBSERVABILITY-RUNBOOK.md` §6; enlace desde `DEPLOY-SAAS.md` §8. |
+| **Responsable sugerido** | **Ops** (cuentas, alertas); **Ingeniería** (queries/dashboards si aplica). |
+| **Artefacto de evidencia** | Captura o enlace interno al dashboard + lista de alertas activas (política de no versionar secretos: ver `docs/operacion/evidence/README.md`). |
+
+---
+
+### WS6 — E2E manual / staging y secretos
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Playwright + smoke + workflow manual documentados (**hecho**); `docs/operacion/E2E-STAGING.md` alineado con job real (solo frontend + Chromium contra URL en secretos; sin SQL en ese workflow); E2E en cada PR **opcional**; secretos: `E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`. |
+| **Próximo paso concreto** | Configurar secretos en GitHub (lista de nombres: `docs/operacion/SECRETS-RUNBOOK.md` §1) o ejecutar local según `docs/operacion/E2E-STAGING.md`, incl. snippet PowerShell; disparar workflow manual documentado; archivar resultado (log o artefacto CI) según política interna. |
+| **Responsable sugerido** | **Ingeniería** (pipeline); **Ops** (credenciales de prueba en staging). |
+| **Artefacto de evidencia** | Run verde en Actions + enlace al run; opcional: nota en ticket de release. |
+
+---
+
+### WS7 — Opcional: registro público (Issue 9, opción B)
+
+| Campo | Contenido |
+|--------|-----------|
+| **Estado en repo** | Decisión Fase 0: **A** (invitación / provisioning); **Opción B** (POST público tenant + admin) **no implementada**; existe complemento **C** ligero (`/solicitar-demo`). Ver `docs/ISSUES-SAAS-BACKLOG.md` Issue 9. |
+| **Próximo paso concreto** | Solo si WS1 elige canal self-service: especificar alcance (rate limit, email verificación, slug único); issue/ticket derivado; implementación en sprint dedicado **fuera** del cierre mínimo del checklist actual. |
+| **Responsable sugerido** | **Comercial** (go / no-go); **Ingeniería** (API + seguridad); **Ops** (límites abuso). |
+| **Artefacto de evidencia** | OpenAPI actualizado; pruebas de integración + E2E del flujo de alta; decisión reflejada en `SAAS-FASE-0-DECISIONES.md`. |
+
+---
+
+## Resumen de dependencias
+
+- **WS1** desbloquea fechas de enforcement y trial en prod.  
+- **WS2** es prerequisito duro para `BILLING_ENFORCE_PAYMENT=true` y cierre del ítem Stripe del checklist maestro.  
+- **WS3** y **WS4** pueden avanzar en paralelo con WS2.  
+- **WS5** debe existir antes de declarar “producción operable” aunque el checklist marque runbook como hecho.  
+- **WS6** valida regresión end-to-end sin ampliar alcance funcional.  
+- **WS7** es **post-cierre mínimo** salvo decisión comercial explícita.
+
+---
+
+## Semana 1 — checklist humano (arranque de cierre)
+
+Tareas **fuera del código** que desbloquean evidencia y fechas; orden sugerido dentro de la semana.
+
+| Día | Tarea | Dueño sugerido | Artefacto |
+|-----|--------|----------------|-----------|
+| 1 | Reunión WS1: rellenar *Revisión comercial* y checklist §6 en `SAAS-FASE-0-DECISIONES` | Comercial + ingeniería | Doc actualizado |
+| 1–2 | Abrir/configurar secretos E2E staging (`E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`) o ejecutar local según `E2E-STAGING.md` | Ingeniería + ops | Run verde o nota en ticket |
+| 2–3 | Iniciar checklist Stripe **live** (`STRIPE-PROD-CHECKLIST`) y plantilla `evidence/STRIPE-VALIDATION-LOG.md` | Ingeniería | Log relleno (sin secretos) |
+| 3–4 | Ventana restore **staging** + `BACKUP-RESTORE-DRILL-LOG.md` | Ops + ingeniería | Log con fecha y OK |
+| 4–5 | Enviar URLs legales + flujo datos a asesor (WS4); ops: 2–3 alertas reales + enlace dashboard (WS5) | Legal / ops | Referencia en ticket o wiki |
+
+---
+
+## Semana 2 — micro-checklist (ops / evidencia)
+
+Continuidad una vez Semana 1 iniciada; puede solaparse con WS2–WS5.
+
+| Día | Tarea | Dueño sugerido | Artefacto |
+|-----|--------|----------------|-----------|
+| 1 | Cerrar o actualizar `STRIPE-VALIDATION-LOG.md` con resultado último test live (WS2) | Ingeniería | Log con fecha |
+| 1–2 | Repetir o programar siguiente ventana restore staging si política lo exige (WS3) | Ops | `BACKUP-RESTORE-DRILL-LOG.md` |
+| 2 | Confirmar canal de guardia y enlace dashboard accesible al equipo (WS5 §6) | Ops | Nota en runbook o wiki |
+| 3–5 | Seguimiento dictamen legal: incorporar textos acordados en frontend si aplica (WS4) | Legal + ingeniería | PR o ticket |
+
+---
+
+## Estado ingeniería vs pendiente humano (resumen)
+
+| WS | En repo (ingeniería) | Pendiente humano / evidencia fuera de git |
+|----|----------------------|------------------------------------------|
+| **WS1** Fase 0 | `SAAS-FASE-0-DECISIONES.md`, `.env.example` alineados | Filas *Revisión comercial* con fecha/responsable; checklist §6 del mismo doc |
+| **WS2** Stripe | Billing, webhooks, portal, plantillas `evidence/STRIPE-VALIDATION-LOG.md` | Stripe **live**, webhook prod, log rellenado con prueba real |
+| **WS3** Backup | `BACKUP-SQL-SERVER.md`, plantilla `BACKUP-RESTORE-DRILL-LOG.md` | Restore drill en staging (fecha, responsable, OK en plantilla) |
+| **WS4** Legal | Rutas `/terminos`, `/privacidad`, enlaces en login/landing | Dictamen / revisión jurídica externa antes de escala masiva |
+| **WS5** Observabilidad | `OBSERVABILITY-RUNBOOK.md` §6, `X-Request-Id`, enlace `DEPLOY-SAAS.md` §8 | Conectar proveedor (logs/APM), 2–3 alertas **activas** en prod, canal de guardia |
+| **WS6** E2E | Playwright smoke, `e2e-manual.yml`, `E2E-STAGING.md` | Secretos `E2E_*` / `PLAYWRIGHT_BASE_URL` en GitHub o run local archivado |
+| **WS7** Registro | `/solicitar-demo` (lead mailto); sin POST público tenant | Opción B (self-service) solo si WS1 lo define |
+
+### Ingeniería: estado
+
+#### Últimas entregas (repo) — 2026-05
+
+- [x] Tests unitarios de límites por plan (`plan-limits`) para validar enforcement SaaS sin levantar DB.
+- [x] Suite `trial-pure` (lógica de trial/fechas) aislada de integración.
+- [x] Helpers fiscales NCF + tests dedicados (`ncf-pure` / resolución de proveedor fiscal).
+- [x] Mejoras de accesibilidad (a11y) en flujos de auth, suspensión por billing y solicitud de demo.
+- [x] Verificación de enlaces internos en `docs/` integrada en `npm run verify` (`verify:docs-links` / `scripts/check-docs-links.mjs`).
+- [x] Hub de troubleshooting de desarrollo (`docs/operacion/TROUBLESHOOTING-DEV.md`) enlazado desde runbooks y README.
+- [x] `CONTRIBUTING.md` ampliado con ejemplos prácticos (clone, tests por paquete, PR).
+
+- Las iteraciones recientes en repo se orientaron principalmente a **DX y documentación**: runbooks, `verify:docs-links`, hub de troubleshooting en `docs/operacion/TROUBLESHOOTING-DEV.md` y aclaraciones en CI (jobs/comentarios útiles al contribuir).
+- El **backlog de producto/ingeniería** y el cierre **humano** descrito en WS1–WS6 siguen pendientes; este documento ordena ese trabajo, no lo marca como hecho.
+- Issues concretos de tamaño implementable: inventario en `docs/ISSUES-SAAS-BACKLOG.md`.
+
+- **En repo:** código operativo multi-tenant, billing/trial, suites de aislamiento, E2E smoke, runbooks y CI; la verificación local del monorepo es `npm run verify` (raíz).
+- **Pendiente humano / evidencia:** Stripe **live** y log, drill de restore con plantilla rellena, alertas reales en prod, dictamen legal externo y cierre formal de Fase 0 comercial (fechas y responsables en `SAAS-FASE-0-DECISIONES.md`).
+- **Alcance:** el registro self-service (Issue 9 opción B) queda fuera del cierre mínimo salvo decisión explícita en WS1/WS7.
+
+*Documento vivo: actualizar fechas y estado al completar cada workstream.*

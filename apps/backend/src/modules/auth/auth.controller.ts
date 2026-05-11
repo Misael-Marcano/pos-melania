@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { loginSchema, refreshTokenSchema } from './dto/auth.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendSuccess, sendError } from '../../utils/response';
+import { AppError } from '../../middlewares/error.middleware';
 import { z } from 'zod';
 
 const service = new AuthService();
@@ -16,9 +17,14 @@ export class AuthController {
   async login(req: Request, res: Response) {
     try {
       const dto  = loginSchema.parse(req.body);
-      const data = await service.login(dto);
+      const raw  = req.headers['x-tenant-slug'];
+      const tenantSlug = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : undefined;
+      const data = await service.login(dto, { tenantSlug });
       return sendSuccess(res, data, 'Inicio de sesión exitoso');
     } catch (err: unknown) {
+      if (err instanceof AppError) {
+        return sendError(res, err.message, err.statusCode);
+      }
       return sendError(res, err instanceof Error ? err.message : 'Error al iniciar sesión', 401);
     }
   }

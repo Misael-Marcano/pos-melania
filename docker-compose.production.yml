@@ -1,0 +1,163 @@
+##
+## Docker Compose — Producción
+##
+## Diferencias con docker-compose.yml (dev):
+##   - Sin credenciales hardcodeadas — usa variables de entorno del host o archivo .env
+##   - Healthchecks en todos los servicios
+##   - Volúmenes con nombres explícitos
+##   - Redis con persistencia AOF
+##   - Sin puertos expuestos innecesariamente al host (solo los estrictamente necesarios)
+##   - Backend con restart: always y límites de recursos
+##
+## Uso:
+##   cp .env.example .env.production  # editar con valores reales
+##   docker compose -f docker-compose.production.yml --env-file .env.production up -d
+##
+
+version: '3.9'
+
+services:
+
+  # ── Backend (API) ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: pos_backend
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+
+      # Base de datos (requerido)
+      DB_HOST: sqlserver
+      DB_PORT: 1433
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+
+      # JWT (requerido — cambiar en producción)
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+
+      # Redis
+      REDIS_URL: redis://redis:6379
+
+      # CORS
+      FRONTEND_URL: ${FRONTEND_URL}
+
+      # Fiscal
+      FISCAL_JURISDICTION: ${FISCAL_JURISDICTION:-DO}
+
+      # SaaS / Stripe (opcional)
+      BILLING_PROVIDER: ${BILLING_PROVIDER:-none}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+      STRIPE_PRICE_STANDARD: ${STRIPE_PRICE_STANDARD:-}
+      STRIPE_PRICE_ENTERPRISE: ${STRIPE_PRICE_ENTERPRISE:-}
+      BILLING_ENFORCE_PAYMENT: ${BILLING_ENFORCE_PAYMENT:-false}
+
+      # Email notifications (opcional)
+      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+
+      # Multi-tenant (opcional)
+      LOGIN_REQUIRE_TENANT_SLUG: ${LOGIN_REQUIRE_TENANT_SLUG:-false}
+
+      # OpenAPI
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── Frontend (Next.js) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: pos_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_APP_SHORT_NAME: ${NEXT_PUBLIC_APP_SHORT_NAME:-POS}
+      NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE:-}
+      NEXT_PUBLIC_APP_COPYRIGHT_ENTITY: ${NEXT_PUBLIC_APP_COPYRIGHT_ENTITY:-}
+      NEXT_PUBLIC_TENANT_SLUG: ${NEXT_PUBLIC_TENANT_SLUG:-}
+      NEXT_PUBLIC_FEATURE_RECETAS: ${NEXT_PUBLIC_FEATURE_RECETAS:-true}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── SQL Server ────────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: pos_sqlserver
+    environment:
+      ACCEPT_EULA: 'Y'
+      SA_PASSWORD: ${DB_PASS}
+      MSSQL_PID: ${MSSQL_PID:-Express}
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: always
+    healthcheck:
+      test: >
+        /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -Q "SELECT 1" -C
+        || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -Q "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pos_redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sqlserver_data:
+    name: pos_sqlserver_data
+  redis_data:
+    name: pos_redis_data

@@ -2,23 +2,43 @@
 
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
-import { Bell, ChevronRight, Menu } from 'lucide-react';
-import { GlobalSearch } from '@/components/ui/GlobalSearch';
+import { useSaasContext } from '@/hooks/useSaasContext';
+import { uiLabels, recetasPageTitle, reportesPageTitle } from '@/lib/ui-labels';
+import { SaasPlanBadge } from '@/components/layout/SaasPlanBadge';
+import { ChevronRight, Menu } from 'lucide-react';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/':              'Panel',
-  '/clientes':      'Clientes',
-  '/inventario':    'Inventario',
-  '/ventas':        'Ventas',
-  '/gastos':        'Gastos',
-  '/empleados':     'Empleados',
-  '/kits':          'Kits',
-  '/proveedores':   'Proveedores',
-  '/reportes':      'Reportes',
-  '/comprobante':   'Comprobante',
-  '/configuracion': 'Configuración',
-  '/tiendas':       'Tiendas',
+  '/':                 'Panel',
+  '/clientes':         'Clientes',
+  '/inventario':       'Inventario',
+  '/ventas':           'Ventas',
+  '/ventas/historial': 'Historial de ventas',
+  '/ventas/cierres-caja': 'Cierres de caja',
+  '/gastos':           'Gastos',
+  '/empleados':        'Empleados',
+  '/kits':             'Kits',
+  '/proveedores':      'Proveedores',
+  '/compras':          'Compras',
+  '/devoluciones':     'Devoluciones',
+  '/comprobante':      'Comprobante',
+  '/configuracion':    'Configuración',
+  '/tiendas':          'Tiendas',
+  '/cajas':            'Cajas',
+  '/auditoria':        'Auditoría',
+  '/tarjeta-de-regalo': 'Tarjeta regalo',
+  '/cotizaciones':     'Cotizaciones',
+  '/promociones':      'Promociones',
 };
+
+function titleForPath(pathname: string): string {
+  if (pathname === '/recetas') return recetasPageTitle();
+  if (pathname === '/reportes') return reportesPageTitle();
+  const fixed = PAGE_TITLES[pathname];
+  if (fixed) return fixed;
+  if (pathname.startsWith('/ventas/historial')) return 'Historial de ventas';
+  if (pathname.startsWith('/ventas/cierres-caja')) return 'Cierres de caja';
+  return 'Panel';
+}
 
 interface Props {
   onToggleSidebar: () => void;
@@ -27,10 +47,11 @@ interface Props {
 export function Header({ onToggleSidebar }: Props) {
   const pathname = usePathname();
   const user     = useAuthStore((s) => s.user);
-  const title    = PAGE_TITLES[pathname] ?? 'Panel';
+  const title    = titleForPath(pathname);
+  const { data: saasCtx, isSuccess: saasOk } = useSaasContext();
 
   return (
-    <header className="h-16 bg-white shadow-[0_1px_0_0_#F1F4F3] flex items-center justify-between px-4 lg:px-6 shrink-0">
+    <header className="h-16 bg-white/85 backdrop-blur-md border-b border-navy-200/40 flex items-center justify-between px-4 lg:px-6 shrink-0">
       <div className="flex items-center gap-3">
         {/* Hamburger — solo móvil */}
         <button
@@ -42,17 +63,17 @@ export function Header({ onToggleSidebar }: Props) {
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-navy-400 hidden sm:block">Sistema POS</span>
+          <span className="text-navy-400 hidden sm:block">{uiLabels.breadcrumbRoot}</span>
           <ChevronRight size={14} className="text-navy-300 hidden sm:block" />
           <span className="font-semibold text-navy-800 font-display">{title}</span>
         </div>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-3">
-        <GlobalSearch />
-
-        <div className="flex items-center gap-2.5 pl-3 border-l border-navy-200/60">
+      <div className="flex items-center gap-3 min-w-0">
+        {saasOk && saasCtx?.limits && saasCtx.usage ? (
+          <SaasPlanBadge limits={saasCtx.limits} usage={saasCtx.usage} />
+        ) : null}
+        <div className="flex items-center gap-2.5 shrink-0">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold">
             {user?.nombre?.[0]?.toUpperCase()}
           </div>
