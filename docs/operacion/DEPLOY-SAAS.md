@@ -4,6 +4,8 @@ Guía operativa para desplegar una nueva instancia y agregar organizaciones.
 
 **Nombres de secretos** (GitHub Actions vs variables de runtime como Stripe y cron): `docs/operacion/SECRETS-RUNBOOK.md`.
 
+**Plan de cierre (go-live, workstreams WS1–WS6, registro de avance en repo, hub de evidencia):** [`docs/PLAN-CIERRE-PROYECTO.md`](../PLAN-CIERRE-PROYECTO.md).
+
 **Higiene (documentación):** Tras ediciones en bloque de `docs/`, ejecutar desde la raíz del repositorio `npm run verify:docs-links`.
 
 ---
