@@ -19,6 +19,22 @@ Los ítems ya marcados como hechos en el checklist del plan maestro (aislamiento
 
 ---
 
+## Índice — documentación de apoyo (repo)
+
+Atajo a plantillas y runbooks que apoyan el cierre por workstream (rutas bajo `docs/`).
+
+| Workstream | Documento |
+|------------|-----------|
+| WS1 | [`SAAS-FASE-0-DECISIONES.md`](arquitectura/SAAS-FASE-0-DECISIONES.md) |
+| WS2 | [`STRIPE-VALIDATION-LOG.md`](operacion/evidence/STRIPE-VALIDATION-LOG.md) |
+| WS3 | [`BACKUP-RESTORE-DRILL-LOG.md`](operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md) |
+| WS4 | [`LEGAL-ADVISOR-HANDOFF.md`](operacion/LEGAL-ADVISOR-HANDOFF.md) |
+| WS5 | [`OBSERVABILITY-RUNBOOK.md`](operacion/OBSERVABILITY-RUNBOOK.md) |
+| WS6 | [`E2E-STAGING.md`](operacion/E2E-STAGING.md) |
+| WS2–WS6 (hub evidencia) | [`evidence/README.md`](operacion/evidence/README.md) |
+
+---
+
 ## Runbooks y plantillas de evidencia (enlaces)
 
 La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para validar enlaces internos de `docs/`.
@@ -156,6 +172,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Doc: checklist **previa a live** en `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` — WS2; enlaces a `STRIPE-PROD-CHECKLIST.md` / hub evidence | Hecho | Orden repo antes de Stripe live; **no** marca live ni WS2 completados | 2026-05-12 |
 | Doc: `docs/operacion/LEGAL-ADVISOR-HANDOFF.md` — checklist preparación asesor (URLs placeholder, mapa datos PII/pagos/logs, rutas repo `/terminos` / `/privacidad`) | Hecho | Apoyo WS4 repo-only; **no** sustituye dictamen, revisión externa ni “legal operativo cerrado” | 2026-05-12 |
 | Doc: checklist **previa a conectar prod** en `docs/operacion/OBSERVABILITY-RUNBOOK.md` — WS5 (logs, alertas mínimas, webhook billing, canal guardia; placeholders `TBD`); enlace en hub `docs/operacion/evidence/README.md` | Hecho | Complementa §3–§7 del runbook; **no** marca observabilidad prod conectada ni WS5 operativo cerrado | 2026-05-12 |
+| Doc: sección **«Índice — documentación de apoyo (repo)»** en `docs/PLAN-CIERRE-PROYECTO.md` (enlaces WS1–WS6 + hub `evidence/README`) | Hecho | Navegación repo-only; no sustituye runbooks largos ni marca workstreams operativos cerrados | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---
