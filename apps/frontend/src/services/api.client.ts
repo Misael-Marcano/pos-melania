@@ -1,5 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+import { messageForAxiosNoResponse } from '@/lib/api-network-error';
+
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1',
   headers: { 'Content-Type': 'application/json' },
@@ -73,13 +75,21 @@ apiClient.interceptors.response.use(
     // Solo intentar refresh en 401, una sola vez, y no en el propio endpoint de auth
     const isAuthEndpoint = original?.url?.includes('/auth/');
     if (err.response?.status !== 401 || original?._retry || isAuthEndpoint) {
-      if (!err.response) {
-        if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
-          return Promise.reject(new Error('La conexión tardó demasiado. Comprueba la red e intenta de nuevo.'));
-        }
-        return Promise.reject(new Error('Sin conexión con el servidor. Comprueba la red e intenta de nuevo.'));
+      if (!err.response || err.response.status === 0) {
+        return Promise.reject(new Error(messageForAxiosNoResponse(err)));
       }
-      const msg = err.response?.data?.message ?? err.message ?? 'Error';
+      const status = err.response.status;
+      const body = err.response.data;
+      const serverMsg =
+        typeof body?.message === 'string' ? body.message.trim() : '';
+      /** 403: límites de plan, features desactivadas o permisos — mensaje distinto del fallback genérico de otros códigos. */
+      if (status === 403) {
+        const msg =
+          serverMsg ||
+          'Esta acción no está disponible con tu plan o permisos actuales. Actualiza tu suscripción en Configuración → Plan o consulta con un administrador.';
+        return Promise.reject(new Error(msg));
+      }
+      const msg = serverMsg || err.message || 'Error';
       return Promise.reject(new Error(msg));
     }
 

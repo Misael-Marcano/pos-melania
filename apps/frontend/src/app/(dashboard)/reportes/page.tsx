@@ -8,6 +8,7 @@ import {
 } from '@/hooks/useReportes';
 import { useTiendas } from '@/hooks/useTiendas';
 import { PageHeader }    from '@/components/layout/PageHeader';
+import { Select } from '@/components/ui/Select';
 import { formatCurrency } from '@/lib/utils';
 import { reportesPageTitle, reportesTabs, uiLabels } from '@/lib/ui-labels';
 import {
@@ -817,8 +818,8 @@ function TabPorSucursal({ desde, hasta }: { desde: string; hasta: string }) {
               {tiendas.find((t) => t.id === user.tiendaId)?.nombre ?? `Sucursal #${user.tiendaId}`}
             </p>
           ) : (
-            <select
-              className="input-field w-64"
+            <Select
+              wrapperClassName="w-64 shrink-0"
               value={tiendaId === '' ? '' : String(tiendaId)}
               onChange={(e) => setTiendaId(e.target.value === '' ? '' : Number(e.target.value))}
             >
@@ -826,7 +827,7 @@ function TabPorSucursal({ desde, hasta }: { desde: string; hasta: string }) {
               {tiendas.map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       </div>
@@ -972,7 +973,10 @@ export default function ReportesPage() {
   const [hasta, setHasta] = useState(defaults.hasta);
 
   return (
-    <div className="space-y-5">
+    <main className="space-y-5" aria-labelledby="reportes-heading">
+      <h1 id="reportes-heading" className="sr-only">
+        {reportesPageTitle()}
+      </h1>
       <PageHeader
         title={reportesPageTitle()}
         breadcrumb={[uiLabels.breadcrumbRoot, uiLabels.reportes]}
@@ -1004,6 +1008,6 @@ export default function ReportesPage() {
       {tab === 'clientes'   && <TabClientes   desde={desde} hasta={hasta} />}
       {tab === 'sucursal'   && <TabPorSucursal desde={desde} hasta={hasta} />}
       {tab === 'dgii'       && <TabDGII />}
-    </div>
+    </main>
   );
 }

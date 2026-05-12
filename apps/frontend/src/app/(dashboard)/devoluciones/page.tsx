@@ -15,6 +15,8 @@ import {
   RotateCcw, CheckCircle, XCircle, Eye, Package,
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
+import { normalizeSelectLabel } from '@/lib/select-display';
 import { toast } from '@/store/toast.store';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
@@ -262,10 +264,10 @@ function CrearModal({ onClose }: { onClose: () => void }) {
               {/* Motivo */}
               <div>
                 <label className="text-sm font-medium text-navy-700 block mb-1.5">Motivo *</label>
-                <select className="input-field" value={motivo}
+                <Select value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}>
                   {MOTIVOS.map((m) => <option key={m}>{m}</option>)}
-                </select>
+                </Select>
                 {motivo === 'Otro' && (
                   <input className="input-field mt-2" value={motivoCustom}
                     onChange={(e) => setMotivoCustom(e.target.value)}
@@ -276,10 +278,12 @@ function CrearModal({ onClose }: { onClose: () => void }) {
               {/* Método reembolso */}
               <div>
                 <label className="text-sm font-medium text-navy-700 block mb-1.5">Método de reembolso</label>
-                <select className="input-field" value={metodoReembolso}
+                <Select value={metodoReembolso}
                   onChange={(e) => setMetodoReembolso(e.target.value as MetodoPago)}>
-                  {METODOS.map((m) => <option key={m}>{m}</option>)}
-                </select>
+                  {METODOS.map((m) => (
+                    <option key={m} value={m}>{normalizeSelectLabel(m)}</option>
+                  ))}
+                </Select>
               </div>
 
               {/* Notas */}
@@ -483,7 +487,8 @@ export default function DevolucionesPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="devoluciones-heading" className="space-y-4">
+        <h1 id="devoluciones-heading" className="sr-only">Devoluciones</h1>
         <PageHeader title="Devoluciones" breadcrumb={['Panel', 'Devoluciones']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -607,7 +612,7 @@ export default function DevolucionesPage() {
             </table>
           </div>
         </div>
-      </div>
+      </main>
 
       {modalMode === 'crear' && <CrearModal onClose={closeModal} />}
       {modalMode === 'ver'    && selected && <DetalleModal dev={selected} onClose={closeModal} />}

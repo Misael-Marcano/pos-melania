@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar }          from '@/components/layout/Sidebar';
@@ -16,6 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const loaded = useAuthStore((s) => s.loaded);
   const platformTenantId = useAuthStore((s) => s.platformTenantId);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   useEffect(() => {
     if (loaded && !user) router.replace('/login');
@@ -39,9 +40,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7FAF9]">
       <Toaster />
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
-        <Header onToggleSidebar={() => setSidebarOpen((o) => !o)} />
+        <Header
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen((o) => !o)}
+        />
         <OnboardingBanner />
         <TrialBanner />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">

@@ -9,6 +9,7 @@ import {
   Plus, Pencil, Trash2, X, Loader2, Landmark, AlertTriangle, Search, Store,
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { toast } from '@/store/toast.store';
 
 interface FormState {
@@ -79,8 +80,7 @@ function CajaModal({ caja, onClose }: { caja: ICaja | null; onClose: () => void 
         <div className="p-5 space-y-4">
           <div>
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Sucursal *</label>
-            <select
-              className="input-field"
+            <Select
               value={form.tiendaId === '' ? '' : String(form.tiendaId)}
               onChange={(e) => set('tiendaId', e.target.value === '' ? '' : Number(e.target.value))}
             >
@@ -88,7 +88,7 @@ function CajaModal({ caja, onClose }: { caja: ICaja | null; onClose: () => void 
               {tiendas.map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Nombre de la caja *</label>
@@ -165,7 +165,10 @@ export default function CajasPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="cajas-heading" className="space-y-4">
+        <h1 id="cajas-heading" className="sr-only">
+          Cajas
+        </h1>
         <PageHeader title="Cajas" breadcrumb={['Panel', 'Cajas']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -179,8 +182,8 @@ export default function CajasPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <select
-              className="input-field w-48"
+            <Select
+              wrapperClassName="w-48 shrink-0"
               value={filtroTienda === '' ? '' : String(filtroTienda)}
               onChange={(e) => setFiltroTienda(e.target.value === '' ? '' : Number(e.target.value))}
             >
@@ -188,7 +191,7 @@ export default function CajasPage() {
               {tiendas.map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
-            </select>
+            </Select>
             <button
               type="button"
               onClick={() => { setSelected(null); setModalOpen(true); }}
@@ -264,10 +267,10 @@ export default function CajasPage() {
           </div>
 
           <div className="px-4 py-3 bg-navy-50/80 border-t border-navy-100 text-xs text-navy-500">
-            Asigna cada caja a una sucursal. En <strong>Configuración</strong> el POS usa la caja elegida para abrir sesión y cuadrar ventas y gastos.
+            Asigna cada caja a una sucursal. En <strong>Configuración</strong>, Nexo usa la caja elegida para abrir sesión y cuadrar ventas y gastos.
           </div>
         </div>
-      </div>
+      </main>
 
       {modalOpen && (
         <CajaModal

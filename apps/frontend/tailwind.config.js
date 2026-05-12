@@ -39,6 +39,11 @@ module.exports = {
           light: '#68abff',
           container: '#d4e3ff',
         },
+        /** Placeholder-style copy on empty native select triggers */
+        muted: {
+          DEFAULT: '#F1F4F3',
+          foreground: '#747871',
+        },
       },
       fontFamily: {
         sans:    ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],

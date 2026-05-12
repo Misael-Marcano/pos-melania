@@ -5,6 +5,8 @@ import { useAuditoria, useAuditoriaTablas } from '@/hooks/useAuditoria';
 import { IAuditLog, AuditOperacion } from '@pos/shared';
 import { Shield, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Select } from '@/components/ui/Select';
+import { normalizeSelectLabel } from '@/lib/select-display';
 
 const OP_STYLES: Record<AuditOperacion, string> = {
   CREATE: 'bg-primary-100 text-primary-600',
@@ -108,7 +110,10 @@ export default function AuditoriaPage() {
     : logs;
 
   return (
-    <div className="space-y-5">
+    <main aria-labelledby="auditoria-heading" className="space-y-5">
+      <h1 id="auditoria-heading" className="sr-only">
+        Auditoría del Sistema
+      </h1>
       <PageHeader
         title="Auditoría del Sistema"
         breadcrumb={['Panel', 'Auditoría']}
@@ -131,25 +136,31 @@ export default function AuditoriaPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-navy-500 mb-1.5">Tabla</label>
-            <select value={tabla}
+            <Select
+              wrapperClassName="w-auto shrink-0"
+              value={tabla}
               onChange={(e) => { setTabla(e.target.value); setPage(1); }}
-              className="input-field w-auto">
+              className="w-auto min-w-[8rem] py-2 text-sm"
+            >
               <option value="">Todas</option>
-              {tablas.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+              {tablas.map((t) => <option key={t} value={t}>{normalizeSelectLabel(t)}</option>)}
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-navy-500 mb-1.5">Operación</label>
-            <select value={operacion}
+            <Select
+              wrapperClassName="w-auto shrink-0"
+              value={operacion}
               onChange={(e) => { setOperacion(e.target.value); setPage(1); }}
-              className="input-field w-auto">
+              className="w-auto min-w-[10rem] py-2 text-sm"
+            >
               <option value="">Todas</option>
               <option value="CREATE">Crear</option>
               <option value="UPDATE">Actualizar</option>
               <option value="DELETE">Eliminar</option>
               <option value="EXPORT">Exportar / PDF</option>
               <option value="READ">Consultar</option>
-            </select>
+            </Select>
           </div>
           <div className="flex-1 min-w-[200px]">
             <label className="block text-xs font-medium text-navy-500 mb-1.5">Buscar</label>
@@ -215,6 +226,6 @@ export default function AuditoriaPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

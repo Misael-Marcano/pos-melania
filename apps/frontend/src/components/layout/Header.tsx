@@ -6,6 +6,7 @@ import { useSaasContext } from '@/hooks/useSaasContext';
 import { uiLabels, recetasPageTitle, reportesPageTitle } from '@/lib/ui-labels';
 import { SaasPlanBadge } from '@/components/layout/SaasPlanBadge';
 import { ChevronRight, Menu } from 'lucide-react';
+import { UserMenu } from '@/components/layout/UserMenu';
 
 const PAGE_TITLES: Record<string, string> = {
   '/':                 'Panel',
@@ -42,12 +43,13 @@ function titleForPath(pathname: string): string {
 
 interface Props {
   onToggleSidebar: () => void;
+  /** Estado del drawer móvil (menú lateral) para aria-expanded. */
+  sidebarOpen?: boolean;
 }
 
-export function Header({ onToggleSidebar }: Props) {
+export function Header({ onToggleSidebar, sidebarOpen = false }: Props) {
   const pathname = usePathname();
-  const user     = useAuthStore((s) => s.user);
-  const title    = titleForPath(pathname);
+  const title = titleForPath(pathname);
   const { data: saasCtx, isSuccess: saasOk } = useSaasContext();
 
   return (
@@ -55,10 +57,15 @@ export function Header({ onToggleSidebar }: Props) {
       <div className="flex items-center gap-3">
         {/* Hamburger — solo móvil */}
         <button
+          type="button"
+          data-sidebar-menu-trigger
           onClick={onToggleSidebar}
-          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-navy-500 hover:bg-navy-50 transition-colors"
+          aria-label="Menú de navegación"
+          aria-expanded={sidebarOpen}
+          aria-controls="dashboard-mobile-nav"
+          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-navy-500 hover:bg-navy-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2"
         >
-          <Menu size={20} />
+          <Menu size={20} aria-hidden />
         </button>
 
         {/* Breadcrumb */}
@@ -73,15 +80,7 @@ export function Header({ onToggleSidebar }: Props) {
         {saasOk && saasCtx?.limits && saasCtx.usage ? (
           <SaasPlanBadge limits={saasCtx.limits} usage={saasCtx.usage} />
         ) : null}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold">
-            {user?.nombre?.[0]?.toUpperCase()}
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-sm font-semibold text-navy-800 leading-none">{user?.nombre}</p>
-            <p className="text-xs text-navy-400 mt-0.5 capitalize leading-none">{user?.rol}</p>
-          </div>
-        </div>
+        <UserMenu />
       </div>
     </header>
   );

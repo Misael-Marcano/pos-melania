@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/utils';
 import { ICotizacion, EstadoCotizacion } from '@pos/shared';
 import { Eye, Loader2, Plus, RefreshCw, Trash2, ShoppingCart } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { toast } from '@/store/toast.store';
 import { NuevaCotizacionModal } from '@/components/cotizaciones/NuevaCotizacionModal';
 
@@ -62,7 +63,10 @@ export default function CotizacionesPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <main aria-labelledby="cotizaciones-heading" className="space-y-6">
+      <h1 id="cotizaciones-heading" className="sr-only">
+        Cotizaciones
+      </h1>
       <PageHeader
         title="Cotizaciones"
         breadcrumb={['Ventas', 'Cotizaciones']}
@@ -92,15 +96,16 @@ export default function CotizacionesPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-xs text-navy-500">Estado</label>
-        <select
+        <Select
+          wrapperClassName="w-auto min-w-[160px] shrink-0"
           value={estado}
           onChange={(e) => { setEstado(e.target.value as EstadoCotizacion | ''); setPage(1); }}
-          className="input-field w-auto min-w-[160px] text-sm"
+          className="py-2.5 text-sm"
         >
           {ESTADOS.map((o) => (
             <option key={o.id || 'all'} value={o.id}>{o.label}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -250,6 +255,6 @@ export default function CotizacionesPage() {
           </div>
         </ModalOverlay>
       )}
-    </div>
+    </main>
   );
 }

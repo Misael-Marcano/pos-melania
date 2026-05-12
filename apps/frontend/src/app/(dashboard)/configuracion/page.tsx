@@ -11,10 +11,12 @@ import { useCajas } from '@/hooks/useCajas';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  Building2, DollarSign, FileText, Save, Loader2, Image, Hash, Info,
+  Building2, DollarSign, FileText, Save, Loader2, Image as ImageIcon, Hash, Info,
   BookOpen, Store, Users, ArrowRight, Wallet, Layers, CreditCard,
 } from 'lucide-react';
 import { toast } from '@/store/toast.store';
+import { Select } from '@/components/ui/Select';
+import { formatTiendaCajaLine } from '@/lib/select-display';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '—';
 const APP_ENTORNO =
@@ -188,9 +190,10 @@ function BillingStripePanel() {
             <label className="text-xs text-navy-500 sm:sr-only" htmlFor="billing-plan">
               Plan
             </label>
-            <select
+            <Select
               id="billing-plan"
-              className="input-field text-sm py-2 max-w-[200px]"
+              wrapperClassName="w-full max-w-[200px]"
+              className="py-2.5 text-sm"
               value={plan}
               onChange={(e) =>
                 setPlan(e.target.value as 'starter' | 'standard' | 'enterprise')
@@ -200,7 +203,7 @@ function BillingStripePanel() {
               <option value="starter">Starter</option>
               <option value="standard">Standard</option>
               <option value="enterprise">Enterprise</option>
-            </select>
+            </Select>
             <button
               type="button"
               className="btn-primary text-sm py-2 px-4 inline-flex items-center justify-center gap-2"
@@ -324,7 +327,7 @@ export default function ConfiguracionPage() {
       const c = cajasLista.find((x) => x.id === form.cajaId);
       if (c?.tienda?.id != null && Number(form.tiendaId) !== c.tienda.id) {
         if (!window.confirm(
-          'La caja del catálogo no pertenece a la sucursal POS seleccionada. ¿Guardar de todos modos? (Revisa que coincida con tu operación real.)'
+          'La caja del catálogo no pertenece a la sucursal de ventas seleccionada. ¿Guardar de todos modos? (Revisa que coincida con tu operación real.)'
         )) return;
       }
     }
@@ -333,7 +336,7 @@ export default function ConfiguracionPage() {
       const c = cajasLista.find((x) => x.id === form.cajaId);
       if (c?.tienda) {
         if (!window.confirm(
-          'Hay una caja del catálogo seleccionada pero no hay sucursal POS asignada. Conviene elegir la misma sucursal que la de la caja. ¿Guardar de todos modos?'
+          'Hay una caja del catálogo seleccionada pero no hay sucursal de ventas asignada. Conviene elegir la misma sucursal que la de la caja. ¿Guardar de todos modos?'
         )) return;
       }
     }
@@ -356,15 +359,22 @@ export default function ConfiguracionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <main aria-labelledby="configuracion-heading" className="flex items-center justify-center h-64">
+        <h1 id="configuracion-heading" className="sr-only">
+          Configuración
+        </h1>
         <Loader2 className="animate-spin text-primary-500" size={28} />
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Configuración" breadcrumb={['Panel', 'Configuración']} />
+    <>
+      <main aria-labelledby="configuracion-heading" className="space-y-6">
+        <h1 id="configuracion-heading" className="sr-only">
+          Configuración
+        </h1>
+        <PageHeader title="Configuración" breadcrumb={['Panel', 'Configuración']} />
 
       {saasOk && saas ? (
         <SectionCard
@@ -412,7 +422,7 @@ export default function ConfiguracionPage() {
       <SectionCard
         title="Guía rápida — sucursales, cajas y equipo"
         icon={<BookOpen size={16} />}
-        description="Estos módulos trabajan junto con el POS y los recibos. Mantén los datos alineados para evitar errores al cobrar."
+        description="Estos módulos trabajan junto con Nexo y los recibos. Mantén los datos alineados para evitar errores al cobrar."
       >
         <ul className="space-y-3 text-sm text-navy-700">
           <li className="flex items-start gap-2">
@@ -448,7 +458,7 @@ export default function ConfiguracionPage() {
           <li className="flex items-start gap-2">
             <span className="text-navy-400 mt-0.5">•</span>
             <span>
-              Abajo, <strong>Sucursal (POS)</strong> y <strong>Caja (catálogo)</strong> definen el terminal por defecto; el cajero con varias cajas puede elegir al abrir sesión.
+              Abajo, <strong>Sucursal de ventas</strong> y <strong>Caja (catálogo)</strong> definen el terminal por defecto; el cajero con varias cajas puede elegir al abrir sesión.
             </span>
           </li>
         </ul>
@@ -498,7 +508,7 @@ export default function ConfiguracionPage() {
       {/* Apariencia y recibos */}
       <SectionCard
         title="Apariencia y Recibos"
-        icon={<Image size={16} />}
+        icon={<ImageIcon size={16} aria-hidden />}
         description="Personalización visual de facturas y comprobantes impresos"
       >
         <Field label="URL del logotipo"
@@ -544,11 +554,11 @@ export default function ConfiguracionPage() {
               placeholder="RDS" maxLength={5} />
           </Field>
           <Field label="Decimales en precios" hint="Número de decimales al mostrar montos" col>
-            <select className="input-field" value={form.numeroDecimales}
+            <Select value={form.numeroDecimales}
               onChange={(e) => set('numeroDecimales', Number(e.target.value))}>
               <option value={0}>0 — sin decimales (ej: 100)</option>
               <option value={2}>2 — estándar (ej: 100.00)</option>
-            </select>
+            </Select>
           </Field>
         </div>
 
@@ -613,8 +623,7 @@ export default function ConfiguracionPage() {
             label="Jurisdicción fiscal (instancia)"
             hint="Vacío: se usa la variable del servidor (FISCAL_JURISDICTION). DO: NCF/DGII. NONE: no emitir comprobante fiscal desde la API."
           >
-            <select
-              className="input-field"
+            <Select
               value={form.fiscalJurisdiccion}
               onChange={(e) =>
                 set('fiscalJurisdiccion', e.target.value as '' | 'DO' | 'NONE')
@@ -623,23 +632,22 @@ export default function ConfiguracionPage() {
               <option value="">Según servidor (.env)</option>
               <option value="DO">República Dominicana (DGII / NCF)</option>
               <option value="NONE">Sin comprobante fiscal (NCF)</option>
-            </select>
+            </Select>
           </Field>
           <Field label="Tipo de comprobante por defecto"
             hint="Se preseleccionará automáticamente al procesar cada venta">
-            <select className="input-field" value={form.comprobanteDefecto}
+            <Select value={form.comprobanteDefecto}
               onChange={(e) => set('comprobanteDefecto', e.target.value)}>
               <option value="01">B01 — Crédito Fiscal</option>
               <option value="02">B02 — Consumidor Final</option>
               <option value="04">B04 — Nota de Crédito</option>
               <option value="14">B14 — Régimen Especial</option>
               <option value="15">B15 — Gubernamental</option>
-            </select>
+            </Select>
           </Field>
-          <Field label="Sucursal (POS)"
+          <Field label="Sucursal de ventas"
             hint="Se asocia la apertura de caja y los gastos del día a esta tienda. Deja vacío si solo hay una ubicación.">
-            <select
-              className="input-field"
+            <Select
               value={form.tiendaId === '' ? '' : String(form.tiendaId)}
               onChange={(e) => {
                 const v = e.target.value;
@@ -651,12 +659,11 @@ export default function ConfiguracionPage() {
               {tiendas.map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Caja (catálogo)"
-            hint="Crea y asigna cajas en el menú «Cajas». Si eliges una, el POS abre sesión por ID (recomendado con varias sucursales).">
-            <select
-              className="input-field"
+            hint="Crea y asigna cajas en el menú «Cajas». Si eliges una, Nexo abre sesión por ID (recomendado con varias sucursales).">
+            <Select
               value={form.cajaId === '' ? '' : String(form.cajaId)}
               onChange={(e) => {
                 const v = e.target.value;
@@ -682,10 +689,10 @@ export default function ConfiguracionPage() {
                 (c) => c.activo || (form.cajaId !== '' && c.id === form.cajaId)
               ).map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.tienda?.nombre ? `${c.tienda.nombre} — ` : ''}{c.nombre}
+                  {formatTiendaCajaLine(c.tienda?.nombre, c.nombre)}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Nombre de la caja (texto libre)" hint="Se usa si no eliges una caja del catálogo, o como etiqueta mostrada.">
             <input className="input-field" value={form.nombreCaja}
@@ -731,6 +738,7 @@ export default function ConfiguracionPage() {
           {actualizar.isPending ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios'}
         </button>
       </div>
-    </div>
+      </main>
+    </>
   );
 }

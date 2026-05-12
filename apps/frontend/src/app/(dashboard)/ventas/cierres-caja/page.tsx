@@ -175,11 +175,15 @@ export default function CierresCajaPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Historial de Cierres"
-        breadcrumb={['Panel', 'Ventas', 'Cierres de Caja']}
-      />
+    <>
+      <main aria-labelledby="cierres-caja-heading" className="space-y-6">
+        <h1 id="cierres-caja-heading" className="sr-only">
+          Historial de Cierres
+        </h1>
+        <PageHeader
+          title="Historial de Cierres"
+          breadcrumb={['Panel', 'Ventas', 'Cierres de Caja']}
+        />
 
       {!loadingAbiertas && abiertas.length > 0 && (
         <div className="bg-gradient-to-br from-amber-50/90 to-white border border-amber-100 rounded-[12px] p-5 shadow-card">
@@ -191,8 +195,8 @@ export default function CierresCajaPage() {
               <h2 className="font-semibold text-navy-800">Cajas abiertas ahora</h2>
               <p className="text-xs text-navy-500 mt-1">
                 {isAdmin
-                  ? 'Como administrador puedes cerrar la sesión de cualquier caja y sucursal sin usar el POS.'
-                  : 'Sesiones abiertas en tu sucursal. Puedes cerrar desde aquí sin ir al punto de venta.'}
+                  ? 'Como administrador puedes cerrar la sesión de cualquier caja y sucursal sin abrir la pantalla de ventas.'
+                  : 'Sesiones abiertas en tu sucursal. Puedes cerrar desde aquí sin abrir Nexo.'}
               </p>
             </div>
           </div>
@@ -234,25 +238,6 @@ export default function CierresCajaPage() {
         </div>
       )}
 
-      {cerrando && (
-        <ModalOverlay onClose={() => setCerrando(null)} zIndex="z-[300]">
-          <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[12px] shadow-float">
-            <CierreCaja
-              aperturaId={cerrando.id}
-              montoApertura={Number(cerrando.montoApertura)}
-              fechaApertura={cerrando.fechaApertura}
-              cajaNombre={cerrando.cajaNombre}
-              onCerrada={() => {
-                setCerrando(null);
-                invalidateCaja();
-                toast.success('Caja cerrada');
-              }}
-              onVolver={() => setCerrando(null)}
-            />
-          </div>
-        </ModalOverlay>
-      )}
-
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
           <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -292,6 +277,27 @@ export default function CierresCajaPage() {
           )}
         </>
       )}
-    </div>
+      </main>
+
+      {cerrando && (
+        <ModalOverlay onClose={() => setCerrando(null)} zIndex="z-[300]">
+          <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[12px] shadow-float">
+            <CierreCaja
+              aperturaId={cerrando.id}
+              montoApertura={Number(cerrando.montoApertura)}
+              fechaApertura={cerrando.fechaApertura}
+              cajaNombre={cerrando.cajaNombre}
+              inModal
+              onCerrada={() => {
+                setCerrando(null);
+                invalidateCaja();
+                toast.success('Caja cerrada');
+              }}
+              onVolver={() => setCerrando(null)}
+            />
+          </div>
+        </ModalOverlay>
+      )}
+    </>
   );
 }

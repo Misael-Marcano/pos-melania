@@ -50,7 +50,8 @@ Si faltan `E2E_EMAIL` / `E2E_PASSWORD`, el test se **omite** (skip) para no fall
 
 ## CI / staging
 
-Disparo manual con GitHub Actions y URL de frontend en staging: ver **`docs/operacion/E2E-STAGING.md`** (secretos `E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`).
+Disparo manual con GitHub Actions y URL de frontend en staging: ver [E2E-STAGING.md](../../../docs/operacion/E2E-STAGING.md) (secretos `E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`).
+`smoke.spec.ts` espera `main` o UI en `/select-organizacion` tras login (25s); consulta [E2E-STAGING.md](../../../docs/operacion/E2E-STAGING.md).
 
 ## Documentación en repo
 

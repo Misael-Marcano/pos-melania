@@ -4,13 +4,13 @@
  */
 export const appBrand = {
   /** Nombre visible principal (ej. barra lateral, cabecera login) */
-  shortName: process.env.NEXT_PUBLIC_APP_SHORT_NAME ?? 'POS',
+  shortName: process.env.NEXT_PUBLIC_APP_SHORT_NAME ?? 'Nexo',
   /** Segunda línea bajo el nombre (rubro, razón social corta o vacío) */
-  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE ?? 'Punto de venta',
-  title: process.env.NEXT_PUBLIC_APP_METADATA_TITLE ?? 'POS — Punto de venta',
+  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE ?? 'Ventas e inventario',
+  title: process.env.NEXT_PUBLIC_APP_METADATA_TITLE ?? 'Nexo — Ventas e inventario',
   description:
     process.env.NEXT_PUBLIC_APP_METADATA_DESCRIPTION ??
-    'Sistema de punto de venta e inventario',
+    'Sistema de ventas, inventario y operación multi-sucursal',
   /** Texto del copyright sin el símbolo © ni el año (ej. nombre legal) */
   copyrightEntity: process.env.NEXT_PUBLIC_APP_COPYRIGHT_ENTITY ?? 'Mi empresa',
   /** Correo de ventas/soporte mostrado en la landing (mailto:) */

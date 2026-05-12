@@ -96,7 +96,11 @@ export default function BuscarPage() {
     articulo.cantidad <= 10;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <>
+      <main aria-labelledby="inventario-buscar-heading" className="max-w-2xl mx-auto space-y-5">
+        <h1 id="inventario-buscar-heading" className="sr-only">
+          Búsqueda Rápida
+        </h1>
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -106,10 +110,10 @@ export default function BuscarPage() {
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-navy-900 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-navy-900 flex items-center gap-2">
             <ScanLine size={20} className="text-primary-500" />
             Búsqueda Rápida
-          </h1>
+          </h2>
           <p className="text-sm text-navy-400">Escanea o escribe un código de barras</p>
         </div>
       </div>
@@ -289,6 +293,7 @@ export default function BuscarPage() {
           <p className="text-xs mt-1 opacity-70">El scanner físico funciona sin hacer clic en nada</p>
         </div>
       )}
+      </main>
 
       {/* Modales */}
       {showCamera && (
@@ -312,6 +317,6 @@ export default function BuscarPage() {
         }}
         articulo={articulo}
       />
-    </div>
+    </>
   );
 }

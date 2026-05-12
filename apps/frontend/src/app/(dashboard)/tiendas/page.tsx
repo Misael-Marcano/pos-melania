@@ -143,7 +143,10 @@ export default function TiendasPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="tiendas-heading" className="space-y-4">
+        <h1 id="tiendas-heading" className="sr-only">
+          Tiendas / Sucursales
+        </h1>
         <PageHeader title="Tiendas / Sucursales" breadcrumb={['Panel', 'Tiendas']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -245,7 +248,7 @@ export default function TiendasPage() {
             )}
           </div>
         </div>
-      </div>
+      </main>
 
       {modalOpen && (
         <TiendaModal

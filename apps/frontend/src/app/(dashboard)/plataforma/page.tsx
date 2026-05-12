@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
 import { tenantsService, type TenantPanel } from '@/services/tenants.service';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Select } from '@/components/ui/Select';
 import {
   Building2, Users2, Store, Package, CreditCard,
   CheckCircle2, AlertTriangle, XCircle, Clock, Search,
@@ -131,7 +132,10 @@ export default function PlataformaPage() {
   }), [tenants]);
 
   return (
-    <div className="space-y-6">
+    <main aria-labelledby="plataforma-heading" className="space-y-6">
+      <h1 id="plataforma-heading" className="sr-only">
+        Panel de organizaciones
+      </h1>
       <PageHeader title="Panel de organizaciones" breadcrumb={['Plataforma', 'Panel de organizaciones']} />
 
       {/* KPIs */}
@@ -162,28 +166,30 @@ export default function PlataformaPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <select
+          <Select
+            wrapperClassName="min-w-[160px] shrink-0"
             value={billingFilter}
             onChange={(e) => setBillingFilter(e.target.value as typeof billingFilter)}
-            className="input-field text-sm py-2 min-w-[160px]"
+            className="py-2.5 text-sm"
             aria-label="Filtrar por facturación"
           >
             <option value="all">Todas — facturación</option>
             <option value="active_ok">Stripe activo / trial</option>
             <option value="past_due">En mora (past_due)</option>
             <option value="none">Sin estado Stripe</option>
-          </select>
-          <select
+          </Select>
+          <Select
+            wrapperClassName="min-w-[140px] shrink-0"
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
-            className="input-field text-sm py-2 min-w-[140px]"
+            className="py-2.5 text-sm"
             aria-label="Filtrar por plan"
           >
             <option value="all">Todos los planes</option>
-            <option value="starter">starter</option>
-            <option value="standard">standard</option>
-            <option value="enterprise">enterprise</option>
-          </select>
+            <option value="starter">Starter</option>
+            <option value="standard">Standard</option>
+            <option value="enterprise">Enterprise</option>
+          </Select>
         </div>
       </div>
 
@@ -293,6 +299,6 @@ export default function PlataformaPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

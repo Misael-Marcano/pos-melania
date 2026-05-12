@@ -171,7 +171,11 @@ export default function ProveedoresPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="proveedores-heading">
+        <h1 id="proveedores-heading" className="sr-only">
+          Proveedores
+        </h1>
+        <div className="space-y-4">
         <PageHeader title="Proveedores" breadcrumb={['Panel', 'Proveedores']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -284,7 +288,8 @@ export default function ProveedoresPage() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
 
       {modalOpen && (
         <ProveedorModal

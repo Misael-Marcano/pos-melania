@@ -7,15 +7,17 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Package, ShoppingCart, DollarSign,
   Users2, Gift, FileText, Settings, Store, Landmark, Truck, BarChart2,
-  LogOut, Box, X, ClipboardList, RotateCcw, Shield, History,
+  Box, X, ClipboardList, RotateCcw, Shield, History,
   ChevronDown, Tag, ScrollText, ChefHat, Lock, Building2,
 } from 'lucide-react';
 import { Rol, PlanFeatures } from '@pos/shared';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import type { Ref } from 'react';
 import { useStockBajo } from '@/hooks/useInventario';
 import { useSaasContext } from '@/hooks/useSaasContext';
 import { appBrand } from '@/lib/app-brand';
 import { uiLabels } from '@/lib/ui-labels';
+import { NexoIcon } from './NexoIcon';
 
 interface NavChild {
   label: string;
@@ -73,10 +75,27 @@ interface Props {
   onClose: () => void;
 }
 
+/** Hijo cuya ruta coincide con el padre (p. ej. /ventas) solo activo en exact match. */
+function isNavChildActive(pathname: string, childHref: string, parentHref: string): boolean {
+  if (childHref === parentHref) return pathname === childHref;
+  return pathname === childHref || pathname.startsWith(`${childHref}/`);
+}
+
+const navFocusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-100/50 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-700';
+
+const FOCUSABLE_SELECTOR =
+  'a[href]:not([tabindex="-1"]), button:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.closest('[inert]') && !el.hasAttribute('disabled'),
+  );
+}
+
 export function Sidebar({ open, onClose }: Props) {
   const pathname = usePathname();
   const user     = useAuthStore((s) => s.user);
-  const logout   = useAuthStore((s) => s.logout);
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'plataforma';
   const { data: stockBajoData } = useStockBajo(10);
@@ -112,7 +131,7 @@ export function Sidebar({ open, onClose }: Props) {
     const map: Record<string, boolean> = {};
     for (const item of navItems) {
       if (item.children) {
-        map[item.href] = item.children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
+        map[item.href] = item.children.some((c) => isNavChildActive(pathname, c.href, item.href));
       }
     }
     return map;
@@ -126,40 +145,140 @@ export function Sidebar({ open, onClose }: Props) {
       const next = { ...prev };
       for (const item of navItems) {
         if (item.children) {
-          const childActive = item.children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
+          const childActive = item.children.some((c) => isNavChildActive(pathname, c.href, item.href));
           if (childActive) next[item.href] = true;
         }
       }
       return next;
     });
-  }, [pathname]);
+  }, [pathname, navItems]);
 
   const toggleMenu = (href: string) => {
     setOpenMenus((prev) => ({ ...prev, [href]: !prev[href] }));
   };
 
-  const content = (
-    <aside className="w-[240px] h-full bg-navy-700 flex flex-col shadow-sidebar">
-      {/* Logo */}
-      <div className="flex items-center justify-between px-5 py-5 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg">
-            <span className="text-white font-extrabold text-xs">POS</span>
+  /** Fila nav: borde izquierdo reservado en todos los estados (sin saltos al activar). */
+  const navRow = cn(
+    'relative flex items-center gap-3 rounded-lg text-sm font-medium',
+    'border-l-[3px] border-transparent pl-2.5 pr-2.5',
+    'transition-[color,background-color,border-color,transform] duration-200 motion-reduce:transition-none',
+    navFocusRing,
+  );
+  const navInactive =
+    'text-white/65 hover:text-white hover:bg-white/[0.06] active:scale-[0.995] motion-reduce:active:scale-100';
+  /** Activo: superficie uniforme + acento mint sólido a la izquierda (sin gradiente ni resplandor). */
+  const navActive =
+    'border-primary-100 bg-white/[0.09] text-white font-semibold';
+  /** Padre con hijo activo: acento discreto; el hijo lleva el mint pleno. */
+  const navParentWithActive =
+    'border-white/25 bg-white/[0.04] text-white font-medium hover:bg-white/[0.07]';
+
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+
+  const handleClose = useCallback(() => {
+    const restoreFocus = open;
+    onClose();
+    if (restoreFocus) {
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>('[data-sidebar-menu-trigger]')?.focus();
+      });
+    }
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const gutter = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (gutter > 0) document.body.style.paddingRight = `${gutter}px`;
+
+    const focusRaf = requestAnimationFrame(() => {
+      mobileCloseRef.current?.focus();
+    });
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = mobilePanelRef.current;
+      if (!root) return;
+      const list = getFocusableElements(root);
+      if (list.length === 0) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return;
+      const inside = root.contains(active);
+      if (e.shiftKey) {
+        if (!inside || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+
+    return () => {
+      cancelAnimationFrame(focusRaf);
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [open, handleClose]);
+
+  const renderAside = (opts?: { closeButtonRef?: Ref<HTMLButtonElement> }) => (
+    <aside className="w-[240px] h-full bg-navy-700 flex flex-col shadow-sidebar border-r border-white/5">
+      {/* Logo — enlace al panel (atajo habitual). */}
+      <div className="flex items-center justify-between gap-2 px-4 py-4 border-b border-white/5">
+        <Link
+          href="/panel"
+          onClick={handleClose}
+          className={cn(
+            'flex min-w-0 items-center gap-3 rounded-xl py-1 pr-1 -ml-0.5 pl-0.5',
+            'hover:bg-white/5 transition-colors duration-200 motion-reduce:transition-none',
+            navFocusRing,
+          )}
+        >
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg">
+            <NexoIcon className="w-5 h-5" ariaLabel="Nexo" />
           </div>
-          <div>
-            <p className="text-white font-semibold text-sm leading-none">{appBrand.shortName}</p>
+          <div className="min-w-0 text-left">
+            <p className="text-white font-semibold text-sm leading-none truncate">{appBrand.shortName}</p>
             {appBrand.tagline.trim() ? (
-              <p className="text-white/40 text-[10px] mt-0.5 leading-none">{appBrand.tagline}</p>
+              <p className="text-white/40 text-[10px] mt-0.5 leading-none truncate">{appBrand.tagline}</p>
             ) : null}
           </div>
-        </div>
-        <button onClick={onClose} className="lg:hidden text-white/40 hover:text-white p-1 rounded-md">
-          <X size={18} />
+        </Link>
+        <button
+          type="button"
+          ref={opts?.closeButtonRef}
+          onClick={handleClose}
+          aria-label="Cerrar menú de navegación"
+          className={cn(
+            'lg:hidden shrink-0 text-white/40 hover:text-white p-2 rounded-lg hover:bg-white/5',
+            'transition-colors duration-200 motion-reduce:transition-none',
+            navFocusRing,
+          )}
+        >
+          <X size={18} aria-hidden />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+      <nav
+        className="sidebar-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-3 px-2.5 space-y-1"
+        aria-label="Navegación principal"
+      >
         {visibleItems.map((item) => {
 
           // ── Item with submenu ───────────────────────────────────────────────
@@ -168,30 +287,31 @@ export function Sidebar({ open, onClose }: Props) {
             if (visibleChildren.length === 0) return null;
 
             const isExpanded    = !!openMenus[item.href];
-            const hasActiveChild = visibleChildren.some((c) => pathname === c.href);
+            const hasActiveChild = visibleChildren.some((c) => isNavChildActive(pathname, c.href, item.href));
 
             return (
               <div key={item.href}>
                 {/* Parent button */}
                 <button
+                  type="button"
                   onClick={() => toggleMenu(item.href)}
+                  aria-expanded={isExpanded}
                   className={cn(
-                    'w-full flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                    'border-l-2 pl-[10px] pr-3',
-                    hasActiveChild
-                      ? 'text-white bg-white/10 border-primary-200'
-                      : 'text-white/50 hover:text-white hover:bg-white/8 border-transparent'
+                    navRow,
+                    'w-full py-2 text-left',
+                    hasActiveChild ? navParentWithActive : navInactive,
                   )}
                 >
-                  <span className={cn(hasActiveChild ? 'text-white' : 'text-white/40')}>
+                  <span className={cn(hasActiveChild ? 'text-primary-100' : 'text-white/45')} aria-hidden>
                     {item.icon}
                   </span>
                   <span className="flex-1 text-left">{item.label}</span>
                   <ChevronDown
                     size={14}
+                    aria-hidden
                     className={cn(
-                      'transition-transform duration-200 shrink-0',
-                      hasActiveChild ? 'text-white/60' : 'text-white/30',
+                      'shrink-0 transition-transform duration-200 motion-reduce:transition-none',
+                      hasActiveChild ? 'text-primary-100/80' : 'text-white/30',
                       isExpanded ? 'rotate-180' : 'rotate-0'
                     )}
                   />
@@ -199,23 +319,21 @@ export function Sidebar({ open, onClose }: Props) {
 
                 {/* Children */}
                 {isExpanded && (
-                  <div className="ml-4 pl-3 border-l border-white/10 space-y-0.5 mt-0.5 mb-1">
+                  <div className="ml-2 mt-1 mb-1 space-y-0.5 border-l border-white/10 pl-2.5">
                     {visibleChildren.map((child) => {
-                      const childActive = pathname === child.href;
+                      const childActive = isNavChildActive(pathname, child.href, item.href);
                       return (
                         <Link
                           key={child.href}
                           href={child.href}
-                          onClick={onClose}
+                          onClick={handleClose}
                           className={cn(
-                            'flex items-center gap-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                            'border-l-2 pl-[10px] pr-3',
-                            childActive
-                              ? 'bg-white/10 text-white border-primary-200'
-                              : 'text-white/45 hover:text-white hover:bg-white/8 border-transparent'
+                            navRow,
+                            'py-1.5 text-xs',
+                            childActive ? navActive : navInactive,
                           )}
                         >
-                          <span className={cn(childActive ? 'text-white' : 'text-white/35')}>
+                          <span className={cn(childActive ? 'text-primary-100' : 'text-white/40')} aria-hidden>
                             {child.icon}
                           </span>
                           {child.label}
@@ -241,17 +359,17 @@ export function Sidebar({ open, onClose }: Props) {
               <Link
                 key={item.href}
                 href="/configuracion"
-                onClick={onClose}
+                onClick={handleClose}
                 title={`Disponible desde plan Standard — ir a Configuración`}
                 className={cn(
-                  'flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                  'border-l-2 pl-[10px] pr-3',
-                  'text-white/25 hover:text-white/40 hover:bg-white/5 border-transparent cursor-not-allowed',
+                  navRow,
+                  'py-2',
+                  'text-white/25 hover:text-white/40 hover:bg-white/5 cursor-not-allowed',
                 )}
               >
-                <span className="text-white/20">{item.icon}</span>
+                <span className="text-white/20" aria-hidden>{item.icon}</span>
                 <span className="flex-1">{item.label}</span>
-                <Lock size={11} className="text-white/25 shrink-0" />
+                <Lock size={11} className="text-white/25 shrink-0" aria-hidden />
               </Link>
             );
           }
@@ -260,16 +378,14 @@ export function Sidebar({ open, onClose }: Props) {
             <Link
               key={item.href}
               href={item.href}
-              onClick={onClose}
+              onClick={handleClose}
               className={cn(
-                'flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                'border-l-2 pl-[10px] pr-3',
-                active
-                  ? 'bg-white/10 text-white border-primary-200'
-                  : 'text-white/50 hover:text-white hover:bg-white/8 border-transparent'
+                navRow,
+                'py-2',
+                active ? navActive : navInactive,
               )}
             >
-              <span className={cn(active ? 'text-white' : 'text-white/40')}>
+              <span className={cn(active ? 'text-primary-100' : 'text-white/45')} aria-hidden>
                 {item.icon}
               </span>
               <span className="flex-1">{item.label}</span>
@@ -282,38 +398,31 @@ export function Sidebar({ open, onClose }: Props) {
           );
         })}
       </nav>
-
-      {/* User */}
-      <div className="border-t border-white/5 p-3">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg mb-1">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {user?.nombre?.[0]?.toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-semibold truncate leading-none">{user?.nombre}</p>
-            <p className="text-white/40 text-[10px] mt-1 capitalize leading-none">{user?.rol}</p>
-          </div>
-        </div>
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-sm transition-all duration-150"
-        >
-          <LogOut size={15} />
-          Cerrar sesión
-        </button>
-      </div>
     </aside>
   );
 
   return (
     <>
       <div className="hidden lg:flex shrink-0 h-screen sticky top-0">
-        {content}
+        {renderAside()}
       </div>
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-          <div className="relative z-10 flex h-full">{content}</div>
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            aria-hidden
+            onClick={handleClose}
+          />
+          <div
+            ref={mobilePanelRef}
+            id="dashboard-mobile-nav"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú lateral"
+            className="relative z-10 flex h-full shadow-2xl"
+          >
+            {renderAside({ closeButtonRef: mobileCloseRef })}
+          </div>
         </div>
       )}
     </>

@@ -35,6 +35,9 @@ export interface FullUpdateVentaPayload {
   clienteId?: number | null;
   descuento?: number;
   notas?:     string | null;
+  esDelivery?:        boolean;
+  deliveryCargo?:     number;
+  deliveryDireccion?: string | null;
   detalles: {
     articuloId:     number;
     cantidad:       number;

@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { IComprobante } from '@pos/shared';
 import { Plus, FileText, Pencil, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 
 const TIPOS_NCF = [
   { id: '01', label: 'B01 — Crédito Fiscal' },
@@ -102,11 +103,11 @@ function ComprobanteModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Tipo de comprobante</label>
-              <select className="input-field" value={form.tipo} onChange={(e) => set('tipo', e.target.value)}>
+              <Select value={form.tipo} onChange={(e) => set('tipo', e.target.value)}>
                 {TIPOS_NCF.map((t) => (
                   <option key={t.id} value={t.id}>{t.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Serie</label>
@@ -175,10 +176,15 @@ export default function ComprobantePage() {
   const handleEditar = (c: IComprobante) => { setSelected(c); setModalOpen(true); };
   const handleNuevo  = ()              => { setSelected(null); setModalOpen(true); };
 
+  const pageTitle = 'Comprobantes Fiscales (NCF)';
+
   return (
     <>
-      <div className="space-y-5">
-        <PageHeader title="Comprobantes Fiscales (NCF)" breadcrumb={['Panel', 'Comprobantes']} />
+      <main aria-labelledby="comprobante-heading" className="space-y-5">
+        <h1 id="comprobante-heading" className="sr-only">
+          {pageTitle}
+        </h1>
+        <PageHeader title={pageTitle} breadcrumb={['Panel', 'Comprobantes']} />
 
         {/* Alerta informativa */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-3 items-start">
@@ -301,7 +307,7 @@ export default function ComprobantePage() {
             ))}
           </div>
         </div>
-      </div>
+      </main>
 
       {modalOpen && (
         <ComprobanteModal

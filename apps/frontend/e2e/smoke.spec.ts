@@ -1,5 +1,23 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeAll(async ({ request }) => {
+  try {
+    await request.get('/login', { timeout: 10_000, failOnStatusCode: false });
+  } catch {
+    test.skip(
+      true,
+      'No se pudo conectar al frontend (baseURL de Playwright). Arrancá `npm run dev` en apps/frontend o definí PLAYWRIGHT_BASE_URL si Next.js usó otro puerto (p. ej. http://127.0.0.1:3001 cuando 3000 está ocupado).',
+    );
+  }
+});
+
+test.describe('smoke — shell', () => {
+  test('login page has main landmark', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.getByRole('main')).toBeVisible();
+  });
+});
+
 /**
  * Smoke: login con usuario seed y llegar al panel o selector de org (rol plataforma).
  * Omitido si faltan E2E_EMAIL / E2E_PASSWORD.

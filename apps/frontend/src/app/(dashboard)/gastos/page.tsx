@@ -10,6 +10,7 @@ import {
   Receipt, AlertTriangle,
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { toast } from '@/store/toast.store';
 
 const CATEGORIAS = [
@@ -103,10 +104,10 @@ function GastoModal({ gasto, onClose }: { gasto: IGasto | null; onClose: () => v
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Categoría</label>
-              <select className="input-field" value={form.categoria}
+              <Select value={form.categoria}
                 onChange={(e) => set('categoria', e.target.value)}>
                 {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Fecha</label>
@@ -188,8 +189,12 @@ export default function GastosPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        <PageHeader title="Gastos" breadcrumb={['Panel', 'Gastos']} />
+      <main aria-labelledby="gastos-heading">
+        <div className="space-y-4">
+          <h1 id="gastos-heading" className="sr-only">
+            Gastos
+          </h1>
+          <PageHeader title="Gastos" breadcrumb={['Panel', 'Gastos']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
           {/* Toolbar */}
@@ -314,7 +319,8 @@ export default function GastosPage() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </main>
 
       {modalOpen && (
         <GastoModal

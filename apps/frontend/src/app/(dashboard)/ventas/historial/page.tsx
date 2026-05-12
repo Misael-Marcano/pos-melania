@@ -8,6 +8,8 @@ import { IVenta } from '@pos/shared';
 import { Eye, Loader2, Search, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { VentaModal } from '@/components/ventas/VentaModal';
+import { Select } from '@/components/ui/Select';
+import { normalizeSelectLabel } from '@/lib/select-display';
 
 const METODO_BADGE: Record<string, string> = {
   EFECTIVO: 'badge-green', TARJETA: 'badge-orange',
@@ -15,6 +17,8 @@ const METODO_BADGE: Record<string, string> = {
 };
 
 type EstadoFilter = 'todas' | 'activa' | 'anulada';
+
+const EMPTY_VENTAS: IVenta[] = [];
 
 export default function VentasHistorialPage() {
   const user = useAuthStore((s) => s.user);
@@ -34,7 +38,7 @@ export default function VentasHistorialPage() {
     estado === 'todas' ? undefined : estado,
   );
 
-  const ventas     = data?.data ?? [];
+  const ventas     = data?.data ?? EMPTY_VENTAS;
   const pagination = data?.pagination;
 
   // Client-side filter: busqueda + metodo
@@ -63,8 +67,11 @@ export default function VentasHistorialPage() {
 
   return (
     <>
-    <div className="space-y-4">
-      <PageHeader title="Historial de Ventas" breadcrumb={['Panel', 'Ventas', 'Historial']} />
+      <main aria-labelledby="ventas-historial-heading" className="space-y-4">
+        <h1 id="ventas-historial-heading" className="sr-only">
+          Historial de Ventas
+        </h1>
+        <PageHeader title="Historial de Ventas" breadcrumb={['Panel', 'Ventas', 'Historial']} />
 
       {/* ── Filtros ──────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-[12px] shadow-card p-4 space-y-3">
@@ -96,12 +103,15 @@ export default function VentasHistorialPage() {
           </div>
           <div>
             <label className="text-xs text-navy-500 mb-1 block">Método</label>
-            <select value={metodoFilter} onChange={e => setMetodoFilter(e.target.value)} className="input-field">
+            <Select value={metodoFilter} onChange={e => setMetodoFilter(e.target.value)}
+              wrapperClassName="min-w-[10rem] shrink-0"
+              className="py-2.5 text-sm"
+            >
               <option value="">Todos</option>
               {['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'CREDITO'].map(m => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>{normalizeSelectLabel(m)}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             {(['todas', 'activa', 'anulada'] as EstadoFilter[]).map(e => (
@@ -214,7 +224,7 @@ export default function VentasHistorialPage() {
           </div>
         )}
       </div>
-    </div>
+      </main>
 
     {/* VentaModal unificado */}
     {ventaModal && (

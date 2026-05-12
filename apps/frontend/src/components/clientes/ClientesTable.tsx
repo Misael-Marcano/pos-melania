@@ -10,6 +10,7 @@ import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from '@/store/toast.store';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import {
   Search, UserPlus, Pencil, Wallet, X, Loader2,
   AlertTriangle, TrendingUp, TrendingDown, ArrowDownCircle, Trash2,
@@ -298,16 +299,17 @@ function ClienteModal({ cliente, onClose }: { cliente: ICliente | null; onClose:
           <div>
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Identificación</label>
             <div className="flex gap-2">
-              <select
+              <Select
+                wrapperClassName="w-36 shrink-0"
                 value={form.tipoIdentificacion}
                 onChange={(e) => { set('tipoIdentificacion', e.target.value); set('numeroIdentificacion', ''); }}
-                className="input-field w-36 shrink-0"
+                className="py-2 text-sm"
               >
                 <option value="">Tipo</option>
                 <option value="CEDULA">Cédula</option>
                 <option value="RNC">RNC</option>
                 <option value="PASAPORTE">Pasaporte</option>
-              </select>
+              </Select>
               <input
                 className="input-field flex-1 font-mono"
                 value={form.numeroIdentificacion}
@@ -352,7 +354,7 @@ function ClienteModal({ cliente, onClose }: { cliente: ICliente | null; onClose:
             </div>
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">
-                Descuento automático % <span className="text-navy-400 font-normal text-xs">(POS)</span>
+                Descuento automático % <span className="text-navy-400 font-normal text-xs">(en ventas)</span>
               </label>
               <input type="number" min={0} max={100} step={0.5} className="input-field" value={form.descuentoCliente}
                 onChange={(e) => set('descuentoCliente', e.target.value)} placeholder="0" />

@@ -3,9 +3,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function ClientesPage() {
   return (
-    <div className="space-y-4">
+    <main aria-labelledby="clientes-heading" className="space-y-4">
+      <h1 id="clientes-heading" className="sr-only">
+        Clientes
+      </h1>
       <PageHeader title="Clientes" breadcrumb={['Panel', 'Clientes']} />
       <ClientesTable />
-    </div>
+    </main>
   );
 }

@@ -3,9 +3,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function InventarioPage() {
   return (
-    <div className="space-y-4">
+    <main aria-labelledby="inventario-heading" className="space-y-4">
+      <h1 id="inventario-heading" className="sr-only">
+        Inventario
+      </h1>
       <PageHeader title="Inventario" breadcrumb={['Panel', 'Inventario']} />
       <InventarioTable />
-    </div>
+    </main>
   );
 }

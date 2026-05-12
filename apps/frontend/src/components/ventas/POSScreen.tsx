@@ -12,6 +12,8 @@ import { toast }              from '@/store/toast.store';
 import { IArticulo, ICliente, IVenta } from '@pos/shared';
 import { useAuthStore } from '@/store/auth.store';
 import { formatCurrency }     from '@/lib/utils';
+import { formatTiendaCajaLine } from '@/lib/select-display';
+import { Select }             from '@/components/ui/Select';
 import { nombreArticuloConUnidad } from '@/lib/format-articulo';
 import { AperturaCaja }       from './AperturaCaja';
 import { CierreCaja }         from './CierreCaja';
@@ -23,13 +25,20 @@ import {
   UserPlus, X, Search, Lock, ArrowLeft,
   Banknote, CreditCard, Smartphone, BookOpen,
   CheckCircle, ChevronDown, PauseCircle, PlayCircle, Clock,
-  Gift, Loader2, Bike, Camera,
+  Gift, Loader2, Bike, Camera, FileText, Tag, AlertTriangle,
 } from 'lucide-react';
 import { tarjetasRegaloService, ITarjetaRegalo } from '@/services/tarjetas-regalo.service';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
 import { useCajas } from '@/hooks/useCajas';
 import { promocionesService } from '@/services/promociones.service';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { usePosDraftPersistence } from '@/hooks/usePosDraftPersistence';
+import {
+  POS_DRAFT_SCHEMA_VERSION,
+  type PosDraftV1,
+  removePosDraftStorage,
+  rehydrateClienteFromDraftLite,
+} from '@/lib/pos-draft-session';
 
 type MetodoPago = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'CREDITO' | 'TARJETA_REGALO';
 type TipoNCF    = '01' | '02' | '04' | '14' | '15';
@@ -52,6 +61,8 @@ const TIPOS_NCF: { id: TipoNCF; label: string }[] = [
 
 const BILLETES = [2000, 1000, 500, 200, 100, 50];
 
+const EMPTY_ARTICULOS: IArticulo[] = [];
+
 // ─────────────────────────────────────────────────────────────────────────────
 export function POSScreen() {
   const {
@@ -63,7 +74,14 @@ export function POSScreen() {
   // ── Config + caja (por sucursal; admin elige entre todas) ─────────────────
   const { data: cfg } = useConfiguracion();
   const user    = useAuthStore((s) => s.user);
+  const platformTenantId = useAuthStore((s) => s.platformTenantId);
   const isAdmin = user?.rol === 'admin';
+
+  const effectiveTenantId = useMemo(() => {
+    if (!user) return null;
+    if (user.rol === 'plataforma') return platformTenantId ?? null;
+    return user.tenantId ?? 1;
+  }, [user, platformTenantId]);
 
   const cajasQueryEnabled = !!user && (isAdmin || user.tiendaId != null);
   const { data: cajasLista = [], isLoading: cajasLoading } = useCajas(
@@ -100,7 +118,7 @@ export function POSScreen() {
       if (cfg?.cajaId && eligible.some((c) => c.id === cfg.cajaId)) return cfg.cajaId;
       return eligible[0].id;
     });
-  }, [user, cajasLoading, cajasQueryEnabled, cajasElegibles, cfg?.cajaId]);
+  }, [user, isAdmin, cajasLoading, cajasQueryEnabled, cajasElegibles, cfg?.cajaId]);
 
   const effectiveCajaId =
     selectedCajaId === '' ? undefined : Number(selectedCajaId);
@@ -123,7 +141,14 @@ export function POSScreen() {
   };
 
   // ── Caja ─────────────────────────────────────────────────────────────────
-  const { data: cajaActiva, isLoading: cajaLoading } = useCajaActiva(
+  const {
+    data: cajaActiva,
+    isLoading: cajaLoading,
+    isError: cajaActivaError,
+    error: cajaActivaErrorObj,
+    refetch: refetchCajaActiva,
+    isFetching: cajaActivaFetching,
+  } = useCajaActiva(
     effectiveNombre,
     effectiveCajaId
   );
@@ -184,6 +209,165 @@ export function POSScreen() {
   const inputRef    = useRef<HTMLInputElement>(null);
   const [scanFlash,   setScanFlash]   = useState(false);
   const [showCamera,  setShowCamera]  = useState(false);
+  /** Evita que el efecto de “entrar a pago” pise estado restaurado desde sessionStorage. */
+  const skipPaymentHydrationRef = useRef(false);
+
+  const draftPersistenceEnabled =
+    !!user &&
+    !!cajaActiva &&
+    !receipt &&
+    effectiveTenantId != null &&
+    effectiveTiendaId != null &&
+    (!cajasQueryEnabled || !cajasLoading);
+
+  const getPosDraftSnapshot = useCallback((): PosDraftV1 => ({
+    v: POS_DRAFT_SCHEMA_VERSION,
+    items,
+    clienteId,
+    descuentoGlobal,
+    clienteNombre,
+    clienteLite: clienteObj
+      ? {
+          id: clienteObj.id,
+          nombre: clienteObj.nombre,
+          limiteCredito: Number(clienteObj.limiteCredito ?? 0),
+          saldo: Number(clienteObj.saldo ?? 0),
+          descuentoCliente: clienteObj.descuentoCliente ?? null,
+        }
+      : null,
+    selectedCajaId: effectiveCajaId,
+    mode,
+    pagos,
+    usarNCF,
+    tipoNCF,
+    notas,
+    promoCodigo,
+    promoDescuento,
+    promoNombre,
+    showNCF,
+    pagoMixto,
+    metodoPago,
+    efectivoRecibido,
+    esDelivery,
+    deliveryCargo,
+    deliveryDireccion,
+  }), [
+    items,
+    clienteId,
+    descuentoGlobal,
+    clienteNombre,
+    clienteObj,
+    effectiveCajaId,
+    mode,
+    pagos,
+    usarNCF,
+    tipoNCF,
+    notas,
+    promoCodigo,
+    promoDescuento,
+    promoNombre,
+    showNCF,
+    pagoMixto,
+    metodoPago,
+    efectivoRecibido,
+    esDelivery,
+    deliveryCargo,
+    deliveryDireccion,
+  ]);
+
+  const onPosDraftScopeChange = useCallback(() => {
+    clearCart();
+    setClienteNombre('');
+    setClienteObj(null);
+    setMode('cart');
+    setInputVal('');
+    setPagos([]);
+    setPagoMixto(false);
+    setMetodoPago('EFECTIVO');
+    setEfectivoRecibido('');
+    setGcCodigo('');
+    setGcData(null);
+    setGcError('');
+    setNotas('');
+    setUsarNCF(false);
+    setTipoNCF('02');
+    setEsDelivery(false);
+    setDeliveryCargo('');
+    setDeliveryDireccion('');
+    setPromoCodigo('');
+    setPromoDescuento(0);
+    setPromoNombre('');
+    setShowNCF(false);
+    setDescGlobalInput('');
+  }, [clearCart]);
+
+  const applyPosDraft = useCallback(
+    (draft: PosDraftV1) => {
+      if (draft.selectedCajaId != null && cajasElegibles.some((c) => c.id === draft.selectedCajaId)) {
+        setSelectedCajaId(draft.selectedCajaId);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pos_caja_seleccion', JSON.stringify({ cajaId: draft.selectedCajaId }));
+        }
+      }
+      useCartStore.setState({
+        items: draft.items.map((row) => ({
+          ...row,
+          articulo: {
+            ...row.articulo,
+            categoria: { ...row.articulo.categoria },
+          },
+        })),
+        clienteId: draft.clienteId,
+        descuentoGlobal: draft.descuentoGlobal,
+      });
+      setClienteNombre(draft.clienteNombre);
+      setClienteObj(draft.clienteLite ? rehydrateClienteFromDraftLite(draft.clienteLite) : null);
+      setPagos(draft.pagos);
+      setUsarNCF(draft.usarNCF);
+      setTipoNCF(draft.tipoNCF);
+      setNotas(draft.notas);
+      setPromoCodigo(draft.promoCodigo);
+      setPromoDescuento(draft.promoDescuento);
+      setPromoNombre(draft.promoNombre);
+      setShowNCF(draft.showNCF);
+      setPagoMixto(draft.pagoMixto);
+      setMetodoPago(draft.metodoPago);
+      setEfectivoRecibido(draft.efectivoRecibido);
+      setEsDelivery(draft.esDelivery);
+      setDeliveryCargo(draft.deliveryCargo);
+      setDeliveryDireccion(draft.deliveryDireccion);
+      setGcCodigo('');
+      setGcData(null);
+      setGcError('');
+      if (draft.mode === 'payment') {
+        skipPaymentHydrationRef.current = true;
+      }
+      setMode(draft.mode);
+    },
+    [cajasElegibles],
+  );
+
+  const isCajaEligibleForDraft = useCallback(
+    (cajaId: number) => cajasElegibles.some((c) => c.id === cajaId),
+    [cajasElegibles],
+  );
+
+  const posDraftSaveRevision = useMemo(
+    () => JSON.stringify(getPosDraftSnapshot()),
+    [getPosDraftSnapshot],
+  );
+
+  usePosDraftPersistence({
+    enabled: draftPersistenceEnabled,
+    tenantId: effectiveTenantId,
+    tiendaId: effectiveTiendaId,
+    cartNonEmpty: items.length > 0,
+    getSnapshot: getPosDraftSnapshot,
+    applyDraft: applyPosDraft,
+    onScopeChange: onPosDraftScopeChange,
+    isCajaEligible: isCajaEligibleForDraft,
+    saveRevision: posDraftSaveRevision,
+  });
 
   // Re-enfocar el escáner al volver al modo carrito o cerrar el recibo
   useEffect(() => {
@@ -233,7 +417,10 @@ export function POSScreen() {
     enabled:  inputVal.trim().length >= 2 && showSuggestions,
     placeholderData: (prev) => prev,
   });
-  const sugerencias: IArticulo[] = sugerenciasData?.data ?? [];
+  const sugerencias = useMemo(
+    () => sugerenciasData?.data ?? EMPTY_ARTICULOS,
+    [sugerenciasData?.data],
+  );
 
   // ── Clientes ──────────────────────────────────────────────────────────────
   const { data: clientesData } = useQuery({
@@ -243,9 +430,13 @@ export function POSScreen() {
   });
   const clientes = clientesData?.data ?? [];
 
-  // Inicializar pagos al entrar a modo pago
+  // Inicializar pagos al entrar a modo pago (no pisar restauración desde sessionStorage)
   useEffect(() => {
     if (mode === 'payment') {
+      if (skipPaymentHydrationRef.current) {
+        skipPaymentHydrationRef.current = false;
+        return;
+      }
       setPagoMixto(false);
       setMetodoPago('EFECTIVO');
       setEfectivoRecibido('');
@@ -261,6 +452,9 @@ export function POSScreen() {
     mutationFn: (payload: Parameters<typeof ventasService.create>[0]) =>
       ventasService.create(payload),
     onSuccess: (venta) => {
+      if (effectiveTenantId != null && effectiveTiendaId != null) {
+        removePosDraftStorage(effectiveTenantId, effectiveTiendaId);
+      }
       clearCart();
       setMode('cart');
       setPagos([]);
@@ -407,7 +601,7 @@ export function POSScreen() {
       try {
         await tarjetasRegaloService.usar(gcData.id, {
           monto: totalFinal,
-          notas: notas || `Venta POS`,
+          notas: notas || `Venta Nexo`,
         });
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : 'Error al procesar tarjeta de regalo');
@@ -480,7 +674,7 @@ export function POSScreen() {
           <Lock className="mx-auto text-amber-500 mb-3" size={32} />
           <p className="font-semibold text-navy-800 mb-2">Sin sucursal asignada</p>
           <p className="text-sm text-navy-500">
-            Tu usuario debe tener una sucursal para usar el POS. Pide al administrador que asigne tu tienda en Empleados.
+            Tu usuario debe tener una sucursal para usar Nexo. Pide al administrador que asigne tu tienda en Empleados.
           </p>
         </div>
       </div>
@@ -518,10 +712,55 @@ export function POSScreen() {
       </div>
     );
   }
+
+  if (cajaActivaError) {
+    const msg = cajaActivaErrorObj instanceof Error
+      ? cajaActivaErrorObj.message
+      : 'No se pudo validar el estado de la caja.';
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-4 sm:p-8 bg-navy-50">
+        <div className="bg-white rounded-[12px] shadow-card max-w-lg w-full p-6 sm:p-8">
+          <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center mb-4">
+            <AlertTriangle className="text-amber-700" size={22} />
+          </div>
+          <p className="font-semibold text-navy-800 mb-2">Caja no disponible</p>
+          <p className="text-sm text-navy-500 leading-relaxed mb-4">
+            {msg}
+          </p>
+          {cajasElegibles.length > 1 && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-navy-500 uppercase tracking-wider block mb-2">
+                Cambiar caja
+              </label>
+              <Select
+                value={selectedCajaId === '' ? '' : String(selectedCajaId)}
+                onChange={(e) => handleSelectCajaPos(Number(e.target.value))}
+              >
+                {cajasElegibles.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {formatTiendaCajaLine(c.tienda?.nombre, c.nombre)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => void refetchCajaActiva()}
+            disabled={cajaActivaFetching}
+            className="btn-primary inline-flex items-center justify-center gap-2"
+          >
+            {cajaActivaFetching && <Loader2 size={14} className="animate-spin" />}
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
   /* Cierre: usar snapshot — tras cerrar en API, `cajaActiva` es null pero el usuario sigue en pantalla de resultado */
   if (mostrarCierre && cierreCtx) {
     return (
-      <div className="p-6">
+      <div className="min-h-[calc(100vh-3.5rem)] bg-navy-50 flex items-start justify-center p-4 sm:p-8">
         <CierreCaja
           aperturaId={cierreCtx.aperturaId}
           montoApertura={cierreCtx.montoApertura}
@@ -549,17 +788,18 @@ export function POSScreen() {
             <span className="text-sm font-medium text-navy-700">
               {isAdmin ? 'Caja para esta sesión' : 'Elige la caja a abrir'}
             </span>
-            <select
-              className="input-field max-w-md min-w-[220px]"
+            <Select
+              variant="toolbar"
+              wrapperClassName="w-full max-w-md min-w-[220px]"
               value={selectedCajaId === '' ? '' : String(selectedCajaId)}
               onChange={(e) => handleSelectCajaPos(Number(e.target.value))}
             >
               {cajasElegibles.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.tienda?.nombre ? `${c.tienda.nombre} — ` : ''}{c.nombre}
+                  {formatTiendaCajaLine(c.tienda?.nombre, c.nombre)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
         <AperturaCaja
@@ -1281,38 +1521,70 @@ export function POSScreen() {
                 )}
 
                 {/* NCF */}
-                <div className="border border-navy-100/40 rounded-[12px] overflow-hidden">
+                <div className="rounded-xl border border-navy-200/70 bg-white shadow-sm overflow-hidden ring-1 ring-black/[0.03]">
                   <button
+                    type="button"
                     onClick={() => setShowNCF((v) => !v)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-navy-50 transition-colors"
+                    className={`w-full flex items-center gap-3 px-3.5 py-3 text-left transition-colors ${showNCF ? 'bg-primary-50/50' : 'hover:bg-navy-50/80'}`}
                   >
-                    <span className="font-medium text-navy-700">Comprobante Fiscal (NCF)</span>
-                    <div className="flex items-center gap-2">
-                      {usarNCF && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">{tipoNCF}</span>}
-                      <ChevronDown size={14} className={`text-navy-400 transition-transform ${showNCF ? 'rotate-180' : ''}`} />
-                    </div>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-100/90 text-primary-700">
+                      <FileText size={18} strokeWidth={2} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-navy-800 text-sm">Comprobante fiscal (NCF)</span>
+                      <span className="block text-[11px] text-navy-400 mt-0.5">DGII — tipo de comprobante</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {usarNCF && (
+                        <span className="text-[11px] font-semibold bg-primary-600 text-white px-2 py-0.5 rounded-md tabular-nums">
+                          {tipoNCF}
+                        </span>
+                      )}
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-100/60 text-navy-500">
+                        <ChevronDown size={16} className={`transition-transform duration-200 ${showNCF ? 'rotate-180' : ''}`} aria-hidden />
+                      </span>
+                    </span>
                   </button>
                   {showNCF && (
-                    <div className="px-4 pb-3 border-t border-navy-100/40">
-                      <div className="flex items-center justify-between py-2.5">
-                        <span className="text-sm text-navy-500">Emitir comprobante</span>
+                    <div className="border-t border-navy-100/80 bg-navy-50/40 px-3.5 pb-3.5 pt-1">
+                      <div className="flex items-center justify-between gap-3 py-2.5">
+                        <span className="text-sm font-medium text-navy-700">Emitir comprobante</span>
                         <button
+                          type="button"
+                          role="switch"
+                          aria-checked={usarNCF}
                           onClick={() => setUsarNCF((v) => !v)}
-                          className={`w-10 h-5 rounded-full relative transition-colors ${usarNCF ? 'bg-primary-500' : 'bg-navy-300'}`}
+                          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors shadow-inner ${
+                            usarNCF ? 'bg-primary-600' : 'bg-navy-200'
+                          }`}
                         >
-                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${usarNCF ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                          <span
+                            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                              usarNCF ? 'translate-x-[1.375rem]' : 'translate-x-0'
+                            }`}
+                          />
                         </button>
                       </div>
                       {usarNCF && (
-                        <div className="space-y-1.5 mt-1">
+                        <div className="space-y-1 rounded-lg border border-navy-100/80 bg-white p-2">
                           {TIPOS_NCF.map((t) => (
-                            <label key={t.id} onClick={() => setTipoNCF(t.id)} className="flex items-center gap-2.5 cursor-pointer group">
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                                tipoNCF === t.id ? 'border-primary-500 bg-primary-500' : 'border-navy-200 group-hover:border-primary-300'
-                              }`}>
-                                {tipoNCF === t.id && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                            <label
+                              key={t.id}
+                              onClick={() => setTipoNCF(t.id)}
+                              className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-primary-50/60 group"
+                            >
+                              <div
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                                  tipoNCF === t.id
+                                    ? 'border-primary-600 bg-primary-600'
+                                    : 'border-navy-200 group-hover:border-primary-400'
+                                }`}
+                              >
+                                {tipoNCF === t.id && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                               </div>
-                              <span className="text-xs text-navy-500">{t.label}</span>
+                              <span className={`text-xs leading-snug ${tipoNCF === t.id ? 'font-medium text-navy-800' : 'text-navy-500'}`}>
+                                {t.label}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -1322,20 +1594,36 @@ export function POSScreen() {
                 </div>
 
                 {/* Código de promoción */}
-                <div>
-                  <label className="text-xs font-semibold text-navy-400 uppercase tracking-wide block mb-1.5">
-                    Código de descuento
-                  </label>
+                <div className="rounded-xl border border-navy-200/70 bg-white p-3.5 shadow-sm ring-1 ring-black/[0.03]">
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                      <Tag size={16} strokeWidth={2} aria-hidden />
+                    </span>
+                    <div>
+                      <span className="block text-sm font-semibold text-navy-800">Código de descuento</span>
+                      <span className="block text-[11px] text-navy-400">Promoción activa en el total</span>
+                    </div>
+                  </div>
                   {promoDescuento > 0 ? (
-                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                      <CheckCircle size={14} className="text-emerald-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-emerald-700">{promoCodigo} — {promoNombre}</p>
-                        <p className="text-xs text-emerald-600">-{formatCurrency(promoDescuento)} aplicado</p>
+                    <div className="flex items-center gap-2.5 rounded-lg border border-emerald-200/90 bg-gradient-to-r from-emerald-50 to-white px-3 py-2.5">
+                      <CheckCircle size={16} className="text-emerald-600 shrink-0" aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-emerald-800">
+                          {promoCodigo} <span className="font-normal text-emerald-600">—</span> {promoNombre}
+                        </p>
+                        <p className="text-xs font-medium text-emerald-700">−{formatCurrency(promoDescuento)} en esta venta</p>
                       </div>
-                      <button onClick={() => { setPromoDescuento(0); setPromoCodigo(''); setPromoNombre(''); }}
-                        className="text-emerald-500 hover:text-red-500 transition-colors">
-                        <X size={14} />
+                      <button
+                        type="button"
+                        title="Quitar promoción"
+                        onClick={() => {
+                          setPromoDescuento(0);
+                          setPromoCodigo('');
+                          setPromoNombre('');
+                        }}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-emerald-600 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (
@@ -1343,10 +1631,11 @@ export function POSScreen() {
                       <input
                         value={promoCodigo}
                         onChange={(e) => setPromoCodigo(e.target.value.toUpperCase())}
-                        placeholder="PROMO2024"
-                        className="flex-1 border border-navy-200 rounded-xl px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary-300"
+                        placeholder="Ej. VERANO20"
+                        className="input-field min-h-[2.625rem] flex-1 rounded-lg border-navy-200/90 text-sm font-medium tracking-wide"
                       />
                       <button
+                        type="button"
                         disabled={promoLoading || !promoCodigo.trim()}
                         onClick={async () => {
                           if (!promoCodigo.trim()) return;
@@ -1358,34 +1647,58 @@ export function POSScreen() {
                             toast.success(`Descuento de ${formatCurrency(res.descuentoMonto)} aplicado`);
                           } catch (e: unknown) {
                             toast.error(e instanceof Error ? e.message : 'Código inválido');
-                          } finally { setPromoLoading(false); }
+                          } finally {
+                            setPromoLoading(false);
+                          }
                         }}
-                        className="px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                        className="btn-primary shrink-0 rounded-lg px-4 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-45 min-h-[2.625rem] min-w-[5.75rem]"
                       >
-                        {promoLoading ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
+                        {promoLoading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Aplicar'}
                       </button>
                     </div>
                   )}
                 </div>
 
                 {/* Delivery */}
-                <div className="border border-navy-100/40 rounded-[12px] overflow-hidden">
+                <div className="rounded-xl border border-navy-200/70 bg-white shadow-sm overflow-hidden ring-1 ring-black/[0.03]">
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={esDelivery}
                     onClick={() => setEsDelivery((v) => !v)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-navy-50 transition-colors"
+                    className={`flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors ${
+                      esDelivery ? 'bg-sky-50/50' : 'hover:bg-navy-50/80'
+                    }`}
                   >
-                    <span className="flex items-center gap-2 font-medium text-navy-700">
-                      <Bike size={15} /> Delivery
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                        esDelivery ? 'bg-sky-100 text-sky-700' : 'bg-navy-100/80 text-navy-500'
+                      }`}
+                    >
+                      <Bike size={18} strokeWidth={2} aria-hidden />
                     </span>
-                    <div className={`w-10 h-5 rounded-full relative transition-colors ${esDelivery ? 'bg-primary-500' : 'bg-navy-300'}`}>
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${esDelivery ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-navy-800 text-sm">Delivery</span>
+                      <span className="block text-[11px] text-navy-400 mt-0.5">
+                        {esDelivery ? 'Cargo y dirección abajo' : 'Activa si aplica envío a domicilio'}
+                      </span>
+                    </span>
+                    <span
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors shadow-inner ${
+                        esDelivery ? 'bg-primary-600' : 'bg-navy-200'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          esDelivery ? 'translate-x-[1.375rem]' : 'translate-x-0'
+                        }`}
+                      />
+                    </span>
                   </button>
                   {esDelivery && (
-                    <div className="px-4 pb-3 border-t border-navy-100/40 space-y-2 pt-3">
+                    <div className="space-y-2.5 border-t border-navy-100/80 bg-navy-50/40 px-3.5 pb-3.5 pt-3">
                       <div>
-                        <label className="text-xs font-medium text-navy-500 block mb-1">Cargo de delivery (RD$)</label>
+                        <label className="mb-1 block text-xs font-medium text-navy-600">Cargo de delivery (RD$)</label>
                         <input
                           type="number"
                           min={0}
@@ -1395,24 +1708,24 @@ export function POSScreen() {
                             const v = e.target.value === '' ? '' : Number(e.target.value);
                             setDeliveryCargo(v);
                           }}
-                          className="w-full border border-navy-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                          className="input-field rounded-lg"
                           placeholder="0.00"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-navy-500 block mb-1">Dirección / zona</label>
+                        <label className="mb-1 block text-xs font-medium text-navy-600">Dirección / zona</label>
                         <input
                           type="text"
                           value={deliveryDireccion}
                           onChange={(e) => setDeliveryDireccion(e.target.value)}
                           maxLength={300}
-                          className="w-full border border-navy-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                          className="input-field rounded-lg"
                           placeholder="Calle, sector, referencias…"
                         />
                       </div>
                       {cargoDelivery > 0 && (
-                        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                          Se añadirán {formatCurrency(cargoDelivery)} al total del cliente.
+                        <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs font-medium text-amber-900">
+                          Se suman <span className="tabular-nums">{formatCurrency(cargoDelivery)}</span> al total del cliente.
                         </p>
                       )}
                     </div>

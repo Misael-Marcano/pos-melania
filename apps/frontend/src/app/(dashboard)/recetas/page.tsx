@@ -160,87 +160,92 @@ export default function RecetasPage() {
   const rxs = uiLabels.recetas.toLowerCase();
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={recetasPageTitle()}
-        breadcrumb={['Inventario', uiLabels.recetas]}
-        actions={
-          canEdit ? (
-            <button type="button" onClick={openCreate} className="btn-primary inline-flex items-center gap-2 text-sm">
-              <Plus size={16} /> Nueva {rx}
-            </button>
-          ) : undefined
-        }
-      />
+    <>
+      <main aria-labelledby="recetas-heading" className="space-y-6">
+        <h1 id="recetas-heading" className="sr-only">
+          {recetasPageTitle()}
+        </h1>
+        <PageHeader
+          title={recetasPageTitle()}
+          breadcrumb={['Inventario', uiLabels.recetas]}
+          actions={
+            canEdit ? (
+              <button type="button" onClick={openCreate} className="btn-primary inline-flex items-center gap-2 text-sm">
+                <Plus size={16} /> Nueva {rx}
+              </button>
+            ) : undefined
+          }
+        />
 
-      <p className="text-sm text-navy-500 max-w-2xl">
-        Define listas de materiales (BOM) y registra producción por lotes: se descuentan insumos y aumenta el stock del artículo resultado.
-      </p>
+        <p className="text-sm text-navy-500 max-w-2xl">
+          Define listas de materiales (BOM) y registra producción por lotes: se descuentan insumos y aumenta el stock del artículo resultado.
+        </p>
 
-      <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px]">
-            <thead>
-              <tr>
-                <th className="table-header text-left">Nombre</th>
-                <th className="table-header text-left">Resultado</th>
-                <th className="table-header text-right">Por lote</th>
-                <th className="table-header text-center">Ingredientes</th>
-                <th className="table-header text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="table-cell text-center py-12 text-navy-400">
-                    <Loader2 className="inline animate-spin mr-2" size={18} /> Cargando…
-                  </td>
+                  <th className="table-header text-left">Nombre</th>
+                  <th className="table-header text-left">Resultado</th>
+                  <th className="table-header text-right">Por lote</th>
+                  <th className="table-header text-center">Ingredientes</th>
+                  <th className="table-header text-right">Acciones</th>
                 </tr>
-              ) : recetas.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-cell text-center py-10 text-navy-400">
-                    No hay {rxs} activas.
-                  </td>
-                </tr>
-              ) : (
-                recetas.map((r) => (
-                  <tr key={r.id} className="table-row-hover">
-                    <td className="table-cell font-medium text-navy-800">{r.nombre}</td>
-                    <td className="table-cell text-sm">{r.articuloResultado?.nombre ?? '—'}</td>
-                    <td className="table-cell text-right text-sm">{Number(r.cantidadResultado).toLocaleString('es-DO')}</td>
-                    <td className="table-cell text-center text-sm text-navy-500">{r.ingredientes?.length ?? 0}</td>
-                    <td className="table-cell text-right space-x-1 whitespace-nowrap">
-                      {canProd && (
-                        <button
-                          type="button"
-                          className="btn-outline text-xs py-1.5 px-2 inline-flex items-center gap-1"
-                          onClick={() => setProdReceta(r)}
-                        >
-                          <Factory size={14} /> Producir
-                        </button>
-                      )}
-                      {canEdit && (
-                        <>
-                          <button type="button" className="btn-ghost p-1.5 inline-flex" onClick={() => openEdit(r)}>
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-ghost p-1.5 inline-flex text-rose-500"
-                            onClick={() => { if (confirm(`¿Desactivar esta ${rx}?`)) eliminar.mutate(r.id); }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </>
-                      )}
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="table-cell text-center py-12 text-navy-400">
+                      <Loader2 className="inline animate-spin mr-2" size={18} /> Cargando…
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : recetas.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="table-cell text-center py-10 text-navy-400">
+                      No hay {rxs} activas.
+                    </td>
+                  </tr>
+                ) : (
+                  recetas.map((r) => (
+                    <tr key={r.id} className="table-row-hover">
+                      <td className="table-cell font-medium text-navy-800">{r.nombre}</td>
+                      <td className="table-cell text-sm">{r.articuloResultado?.nombre ?? '—'}</td>
+                      <td className="table-cell text-right text-sm">{Number(r.cantidadResultado).toLocaleString('es-DO')}</td>
+                      <td className="table-cell text-center text-sm text-navy-500">{r.ingredientes?.length ?? 0}</td>
+                      <td className="table-cell text-right space-x-1 whitespace-nowrap">
+                        {canProd && (
+                          <button
+                            type="button"
+                            className="btn-outline text-xs py-1.5 px-2 inline-flex items-center gap-1"
+                            onClick={() => setProdReceta(r)}
+                          >
+                            <Factory size={14} /> Producir
+                          </button>
+                        )}
+                        {canEdit && (
+                          <>
+                            <button type="button" className="btn-ghost p-1.5 inline-flex" onClick={() => openEdit(r)}>
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-ghost p-1.5 inline-flex text-rose-500"
+                              onClick={() => { if (confirm(`¿Desactivar esta ${rx}?`)) eliminar.mutate(r.id); }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </main>
 
       {formOpen && (
         <ModalOverlay onClose={() => setFormOpen(false)}>
@@ -372,6 +377,6 @@ export default function RecetasPage() {
           </div>
         </ModalOverlay>
       )}
-    </div>
+    </>
   );
 }

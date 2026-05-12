@@ -35,7 +35,7 @@ function GreetingBanner() {
 
       <div className="relative">
         <p className="text-sm text-white/55 capitalize tracking-wide font-medium">{formatFechaLarga()}</p>
-        <h1 className="text-2xl sm:text-[1.75rem] font-bold mt-1 font-display tracking-tight">
+        <h1 id="panel-heading" className="text-2xl sm:text-[1.75rem] font-bold mt-1 font-display tracking-tight">
           {getGreeting()}{nombre ? `, ${nombre}` : ''}!
         </h1>
         <p className="text-sm text-white/65 mt-2 max-w-xl leading-relaxed">
@@ -48,7 +48,7 @@ function GreetingBanner() {
 
 export default function PanelPage() {
   return (
-    <div className="space-y-8">
+    <main aria-labelledby="panel-heading" className="space-y-8">
       <GreetingBanner />
       <StatsCards />
 
@@ -65,6 +65,6 @@ export default function PanelPage() {
         <StockBajoWidget />
         <ClientesDeudaWidget />
       </div>
-    </div>
+    </main>
   );
 }

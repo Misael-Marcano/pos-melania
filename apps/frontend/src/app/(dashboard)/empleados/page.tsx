@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { IEmpleado } from '@pos/shared';
 import { Plus, Pencil, Trash2, X, Loader2, Users, AlertTriangle, Eye, EyeOff, Store } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { toast } from '@/store/toast.store';
 import type { CreateEmpleadoPayload, UpdateEmpleadoPayload } from '@/services/empleados.service';
 
@@ -167,8 +168,7 @@ function EmpleadoModal({
               <Store size={14} className="text-navy-400" />
               Sucursal {form.rol !== 'admin' && form.rol !== 'plataforma' ? '*' : '(solo no administradores)'}
             </label>
-            <select
-              className="input-field"
+            <Select
               value={form.tiendaId === '' ? '' : String(form.tiendaId)}
               onChange={(e) => set('tiendaId', e.target.value === '' ? '' : Number(e.target.value))}
               disabled={form.rol === 'admin' || form.rol === 'plataforma'}
@@ -177,7 +177,7 @@ function EmpleadoModal({
               {tiendas.filter((t) => t.activo).map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
-            </select>
+            </Select>
             <p className="text-xs text-navy-400 mt-1">
               {form.rol === 'admin' || form.rol === 'plataforma'
                 ? 'Los administradores y plataforma no llevan sucursal fija en este formulario.'
@@ -248,7 +248,10 @@ export default function EmpleadosPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="empleados-heading" className="space-y-4">
+        <h1 id="empleados-heading" className="sr-only">
+          Empleados
+        </h1>
         <PageHeader title="Empleados" breadcrumb={['Panel', 'Empleados']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -329,7 +332,7 @@ export default function EmpleadosPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {modalOpen && (
         <EmpleadoModal

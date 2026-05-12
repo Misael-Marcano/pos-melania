@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 import { nombreArticuloConUnidad } from '@/lib/format-articulo';
@@ -66,9 +66,9 @@ export function Receipt({
 
   const numeroFactura = `F-${String(venta.id).padStart(6, '0')}`;
 
-  const registrarImpresionRecibo = () => {
+  const registrarImpresionRecibo = useCallback(() => {
     void ventasService.auditarReciboImpresion(venta.id).catch(() => {});
-  };
+  }, [venta.id]);
 
   const imprimirRecibo = () => {
     registrarImpresionRecibo();
@@ -103,7 +103,7 @@ export function Receipt({
       cancelAnimationFrame(raf2);
       if (t) clearTimeout(t);
     };
-  }, [autoPrint]);
+  }, [autoPrint, registrarImpresionRecibo]);
 
   const dismiss = () => (onContinue ?? onClose)();
 
@@ -286,6 +286,33 @@ export function Receipt({
   return createPortal(ui, document.body);
 }
 
+/** Logotipo en recibo: `<img>` (URLs arbitrarias; `next/image` está acotado en `next.config`). */
+function ReceiptLogo({
+  url,
+  empresaNombre,
+  className,
+}: {
+  url: string;
+  empresaNombre: string;
+  className: string;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- logotipoUrl es URL pública arbitraria (no está en `images.remotePatterns`)
+    <img
+      src={url}
+      alt={`Logotipo de ${empresaNombre}`}
+      className={className}
+      loading="eager"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={(e) => {
+        e.currentTarget.onerror = null;
+        e.currentTarget.remove();
+      }}
+    />
+  );
+}
+
 // ─── Contenido del recibo (reutilizado en preview e impresión) ────────────────
 interface ContentProps {
   empresa:       { nombre: string; rnc: string; direccion: string; telefono: string; logoUrl?: string };
@@ -334,9 +361,9 @@ function ReceiptContent({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8 pb-8 border-b border-navy-200">
           <div className="text-left space-y-1">
             {empresa.logoUrl && (
-              <img
-                src={empresa.logoUrl}
-                alt=""
+              <ReceiptLogo
+                url={empresa.logoUrl}
+                empresaNombre={empresa.nombre}
                 className="h-12 sm:h-14 w-auto max-w-[200px] object-contain object-left mb-3"
               />
             )}
@@ -397,7 +424,7 @@ function ReceiptContent({
           <RowDoc label="Base imponible" value={fmt(baseImponible)} />
           <RowDoc label="ITBIS (18%)" value={fmt(itbis)} />
           <div className="flex justify-between gap-12 w-full max-w-sm pt-3 mt-2 border-t-2 border-navy-800 font-bold text-lg text-navy-900">
-            <span>TOTAL</span>
+            <span>TOTAL {simboloMoneda}</span>
             <span className="tabular-nums">{fmt(venta.total)}</span>
           </div>
           {venta.metodoPago === 'EFECTIVO' && venta.efectivoRecibido != null && (
@@ -441,9 +468,9 @@ function ReceiptContent({
       {/* Encabezado */}
       <div className="text-center mb-3">
         {empresa.logoUrl && (
-          <img
-            src={empresa.logoUrl}
-            alt=""
+          <ReceiptLogo
+            url={empresa.logoUrl}
+            empresaNombre={empresa.nombre}
             className="mx-auto h-10 max-w-[160px] object-contain mb-2"
           />
         )}

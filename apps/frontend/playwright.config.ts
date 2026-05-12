@@ -16,7 +16,8 @@ export default defineConfig({
   expect:    { timeout: 15_000 },
   reporter:  [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000',
+    // Env wins; empty string falls back. If `next dev` binds to 3001 because 3000 is in use, set PLAYWRIGHT_BASE_URL=http://127.0.0.1:3001.
+    baseURL: process.env.PLAYWRIGHT_BASE_URL?.trim() || 'http://127.0.0.1:3000',
     trace:   'on-first-retry',
     video:   'off',
   },

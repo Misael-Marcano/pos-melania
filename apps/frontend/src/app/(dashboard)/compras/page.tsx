@@ -16,6 +16,7 @@ import {
   Ban, ClipboardList, Eye, Pencil, Camera,
 } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { toast } from '@/store/toast.store';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { BarcodeCamera } from '@/components/common/BarcodeCamera';
@@ -151,13 +152,13 @@ function OrdenModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Proveedor</label>
-              <select className="input-field" value={proveedorId}
+              <Select value={proveedorId === '' ? '' : String(proveedorId)}
                 onChange={(e) => setProveedorId(e.target.value ? Number(e.target.value) : '')}>
                 <option value="">Sin proveedor</option>
                 {proveedores.map((p) => (
                   <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="text-sm font-medium text-navy-700 block mb-1.5">Fecha esperada</label>
@@ -530,8 +531,10 @@ export default function ComprasPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        <PageHeader title="Órdenes de compra" breadcrumb={['Panel', 'Compras']} />
+      <main aria-labelledby="compras-heading">
+        <h1 id="compras-heading" className="sr-only">Órdenes de compra</h1>
+        <div className="space-y-4">
+          <PageHeader title="Órdenes de compra" breadcrumb={['Panel', 'Compras']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
           {/* Toolbar */}
@@ -662,7 +665,8 @@ export default function ComprasPage() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
 
       {/* Modals */}
       {(modalMode === 'crear' || modalMode === 'editar') && (

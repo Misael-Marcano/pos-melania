@@ -8,6 +8,7 @@ import {
   TrendingUp, Layers, Lock, Mail, MessageCircle, X,
 } from 'lucide-react';
 import { appBrand, copyrightLine } from '@/lib/app-brand';
+import { NexoIcon } from '@/components/layout/NexoIcon';
 
 // ── Plan data (debe coincidir con apps/backend/src/saas/plan-limits.ts) ──────
 // Verificación: `npm run verify:landing-plans` en la raíz del monorepo (también en CI).
@@ -23,7 +24,7 @@ const PLANS = [
     accent:      'from-slate-500 to-slate-700',
     limits:      ['3 usuarios', '1 sucursal', 'Hasta 500 artículos'],
     features: [
-      'Ventas y POS',
+      'Ventas en tienda',
       'Inventario y categorías',
       'Clientes y crédito',
       'Gastos por categoría',
@@ -90,7 +91,7 @@ const PLANS = [
 const MODULES = [
   {
     icon:    <ShoppingCart size={22} />,
-    label:   'Ventas y POS',
+    label:   'Ventas en tienda',
     desc:    'Procesa ventas con múltiples métodos de pago, NCF y cambio automático.',
     color:   'bg-blue-50 text-blue-600',
     border:  'border-blue-100',
@@ -171,10 +172,10 @@ function ContactModal({ plan, onClose }: { plan: typeof PLANS[number] | null; on
   const whatsapp  = appBrand.contactWhatsapp;
   const subject   = encodeURIComponent(`Interés en plan ${plan.label} — ${plan.price}${plan.period}`);
   const body      = encodeURIComponent(
-    `Hola, me interesa el plan ${plan.label} (${plan.price}${plan.period}) del sistema POS.\n\nQuedo atento/a a los detalles para proceder con el pago.`,
+    `Hola, me interesa el plan ${plan.label} (${plan.price}${plan.period}) de Nexo.\n\nQuedo atento/a a los detalles para proceder con el pago.`,
   );
   const waText    = encodeURIComponent(
-    `Hola, me interesa el plan *${plan.label}* (${plan.price}${plan.period}) del sistema POS. ¿Cómo procedo?`,
+    `Hola, me interesa el plan *${plan.label}* (${plan.price}${plan.period}) de Nexo. ¿Cómo procedo?`,
   );
 
   return (
@@ -348,7 +349,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center shadow-md group-hover:shadow-primary-500/30 transition-shadow">
-              <span className="text-white font-extrabold text-[11px] tracking-tight">POS</span>
+              <NexoIcon className="w-full h-full" ariaLabel="Nexo" />
             </div>
             <span className="font-bold text-[#273727] text-base tracking-tight">{appBrand.shortName}</span>
           </Link>
@@ -390,7 +391,7 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-primary-400/15 border border-primary-400/25 text-primary-200 text-xs font-semibold px-4 py-2 rounded-full mb-8">
             <Zap size={11} className="text-primary-300" />
-            Sistema POS completo para retail
+            Nexo: operación retail completa
           </div>
 
           <h1 id="landing-heading" className="text-5xl sm:text-6xl md:text-7xl font-extrabold font-display tracking-tight leading-[1.05] mb-6">
@@ -400,7 +401,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="text-lg md:text-xl text-white/55 max-w-2xl mx-auto mb-10 leading-relaxed">
-            POS multi-sucursal con inventario, crédito a clientes, comprobantes fiscales (NCF/DGII)
+            Nexo multi-sucursal con inventario, crédito a clientes, comprobantes fiscales (NCF/DGII)
             y reportes avanzados. Desde una caja hasta una cadena de tiendas.
           </p>
 
@@ -545,7 +546,7 @@ export default function LandingPage() {
                 a: 'Sí. El sistema se despliega en la infraestructura que elijas (on-premise o nube propia). No existe transferencia de datos a terceros sin tu consentimiento.',
               },
               {
-                q: '¿Puedo migrar desde otro POS?',
+                q: '¿Puedo migrar desde otro sistema de ventas?',
                 a: 'El catálogo de artículos y la cartera de clientes se importan en CSV. Contamos con plantillas y acompañamiento en la migración para minimizar la interrupción operativa.',
               },
               {
@@ -589,7 +590,7 @@ export default function LandingPage() {
         </div>
         <div className="relative max-w-2xl mx-auto px-6 text-center">
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary-400 to-primary-700 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-primary-900/50">
-            <span className="text-white font-extrabold text-lg">POS</span>
+            <NexoIcon className="w-full h-full" ariaLabel="Nexo" />
           </div>
           <h2 className="text-4xl font-extrabold font-display mb-4 leading-tight">
             ¿Ya tienes una cuenta?
@@ -612,7 +613,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center group-hover:bg-white/15 transition-colors">
-              <span className="text-white/60 font-extrabold text-[10px]">POS</span>
+              <NexoIcon className="w-full h-full" ariaLabel="Nexo" />
             </div>
             <span className="text-white/40 text-sm font-medium">{appBrand.shortName}</span>
           </Link>

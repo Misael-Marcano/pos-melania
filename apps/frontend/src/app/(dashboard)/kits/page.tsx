@@ -266,7 +266,10 @@ export default function KitsPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <main aria-labelledby="kits-heading" className="space-y-4">
+        <h1 id="kits-heading" className="sr-only">
+          Kits de productos
+        </h1>
         <PageHeader title="Kits de productos" breadcrumb={['Panel', 'Kits']} />
 
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -373,7 +376,7 @@ export default function KitsPage() {
             </table>
           </div>
         </div>
-      </div>
+      </main>
 
       {modalOpen && (
         <KitModal

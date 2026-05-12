@@ -13,6 +13,7 @@ import { IPromocion, TipoPromocion } from '@/services/promociones.service';
 import { formatCurrency } from '@/lib/utils';
 import { Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 
 const emptyForm = () => ({
   codigo:       '',
@@ -91,7 +92,10 @@ export default function PromocionesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <main aria-labelledby="promociones-heading" className="space-y-6">
+      <h1 id="promociones-heading" className="sr-only">
+        Promociones
+      </h1>
       <PageHeader
         title="Promociones"
         breadcrumb={['Marketing', 'Promociones']}
@@ -221,14 +225,14 @@ export default function PromocionesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-navy-600">Tipo</label>
-                  <select
-                    className="input-field mt-1"
+                  <Select
+                    className="mt-1 py-2.5 text-sm"
                     value={form.tipo}
                     onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoPromocion }))}
                   >
                     <option value="PORCENTAJE">Porcentaje</option>
                     <option value="MONTO_FIJO">Monto fijo</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-navy-600">Valor</label>
@@ -270,6 +274,6 @@ export default function PromocionesPage() {
           </div>
         </ModalOverlay>
       )}
-    </div>
+    </main>
   );
 }

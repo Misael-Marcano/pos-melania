@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { useCategorias, useCrearArticulo, useActualizarArticulo } from '@/hooks/useInventario';
 import { IArticulo } from '@pos/shared';
 import { toast } from '@/store/toast.store';
@@ -121,12 +122,15 @@ export function ArticuloForm({ open, onClose, articulo }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-navy-700 mb-1">Categoría</label>
-          <select {...register('categoriaId')} className="input-field">
+          <Select
+            {...register('categoriaId')}
+            aria-invalid={errors.categoriaId ? true : undefined}
+          >
             <option value="">Seleccionar...</option>
             {categorias.map((c: any) => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
-          </select>
+          </Select>
           {errors.categoriaId && <p className="text-xs text-red-500 mt-1">{errors.categoriaId.message}</p>}
         </div>
 

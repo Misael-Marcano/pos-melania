@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PageHeader }  from '@/components/layout/PageHeader';
 import { Modal }       from '@/components/ui/Modal';
+import { Select }      from '@/components/ui/Select';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/store/toast.store';
 import {
@@ -186,11 +187,13 @@ function TarjetaModal({
 
         {/* Tabs */}
         <div className="flex gap-1 bg-navy-50 rounded-xl p-1">
-          {([
-            ['info',     'Información', <History size={13} />],
-            ['recargar', 'Recargar',    <ArrowUpCircle size={13} />],
-            ['usar',     'Usar / Cobrar', <ArrowDownCircle size={13} />],
-          ] as const).map(([id, label, icon]) => (
+          {(
+            [
+              ['info', 'Información', History] as const,
+              ['recargar', 'Recargar', ArrowUpCircle] as const,
+              ['usar', 'Usar / Cobrar', ArrowDownCircle] as const,
+            ] as const
+          ).map(([id, label, Icon]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -199,7 +202,7 @@ function TarjetaModal({
                 tab === id ? 'bg-white shadow-sm text-navy-800' : 'text-navy-400 hover:text-navy-600'
               }`}
             >
-              {icon} {label}
+              <Icon size={13} /> {label}
             </button>
           ))}
         </div>
@@ -507,7 +510,10 @@ export default function TarjetaRegaloPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <main aria-labelledby="tarjetas-regalo-heading" className="space-y-6">
+        <h1 id="tarjetas-regalo-heading" className="sr-only">
+          Tarjetas de Regalo
+        </h1>
         <PageHeader
           title="Tarjetas de Regalo"
           breadcrumb={['Inicio', 'Tarjetas de Regalo']}
@@ -560,17 +566,18 @@ export default function TarjetaRegaloPage() {
               className="input-field pl-8 w-full font-mono"
             />
           </div>
-          <select
+          <Select
+            wrapperClassName="w-full sm:w-44 shrink-0"
             value={estado}
             onChange={(e) => { setEstado(e.target.value); setPage(1); }}
-            className="input-field sm:w-44"
+            className="py-2.5 text-sm"
           >
             <option value="">Todos los estados</option>
             <option value="ACTIVA">Activas</option>
             <option value="AGOTADA">Agotadas</option>
             <option value="VENCIDA">Vencidas</option>
             <option value="CANCELADA">Canceladas</option>
-          </select>
+          </Select>
         </div>
 
         {/* Grid de tarjetas */}
@@ -610,7 +617,7 @@ export default function TarjetaRegaloPage() {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* Modals */}
       {showCrear    && <CrearModal   onClose={() => setShowCrear(false)} />}

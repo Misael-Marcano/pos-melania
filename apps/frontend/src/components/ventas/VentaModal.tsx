@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { IVenta, ICliente, IArticulo } from '@pos/shared';
+import { IVenta, ICliente, IArticulo, MetodoPago } from '@pos/shared';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
+import { Select } from '@/components/ui/Select';
 import { useAnularVenta, useFullEditarVenta } from '@/hooks/useVentas';
 import { useClientes } from '@/hooks/useClientes';
 import { inventarioService } from '@/services/inventario.service';
@@ -13,14 +14,21 @@ import { toast } from '@/store/toast.store';
 import {
   X, Pencil, Ban, Loader2, Trash2, Search,
   AlertTriangle, Save, ArrowLeft, Printer,
+  Banknote, CreditCard, Smartphone, BookOpen, Bike,
 } from 'lucide-react';
 import { Receipt } from './Receipt';
 
-const METODOS = ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'CREDITO'] as const;
 const METODO_BADGE: Record<string, string> = {
   EFECTIVO: 'badge-green', TARJETA: 'badge-orange',
   TRANSFERENCIA: 'badge-gray', CREDITO: 'badge-red',
 };
+
+const METODOS_EDIT: { id: MetodoPago; label: string; Icon: typeof Banknote }[] = [
+  { id: 'EFECTIVO', label: 'Efectivo', Icon: Banknote },
+  { id: 'TARJETA', label: 'Tarjeta', Icon: CreditCard },
+  { id: 'TRANSFERENCIA', label: 'Transfer.', Icon: Smartphone },
+  { id: 'CREDITO', label: 'Crédito', Icon: BookOpen },
+];
 
 interface LineaEdit {
   articuloId:     number;
@@ -54,10 +62,13 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
     }));
 
   const [lineas,     setLineas]     = useState<LineaEdit[]>(initLineas);
-  const [metodoPago, setMetodoPago] = useState(venta.metodoPago);
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>(venta.metodoPago);
   const [clienteId,  setClienteId]  = useState<number | null>(venta.cliente?.id ?? null);
   const [descuento,  setDescuento]  = useState(venta.descuento ?? 0);
   const [notas,      setNotas]      = useState(venta.notas?.replace('[ANULADA] ', '') ?? '');
+  const [esDelivery, setEsDelivery] = useState(Boolean(venta.esDelivery));
+  const [deliveryCargo, setDeliveryCargo] = useState(Number(venta.deliveryCargo ?? 0));
+  const [deliveryDireccion, setDeliveryDireccion] = useState(venta.deliveryDireccion ?? '');
 
   // ── Article search ──────────────────────────────────────────────────────────
   const [busqueda,     setBusqueda]     = useState('');
@@ -84,7 +95,8 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
   const subtotal = lineas.reduce(
     (s, l) => s + l.precioUnitario * l.cantidad * (1 - l.descuento / 100), 0
   );
-  const total = Math.max(0, subtotal - descuento);
+  const deliveryMonto = esDelivery ? Math.max(0, deliveryCargo) : 0;
+  const total = Math.max(0, subtotal - descuento + deliveryMonto);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const addArticulo = (art: IArticulo) => {
@@ -127,6 +139,9 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
           clienteId,
           descuento,
           notas: notas.trim() || null,
+          esDelivery,
+          deliveryCargo: deliveryMonto,
+          deliveryDireccion: esDelivery ? (deliveryDireccion.trim() || null) : null,
           detalles: lineas.map(l => ({
             articuloId:     l.articuloId,
             cantidad:       l.cantidad,
@@ -160,6 +175,9 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
     setClienteId(venta.cliente?.id ?? null);
     setDescuento(venta.descuento ?? 0);
     setNotas(venta.notas?.replace('[ANULADA] ', '') ?? '');
+    setEsDelivery(Boolean(venta.esDelivery));
+    setDeliveryCargo(Number(venta.deliveryCargo ?? 0));
+    setDeliveryDireccion(venta.deliveryDireccion ?? '');
     setModo('editar');
   };
 
@@ -222,6 +240,22 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
                   { label: 'Cliente',         value: venta.cliente?.nombre ?? 'Consumidor final' },
                   { label: 'Método de pago',  value: <span className={METODO_BADGE[venta.metodoPago] ?? 'badge-gray'}>{venta.metodoPago}</span> },
                   { label: 'Comprobante',     value: <span className="font-mono text-xs">{venta.comprobante ?? '—'}</span> },
+                  {
+                    label: 'Delivery',
+                    value: venta.esDelivery
+                      ? (
+                        <span className="flex flex-col gap-0.5">
+                          <span className="badge-orange text-[10px] w-fit">Sí</span>
+                          {(venta.deliveryCargo ?? 0) > 0 && (
+                            <span className="text-xs font-normal text-navy-600">+{formatCurrency(venta.deliveryCargo ?? 0)}</span>
+                          )}
+                          {venta.deliveryDireccion
+                            ? <span className="text-[11px] font-normal text-navy-500 line-clamp-2">{venta.deliveryDireccion}</span>
+                            : null}
+                        </span>
+                      )
+                      : <span className="text-navy-500 text-sm font-medium">No</span>,
+                  },
                 ].map(item => (
                   <div key={item.label} className="bg-navy-50 rounded-xl p-3">
                     <p className="text-[10px] text-navy-400 uppercase tracking-wider mb-1">{item.label}</p>
@@ -272,6 +306,15 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
                       <span>Descuento</span><span>- {formatCurrency(venta.descuento ?? 0)}</span>
                     </div>
                   )}
+                  {(venta.deliveryCargo ?? 0) > 0 && (
+                    <div className="flex justify-between text-navy-700">
+                      <span className="inline-flex items-center gap-1">
+                        <Bike size={12} className="text-primary-600 shrink-0" aria-hidden />
+                        Delivery
+                      </span>
+                      <span>+ {formatCurrency(venta.deliveryCargo ?? 0)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-navy-900 border-t border-navy-100/40 pt-2">
                     <span>Total</span><span>{formatCurrency(venta.total)}</span>
                   </div>
@@ -292,24 +335,108 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
               <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-5">
                 {/* Header fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-navy-600 mb-1.5">Método de pago</label>
-                    <select value={metodoPago} onChange={e => setMetodoPago(e.target.value as any)} className="input-field w-full">
-                      {METODOS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                  <div className="sm:col-span-2">
+                    <p className="block text-xs font-medium text-navy-600 mb-2">Forma de pago</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {METODOS_EDIT.map(({ id, label, Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setMetodoPago(id)}
+                          className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+                            metodoPago === id
+                              ? 'border-primary-500 bg-gradient-to-br from-primary-600 to-primary-500 text-white shadow-sm'
+                              : 'border-transparent bg-navy-50 text-navy-600 hover:bg-navy-100'
+                          }`}
+                        >
+                          <Icon size={18} className={metodoPago === id ? 'text-white' : 'text-navy-500'} aria-hidden />
+                          <span className="text-xs">{label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-navy-600 mb-1.5">Cliente</label>
-                    <select value={clienteId ?? ''} onChange={e => setClienteId(e.target.value ? Number(e.target.value) : null)} className="input-field w-full">
+                    <Select value={clienteId ?? ''} onChange={e => setClienteId(e.target.value ? Number(e.target.value) : null)}>
                       <option value="">Consumidor final</option>
                       {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                    </select>
+                    </Select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-navy-600 mb-1.5">Descuento global (RDS)</label>
                     <input type="number" min={0} value={descuento} onChange={e => setDescuento(Math.max(0, Number(e.target.value)))} className="input-field w-full" />
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={esDelivery}
+                      aria-label={esDelivery ? 'Delivery activado' : 'Delivery desactivado'}
+                      onClick={() => setEsDelivery(v => !v)}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
+                        esDelivery
+                          ? 'border-primary-500 bg-primary-50 text-navy-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]'
+                          : 'border-navy-200 bg-white text-navy-600 hover:border-navy-300 hover:bg-navy-50/80'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 font-semibold text-sm">
+                        <Bike size={18} className={esDelivery ? 'text-primary-600' : 'text-navy-400'} aria-hidden />
+                        <span>Delivery a domicilio</span>
+                        <span
+                          className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full font-bold ${
+                            esDelivery ? 'bg-primary-600 text-white' : 'bg-navy-200 text-navy-600'
+                          }`}
+                        >
+                          {esDelivery ? 'Sí' : 'No'}
+                        </span>
+                      </span>
+                      <span
+                        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 transition-colors ${
+                          esDelivery ? 'bg-primary-500 border-primary-600' : 'bg-navy-200 border-navy-300'
+                        }`}
+                        aria-hidden
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                            esDelivery ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </span>
+                    </button>
+                    {esDelivery && (
+                      <div className="mt-3 space-y-3 pl-1 border-l-2 border-primary-200 ml-2 py-1">
+                        <div>
+                          <label htmlFor="venta-edit-delivery-cargo" className="text-xs font-medium text-navy-600 block mb-1">Cargo de delivery (RD$)</label>
+                          <input
+                            id="venta-edit-delivery-cargo"
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={deliveryCargo}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setDeliveryCargo(raw === '' ? 0 : Math.max(0, Number(raw)));
+                            }}
+                            className="input-field w-full max-w-xs focus:ring-2 focus:ring-primary-400"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="venta-edit-delivery-dir" className="text-xs font-medium text-navy-600 block mb-1">Dirección / zona</label>
+                          <input
+                            id="venta-edit-delivery-dir"
+                            type="text"
+                            value={deliveryDireccion}
+                            onChange={(e) => setDeliveryDireccion(e.target.value)}
+                            maxLength={300}
+                            className="input-field w-full focus:ring-2 focus:ring-primary-400"
+                            placeholder="Opcional…"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-navy-600 mb-1.5">Notas</label>
                     <input value={notas} onChange={e => setNotas(e.target.value)} maxLength={500} className="input-field w-full" placeholder="Opcional..." />
                   </div>
@@ -360,6 +487,12 @@ export function VentaModal({ venta, isAdmin, onClose, onRefresh }: Props) {
                     <div className="flex justify-between text-navy-600"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
                     {descuento > 0 && (
                       <div className="flex justify-between text-rose-500"><span>Descuento</span><span>- {formatCurrency(descuento)}</span></div>
+                    )}
+                    {deliveryMonto > 0 && (
+                      <div className="flex justify-between text-navy-700">
+                        <span className="inline-flex items-center gap-1"><Bike size={12} className="text-primary-600 shrink-0" aria-hidden /> Delivery</span>
+                        <span>+ {formatCurrency(deliveryMonto)}</span>
+                      </div>
                     )}
                     <div className="flex justify-between font-bold text-navy-900 border-t border-navy-100/40 pt-2"><span>Total</span><span>{formatCurrency(total)}</span></div>
                   </div>

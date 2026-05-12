@@ -11,6 +11,7 @@ import { appBrand, copyrightLine } from '@/lib/app-brand';
 import { getLoginTenantSlug } from '@/lib/login-tenant-slug';
 import { uiLabels } from '@/lib/ui-labels';
 import { ShoppingCart, Package, BarChart2, ArrowLeft } from 'lucide-react';
+import { NexoIcon } from '@/components/layout/NexoIcon';
 
 const schema = z.object({
   email:    z.string().email('Email inválido'),
@@ -43,7 +44,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <main aria-labelledby="login-heading" className="min-h-screen flex">
+      <h1 id="login-heading" className="sr-only">
+        Iniciar sesión
+      </h1>
       {/* Panel izquierdo decorativo */}
       <div className="hidden lg:flex lg:w-[55%] bg-[#273727] flex-col justify-between p-12 relative overflow-hidden">
         {/* Fondo decorativo */}
@@ -55,7 +59,7 @@ export default function LoginPage() {
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-900/50">
-              <span className="text-white font-extrabold text-sm">POS</span>
+              <NexoIcon className="w-full h-full" ariaLabel="Nexo" />
             </div>
             <div>
               <p className="text-white font-bold text-lg leading-none">{appBrand.shortName}</p>
@@ -75,7 +79,7 @@ export default function LoginPage() {
         {/* Feature highlights */}
         <div className="relative space-y-6">
           <h2 className="text-3xl font-bold text-white leading-tight font-display">
-            Sistema de punto<br />de venta completo
+            Operación retail<br />con Nexo
           </h2>
           <div className="space-y-4">
             {[
@@ -106,7 +110,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-between mb-10 lg:hidden">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                <span className="text-white font-extrabold text-xs">POS</span>
+                <NexoIcon className="w-full h-full" ariaLabel="Nexo" />
               </div>
               <span className="font-bold text-navy-800 text-lg">{appBrand.shortName}</span>
             </div>
@@ -118,7 +122,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <h1 className="text-2xl font-bold text-navy-800 mb-1 font-display">Bienvenido de vuelta</h1>
+          <h2 className="text-2xl font-bold text-navy-800 mb-1 font-display">Bienvenido de vuelta</h2>
           <p className="text-sm text-navy-400 mb-8">Ingresa tus credenciales para continuar</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -130,7 +134,7 @@ export default function LoginPage() {
                 type="email"
                 id="login-email"
                 className="input-field"
-                placeholder="usuario@pos.com"
+                placeholder="usuario@ejemplo.com"
                 autoComplete="email"
                 aria-invalid={errors.email ? true : undefined}
                 aria-describedby={errors.email ? 'login-email-error' : undefined}
@@ -191,6 +195,6 @@ export default function LoginPage() {
 
         </div>
       </div>
-    </div>
+    </main>
   );
 }

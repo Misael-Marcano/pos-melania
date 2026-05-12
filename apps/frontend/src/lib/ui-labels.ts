@@ -1,5 +1,5 @@
 /**
- * Etiquetas y flags de UI por despliegue (Fase B — POS genérico).
+ * Etiquetas y flags de UI por despliegue (Fase B — marca / módulos).
  * Ver `.env.example`: `NEXT_PUBLIC_LABEL_*`, `NEXT_PUBLIC_FEATURE_*`.
  */
 
@@ -12,7 +12,7 @@ function featureDisabled(v: string | undefined): boolean {
 
 export const uiLabels = {
   /** Primer segmento del breadcrumb en el header */
-  breadcrumbRoot: process.env.NEXT_PUBLIC_LABEL_BREADCRUMB_ROOT ?? 'Sistema POS',
+  breadcrumbRoot: process.env.NEXT_PUBLIC_LABEL_BREADCRUMB_ROOT ?? 'Nexo',
 
   /**
    * Módulo BOM / listas de materiales (ruta `/recetas`).
