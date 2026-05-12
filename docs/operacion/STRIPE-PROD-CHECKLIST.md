@@ -4,6 +4,8 @@ Objetivo: dejar facturación SaaS operativa end-to-end con evidencia verificable
 
 **Evidencia y plantillas:** índice en [`docs/operacion/evidence/README.md`](evidence/README.md) (qué versionar y qué no).
 
+**Plan de cierre (WS2, plantilla `STRIPE-VALIDATION-LOG`, registro en repo):** [`docs/PLAN-CIERRE-PROYECTO.md`](../PLAN-CIERRE-PROYECTO.md).
+
 ---
 
 ## 1) Precondiciones

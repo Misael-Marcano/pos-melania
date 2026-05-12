@@ -4,6 +4,8 @@ Procedimiento operativo (fuera del código de la aplicación). Completar con nom
 
 **Evidencia de drill:** usar la plantilla [`evidence/BACKUP-RESTORE-DRILL-LOG.md`](evidence/BACKUP-RESTORE-DRILL-LOG.md) tras cada restauración de prueba (criterio [PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md](../PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md) Fase 4.2).
 
+**Plan de cierre (WS3, registro de avance en repo):** [`PLAN-CIERRE-PROYECTO.md`](../PLAN-CIERRE-PROYECTO.md).
+
 ## 1. Backup completo (recomendado diario)
 
 - Usar **SQL Server Management Studio** o `sqlcmd` / agente programado.
