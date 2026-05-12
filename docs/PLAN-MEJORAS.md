@@ -124,6 +124,7 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Ventas (JSON serializable):** `stripVentaDetalleParentRef` en el mismo módulo (`ventas-full-update-detail-graph.ts`) elimina `detalles[].venta` antes de serializar; `ventas.service.ts` lo invoca al cerrar `findById`, `create`, `update` y `fullUpdate` (después del sync de grafo en `fullUpdate`) para que las respuestas de venta no fallen por ciclo objeto ↔ `JSON.stringify` / `sendSuccess`; tests en `ventas-full-update-detail-graph.test.ts`.
 - [x] **Integración backend en verde:** `apps/backend/src/saas/tenant-usage.ts` (ventas sin columna `anulada`); propagación **403** desde `AppError` vía `sendFail`/controladores; `findOne` con `where` en suites de integración; caja apertura con `tienda`; teardown de `configuracion` y FK; cotización — Zod `clienteId`.
 - [x] **PLAN-MEJORAS (docs):** leyenda `[x]`/`[ ]`, bloque *Sincronización código ↔ docs* (2026-05), Fases 1–6 y *Visión futura* reordenadas; único `[ ]` explícito: revisión fiscal en campo (operación, no código).
+- [x] **Tests integración — aislamiento tenant:** `clientes-tenant-isolation.integration.test.ts` (GET ajeno → 404) y `gastos-tenant-isolation.integration.test.ts` (GET ajeno → 403); inventario en `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md` actualizado (2026-05-12).
 
 ## Notas
 

@@ -1,7 +1,7 @@
 # Inventario — aislamiento por tenant (API `/api/v1`)
 
 **Objetivo:** mapa de módulos y patrón de seguridad multi-tenant para auditorías y tests de regresión.  
-**Última revisión:** 2026-05-11 · **Mantenimiento:** actualizar al añadir rutas o cambiar `tenant-access`. Tras cambiar rutas de la API, si se tocaron la landing o los límites de planes, ejecutar `npm run verify` en **exit 0**; si se editaron en bloque muchos archivos bajo `docs/`, pasar también `npm run verify:docs-links`; en `main`, mantener verdes los tests de integración que cubren el aislamiento por tenant.
+**Última revisión:** 2026-05-12 · **Mantenimiento:** actualizar al añadir rutas o cambiar `tenant-access`. Tras cambiar rutas de la API, si se tocaron la landing o los límites de planes, ejecutar `npm run verify` en **exit 0**; si se editaron en bloque muchos archivos bajo `docs/`, pasar también `npm run verify:docs-links`; en `main`, mantener verdes los tests de integración que cubren el aislamiento por tenant.
 
 ## Leyenda de estado
 
@@ -62,12 +62,14 @@
 | Compras — id ajeno → 403 | `compras-tenant-isolation.integration.test.ts` |
 | Devoluciones — id ajeno → 404 | `devoluciones-tenant-isolation.integration.test.ts` |
 | Configuración — GET acotado por tenant (sin `/:id`) | `configuracion-tenant-isolation.integration.test.ts` |
+| Clientes — id ajeno → 404 | `clientes-tenant-isolation.integration.test.ts` |
+| Gastos — id ajeno → 403 | `gastos-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
-**Brecha P1:** otros módulos prioritarios sin test dedicado si se amplía el alcance; `configuracion` ya tiene test de integración (ver tabla arriba).
+**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` (p. ej. empleados, kits, proveedores…) si se exige cobertura exhaustiva; `clientes` y `gastos` ya tienen test de integración (ver tabla arriba).
 
 ---
 
