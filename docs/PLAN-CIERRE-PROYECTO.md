@@ -44,6 +44,7 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 | Backlog de issues SaaS | `docs/ISSUES-SAAS-BACKLOG.md` |
 | Plantilla log Stripe | `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` |
 | Plantilla drill restore | `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` |
+| Checklist preparación handoff a asesor legal (WS4) | `docs/operacion/LEGAL-ADVISOR-HANDOFF.md` |
 | Nombres de secretos (GitHub + runtime) | `docs/operacion/SECRETS-RUNBOOK.md` |
 | Export OpenAPI local | `docs/operacion/OPENAPI.md` |
 
@@ -89,7 +90,7 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 | Campo | Contenido |
 |--------|-----------|
 | **Estado en repo** | Rutas `/terminos` y `/privacidad` **publicadas** (checklist plan maestro marcado); **revisión jurídica externa** explícitamente pendiente antes de escala. |
-| **Próximo paso concreto** | Enviar URLs de staging/prod + flujo de datos (multi-tenant, Stripe, emails) a asesor externo; incorporar cambios de texto en frontend; registrar fecha de “aprobado para publicación” en ticket interno. |
+| **Próximo paso concreto** | Reunir URLs y mapa de datos con la checklist en [`docs/operacion/LEGAL-ADVISOR-HANDOFF.md`](operacion/LEGAL-ADVISOR-HANDOFF.md) (placeholders `https://…`, contacto `TBD`); enviar a asesor externo; incorporar cambios de texto en frontend; registrar fecha de “aprobado para publicación” en ticket interno. |
 | **Responsable sugerido** | **Legal** / asesor externo; **Comercial** (prioridad y presupuesto); **Ingeniería** (despliegue de textos acordados). |
 | **Artefacto de evidencia** | Dictamen o email de conformidad (no necesariamente en git; referencia en wiki/ticket); enlaces finales visibles desde login/landing según `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` Fase 4.3. |
 
@@ -153,6 +154,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Doc: checklist previa al drill en `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` (WS3; sin fechas de ejemplo) | Hecho | Complementa `BACKUP-SQL-SERVER.md`; no sustituye restore ejecutado ni filas de evidencia rellenas | 2026-05-12 |
 | Doc: subsección «Cómo cerrar esta sección» (tabla checklist) en `docs/arquitectura/SAAS-FASE-0-DECISIONES.md` §6 — WS1; placeholders `TBD` | Hecho | Guía operativa repo-only; no sustituye reunión ni filas *Revisión comercial* rellenas | 2026-05-12 |
 | Doc: checklist **previa a live** en `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` — WS2; enlaces a `STRIPE-PROD-CHECKLIST.md` / hub evidence | Hecho | Orden repo antes de Stripe live; **no** marca live ni WS2 completados | 2026-05-12 |
+| Doc: `docs/operacion/LEGAL-ADVISOR-HANDOFF.md` — checklist preparación asesor (URLs placeholder, mapa datos PII/pagos/logs, rutas repo `/terminos` / `/privacidad`) | Hecho | Apoyo WS4 repo-only; **no** sustituye dictamen, revisión externa ni “legal operativo cerrado” | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---

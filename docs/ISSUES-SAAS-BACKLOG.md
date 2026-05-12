@@ -1,5 +1,7 @@
 # Backlog de issues — SaaS multi-tenant
 
+**Cierre del proyecto:** seguir [`PLAN-CIERRE-PROYECTO.md`](PLAN-CIERRE-PROYECTO.md) (workstreams WS1–WS7 y tabla *Registro de avance (repo)* en ese documento).
+
 **Cómo usar este backlog**
 
 1. Ordena y cierra trabajo alineado a [`PLAN-CIERRE-PROYECTO.md`](PLAN-CIERRE-PROYECTO.md) y al estado real del repo.
