@@ -8,6 +8,16 @@
 
 Marque cada ítem al completarlo (criterio alineado a `docs/operacion/STRIPE-PROD-CHECKLIST.md` §8 y §10).
 
+## Checklist previa a live (solo repo)
+
+Orden sugerido **antes** de usar claves **live** o considerar cerrado el workstream WS2 en `docs/PLAN-CIERRE-PROYECTO.md`. Marcar aquí **no** significa «live validado»; solo reduce riesgo antes del día de corte.
+
+- [ ] Leer el checklist maestro [`STRIPE-PROD-CHECKLIST.md`](../STRIPE-PROD-CHECKLIST.md) de arriba a abajo; priorizar secciones **1) Precondiciones**, **2) Base de datos y migraciones** y **4) Webhook** antes de entrar en **3) Stripe Dashboard (modo live)**.
+- [ ] En **test** (o staging si aplica), completar las secciones **1. Configuración** a **4. Impago y producto** de este mismo log; dejar **5. Evidencia adjunta** preparada para el día live (texto o ruta a reporte **sin secretos**).
+- [ ] Coordinar con ops/comercial ventana para primer checkout real en live; **no** marcar el checklist maestro ni este archivo como cierre de live hasta evidencia acordada (véase WS2 en `docs/PLAN-CIERRE-PROYECTO.md`).
+
+Referencias cruzadas (sin valores de claves): [`STRIPE-PROD-CHECKLIST.md`](../STRIPE-PROD-CHECKLIST.md), hub [`README.md`](README.md).
+
 ## 1. Configuración
 
 - [ ] `BILLING_PROVIDER=stripe`
