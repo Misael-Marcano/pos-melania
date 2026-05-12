@@ -6,6 +6,8 @@ Si falla el entorno local (shell, Docker, paths) al probar secretos, ver [TROUBL
 
 Si vas a tocar muchos `.md` a la vez, ejecuta desde la raíz `npm run verify:docs-links` para validar enlaces relativos antes de abrir el PR.
 
+**Cierre go-live (orden y registro en repo):** [`PLAN-CIERRE-PROYECTO.md`](../PLAN-CIERRE-PROYECTO.md) (workstreams WS1–WS6 y *Registro de avance*). **Plantillas de evidencia** (Stripe, backup, E2E) sin pegar valores: hub [`evidence/README.md`](evidence/README.md).
+
 ## 1. GitHub Actions (repositorio)
 
 | Secreto (nombre sugerido) | Dónde se consume | Propósito |
