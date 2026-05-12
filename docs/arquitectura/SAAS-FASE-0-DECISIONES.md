@@ -118,6 +118,19 @@ Los placeholders de trial “global” y registro público están en `**.env.exa
 - Equipo confirma filas “Revisión comercial” (fecha o responsable).
 - Tras confirmación: marcar en `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` que Fase 0 está **cerrada** y comenzar Fase 1 (inventario de aislamiento).
 
+### Cómo cerrar esta sección
+
+Checklist operativo para la reunión WS1 (ver `docs/PLAN-CIERRE-PROYECTO.md`). Sustituir `TBD` por valores reales solo tras acuerdo del equipo; no versionar secretos ni datos personales.
+
+| Paso | Acción | Owner | Fecha / reunión |
+|------|--------|-------|-----------------|
+| 1 | Agendar reunión comercial + ingeniería (30–60 min) | **TBD** | **TBD** |
+| 2 | Designar responsable de seguimiento de este documento hasta cierre formal | **TBD** | **TBD** |
+| 3 | Actualizar las filas *Revisión comercial* de §1, §2 y §4 (fecha y responsable donde aplique) | **TBD** | **TBD** |
+| 4 | Acordar política única de trial (BD vs Stripe) y anotarla en §2 | **TBD** | **TBD** |
+| 5 | Solo con checklist Stripe live cumplido: fijar fecha objetivo de `BILLING_ENFORCE_PAYMENT=true` en §4 | **TBD** | **TBD** |
+| 6 | Marcar los ítems de la lista anterior (§6) como cumplidos con evidencia o acta interna acordada | **TBD** | **TBD** |
+
 ---
 
 ## 7. Historial de cambios
@@ -128,3 +141,4 @@ Los placeholders de trial “global” y registro público están en `**.env.exa
 | 2026-04-18 | Creación del documento Fase 0 y defaults iniciales. |
 | 2026-04-19 | Alineación con `trialEndsAt` en BD, seed `TRIAL_DAYS` y contexto SaaS. |
 | 2026-05-11 | Tabla §4.1 defaults prod; revisiones comercial explícitas como pendientes; enlace flujo demo. |
+| 2026-05-12 | Subsección §6 *Cómo cerrar esta sección*: checklist operativo WS1 con placeholders `TBD`. |
