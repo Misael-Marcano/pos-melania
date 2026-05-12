@@ -90,7 +90,6 @@ describe('enforce-features (starter — módulos bloqueados)', () => {
       .post('/api/v1/cotizaciones')
       .set('Authorization', bearer())
       .send({
-        clienteId: null,
         detalles: [{ articuloId, cantidad: 1, precioUnitario: 100 }],
       });
     expect(res.status).toBe(403);

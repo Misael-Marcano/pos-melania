@@ -33,6 +33,30 @@ describe('resolveFiscalProvider', () => {
     expect(() => resolveFiscalProvider()).toThrow();
   });
 
+  it('OFF aliases to no-fiscal provider', () => {
+    process.env.FISCAL_JURISDICTION = 'OFF';
+    expect(resolveFiscalProvider().id).toBe('none');
+  });
+
+  it('normalizes case and trims jurisdiction from env', () => {
+    process.env.FISCAL_JURISDICTION = '  do  ';
+    expect(resolveFiscalProvider().id).toBe('dgii_rd');
+  });
+
+  it('accepts RD and DGII_RD aliases (case-insensitive)', () => {
+    process.env.FISCAL_JURISDICTION = 'rd';
+    expect(resolveFiscalProvider().id).toBe('dgii_rd');
+    process.env.FISCAL_JURISDICTION = 'Dgii_Rd';
+    expect(resolveFiscalProvider().id).toBe('dgii_rd');
+  });
+
+  it('throws for unknown jurisdiction passed from configuracion', () => {
+    process.env.FISCAL_JURISDICTION = 'DO';
+    expect(() => resolveFiscalProvider('not-a-country')).toThrow(
+      /not-a-country|«NOT-A-COUNTRY»/i,
+    );
+  });
+
   it('prefers configuracion over env when set', () => {
     process.env.FISCAL_JURISDICTION = 'NONE';
     expect(resolveFiscalProvider('DO').id).toBe('dgii_rd');

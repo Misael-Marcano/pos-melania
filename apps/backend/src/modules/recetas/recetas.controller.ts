@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { RecetasService } from './recetas.service';
 import { createRecetaSchema, updateRecetaSchema, producirRecetaSchema } from './dto/recetas.dto';
 
@@ -11,7 +11,7 @@ export class RecetasController {
     try {
       return sendSuccess(res, await service.findAll(req.user!));
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -19,7 +19,7 @@ export class RecetasController {
     try {
       return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error', 404);
+      return sendFail(res, e, { defaultStatus: 404 });
     }
   }
 
@@ -28,7 +28,7 @@ export class RecetasController {
       const dto = createRecetaSchema.parse(req.body);
       return sendSuccess(res, await service.create(dto, req.user!), 'Receta creada', 201);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -37,7 +37,7 @@ export class RecetasController {
       const dto = updateRecetaSchema.parse(req.body);
       return sendSuccess(res, await service.update(Number(req.params.id), dto, req.user!), 'Receta actualizada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -46,7 +46,7 @@ export class RecetasController {
       await service.delete(Number(req.params.id), req.user!);
       return sendSuccess(res, null, 'Receta desactivada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -56,7 +56,7 @@ export class RecetasController {
       const result = await service.producir(Number(req.params.id), lotes, req.user!.id, req.user!);
       return sendSuccess(res, result);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 }

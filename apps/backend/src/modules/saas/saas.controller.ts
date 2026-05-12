@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { SaasService } from './saas.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 
 const service = new SaasService();
 
@@ -13,7 +13,7 @@ export class SaasController {
       const data = await service.contextForUser(u.id, jwtTid);
       return sendSuccess(res, data);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 }

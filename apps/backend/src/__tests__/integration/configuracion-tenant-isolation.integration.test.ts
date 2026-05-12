@@ -25,10 +25,11 @@ describe('configuracion — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    baseline = await AppDataSource.getRepository(Configuracion).findOne({
-      order: { id: 'ASC' },
-      relations: ['tenant'],
-    });
+    baseline = await AppDataSource.getRepository(Configuracion)
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.tenant', 'tenant')
+      .orderBy('c.id', 'ASC')
+      .getOne();
 
     fixture = await createOtherTenantAdmin();
   });

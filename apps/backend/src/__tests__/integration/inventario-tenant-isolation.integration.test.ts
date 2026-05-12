@@ -24,11 +24,12 @@ describe('inventario — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    const first = await AppDataSource.getRepository(Articulo).findOne({
-      order: { id: 'ASC' },
-      select: ['id'],
-    });
-    anyArticuloId = first?.id ?? null;
+    const row = await AppDataSource.getRepository(Articulo)
+      .createQueryBuilder('a')
+      .select('a.id', 'id')
+      .orderBy('a.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    anyArticuloId = row?.id != null ? Number(row.id) : null;
 
     fixture = await createOtherTenantAdmin();
   });

@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { PromocionesService } from './promociones.service';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new PromocionesService();
@@ -12,7 +12,7 @@ export class PromocionesController {
       const q = req.query.q as string | undefined;
       return sendSuccess(res, await service.findAll(q, req.user!));
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -20,7 +20,7 @@ export class PromocionesController {
     try {
       return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error', 404);
+      return sendFail(res, e, { defaultStatus: 404 });
     }
   }
 
@@ -30,7 +30,7 @@ export class PromocionesController {
       const result = await service.validar(String(codigo), Number(total), req.user!);
       return sendSuccess(res, result);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -49,7 +49,7 @@ export class PromocionesController {
       });
       return sendSuccess(res, p, 'Promoción creada', 201);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -71,7 +71,7 @@ export class PromocionesController {
       });
       return sendSuccess(res, p, 'Promoción actualizada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -90,7 +90,7 @@ export class PromocionesController {
       });
       return sendSuccess(res, { ok: true }, 'Promoción desactivada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 }

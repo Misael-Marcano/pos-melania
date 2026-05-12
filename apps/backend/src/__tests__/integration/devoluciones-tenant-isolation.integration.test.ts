@@ -22,11 +22,12 @@ describe('devoluciones — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    const first = await AppDataSource.getRepository(Devolucion).findOne({
-      order: { id: 'ASC' },
-      select: ['id'],
-    });
-    anyDevolucionId = first?.id ?? null;
+    const row = await AppDataSource.getRepository(Devolucion)
+      .createQueryBuilder('d')
+      .select('d.id', 'id')
+      .orderBy('d.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    anyDevolucionId = row?.id != null ? Number(row.id) : null;
 
     fixture = await createOtherTenantAdmin();
   });

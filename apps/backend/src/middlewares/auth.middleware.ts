@@ -4,7 +4,7 @@ import { env } from '../config/env';
 import { AppDataSource } from '../config/database';
 import { Tenant } from '../entities/Tenant.entity';
 import { AuthUser, Rol } from '@pos/shared';
-import { sendError } from '../utils/response';
+import { sendError, sendFail } from '../utils/response';
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
@@ -58,7 +58,10 @@ export const authMiddleware = async (
       return sendError(res, 'Token inválido o expirado', 401);
     }
     console.error('[authMiddleware]', e);
-    return sendError(res, 'Error de autenticación', 500);
+    return sendFail(res, e, {
+      defaultStatus: 500,
+      defaultMessage: 'Error de autenticación',
+    });
   }
 };
 

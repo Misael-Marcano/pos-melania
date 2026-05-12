@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { AppError } from '../middlewares/error.middleware';
 
 export const sendSuccess = <T>(
   res: Response,
@@ -17,6 +18,21 @@ export const sendError = (
 ) => {
   return res.status(statusCode).json({ success: false, message, data });
 };
+
+/** Respuesta de error desde `catch`: respeta `AppError.statusCode`. */
+export function sendFail(
+  res: Response,
+  err: unknown,
+  opts?: { defaultStatus?: number; defaultMessage?: string },
+) {
+  const defaultStatus = opts?.defaultStatus ?? 400;
+  const defaultMessage = opts?.defaultMessage ?? 'Error';
+  if (err instanceof AppError) {
+    return sendError(res, err.message, err.statusCode);
+  }
+  const msg = err instanceof Error ? err.message : defaultMessage;
+  return sendError(res, msg, defaultStatus);
+}
 
 export const sendPaginated = <T>(
   res: Response,

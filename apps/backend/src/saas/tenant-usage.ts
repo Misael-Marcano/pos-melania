@@ -41,7 +41,7 @@ export async function countVentasMesActualForTenant(tenantId: number): Promise<n
     .innerJoin('v.cajaApertura', 'ca')
     .innerJoin('ca.tienda', 't')
     .where('t.tenantId = :tid', { tid: tenantId })
-    .andWhere('v.anulada = 0')
+    .andWhere("CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) = 0")
     .andWhere('v.fecha >= :ini', { ini: inicioMes })
     .andWhere('v.fecha < :fin', { fin: finMes })
     .getCount();

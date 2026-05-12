@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { ConfiguracionService } from './configuracion.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new ConfiguracionService();
@@ -9,7 +9,7 @@ const service = new ConfiguracionService();
 export class ConfiguracionController {
   async get(req: AuthRequest, res: Response) {
     try { return sendSuccess(res, await service.get(req.user!)); }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
   async update(req: AuthRequest, res: Response) {
     try {
@@ -28,6 +28,6 @@ export class ConfiguracionController {
       });
       return sendSuccess(res, data, 'Configuración guardada');
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
 }

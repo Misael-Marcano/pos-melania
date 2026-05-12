@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { TiendasService } from './tiendas.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new TiendasService();
@@ -9,7 +9,7 @@ const service = new TiendasService();
 export class TiendasController {
   async findAll(req: AuthRequest, res: Response) {
     try { return sendSuccess(res, await service.findAll(req.user!)); }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
   async create(req: AuthRequest, res: Response) {
     try {
@@ -26,7 +26,7 @@ export class TiendasController {
       });
       return sendSuccess(res, data, 'Tienda creada', 201);
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
   async update(req: AuthRequest, res: Response) {
     try {
@@ -46,7 +46,7 @@ export class TiendasController {
       });
       return sendSuccess(res, data, 'Actualizada');
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
   async delete(req: AuthRequest, res: Response) {
     try {
@@ -65,6 +65,6 @@ export class TiendasController {
       });
       return sendSuccess(res, null, 'Eliminada');
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
 }

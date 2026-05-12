@@ -104,6 +104,15 @@ describe('Integración API (SQL Server + Redis)', () => {
 
   describe('caja + resumenCaja', () => {
     it('abrir → resumen (sesión abierta) → cerrar → resumen (sesión cerrada)', async () => {
+      const tiendas = await request(app)
+        .get('/api/v1/tiendas')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(tiendas.status).toBe(200);
+      const tiendaId = tiendas.body.data?.[0]?.id as number | undefined;
+      if (tiendaId == null) {
+        throw new Error('Se esperaba al menos una tienda en BD (seed) para ligar la sesión de caja');
+      }
+
       const nombre = `INTEG-${Date.now()}`;
       const denom = { '1000': 1 } as Record<string, number>;
 
@@ -114,6 +123,7 @@ describe('Integración API (SQL Server + Redis)', () => {
           cajaNombre:     nombre,
           denominaciones: denom,
           montoApertura:  1000,
+          tiendaId,
         });
       expect(abrir.status).toBe(201);
       expect(abrir.body.success).toBe(true);

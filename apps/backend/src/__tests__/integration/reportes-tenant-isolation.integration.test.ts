@@ -12,6 +12,7 @@ import { redis } from '../../config/redis';
 import { CajaApertura } from '../../entities/CajaApertura.entity';
 import { Tenant } from '../../entities/Tenant.entity';
 import { Usuario } from '../../entities/Usuario.entity';
+import { uniqueIntegrationSuffix } from './helpers/integration-ids';
 
 describe('reportes — aislamiento por tenant', () => {
   let otherTenantToken: string;
@@ -24,20 +25,21 @@ describe('reportes — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    const firstAp = await AppDataSource.getRepository(CajaApertura).findOne({
-      order: { id: 'ASC' },
-      select: ['id'],
-    });
-    anyAperturaId = firstAp?.id ?? null;
+    const rowAp = await AppDataSource.getRepository(CajaApertura)
+      .createQueryBuilder('ca')
+      .select('ca.id', 'id')
+      .orderBy('ca.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    anyAperturaId = rowAp?.id != null ? Number(rowAp.id) : null;
 
-    const ts = Date.now();
+    const suffix = uniqueIntegrationSuffix();
     const tenantRepo = AppDataSource.getRepository(Tenant);
     const userRepo = AppDataSource.getRepository(Usuario);
 
     const t2 = await tenantRepo.save(
       tenantRepo.create({
-        nombre:   `Org reportes ${ts}`,
-        slug:     `org-rep-${ts}`,
+        nombre:   `Org reportes ${suffix}`,
+        slug:     `org-rep-${suffix}`,
         activo:   true,
         planCode: 'standard',
       }),
@@ -48,7 +50,7 @@ describe('reportes — aislamiento por tenant', () => {
     const u2 = await userRepo.save(
       userRepo.create({
         nombre:       'Admin reportes otra org',
-        email:        `admin-rep-otra-${ts}@example.com`,
+        email:        `admin-rep-otra-${suffix}@example.com`,
         passwordHash: hash,
         rol:          'admin',
         tenant:       t2,
@@ -58,7 +60,7 @@ describe('reportes — aislamiento por tenant', () => {
 
     const login = await request(app)
       .post('/api/v1/auth/login')
-      .send({ email: `admin-rep-otra-${ts}@example.com`, password: 'Test1234!' });
+      .send({ email: `admin-rep-otra-${suffix}@example.com`, password: 'Test1234!' });
     if (login.status !== 200 || !login.body?.data?.accessToken) {
       throw new Error(`Login usuario otra org falló: ${login.status} ${JSON.stringify(login.body)}`);
     }

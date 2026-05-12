@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { GastosService } from './gastos.service';
 import { createGastoSchema, updateGastoSchema } from './dto/gastos.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendFail, sendPaginated } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new GastosService();
@@ -13,7 +13,7 @@ export class GastosController {
       const { data, total, page, limit } = await service.findAll(req);
       return sendPaginated(res, data, total, page, limit);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -22,7 +22,7 @@ export class GastosController {
       const data = await service.findById(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error', 404);
+      return sendFail(res, err, { defaultStatus: 404 });
     }
   }
 
@@ -33,7 +33,7 @@ export class GastosController {
       registrarAudit({ tabla: 'gastos', operacion: 'CREATE', registroId: data.id, descripcion: `Registró gasto "${data.escribe}" por RD$${data.cantidad}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, data, 'Gasto registrado', 201);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -44,7 +44,7 @@ export class GastosController {
       registrarAudit({ tabla: 'gastos', operacion: 'UPDATE', registroId: data.id, descripcion: `Actualizó gasto "${data.escribe}"`, valorNuevo: data, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, data, 'Gasto actualizado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -55,7 +55,7 @@ export class GastosController {
       registrarAudit({ tabla: 'gastos', operacion: 'DELETE', registroId: id, descripcion: `Eliminó gasto #${id}`, usuarioId: req.user?.id, usuarioNombre: req.user?.nombre, ip: req.ip });
       return sendSuccess(res, null, 'Gasto eliminado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 }

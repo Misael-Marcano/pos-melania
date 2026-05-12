@@ -8,6 +8,8 @@ import app from '../../../app';
 import { AppDataSource } from '../../../config/database';
 import { Tenant } from '../../../entities/Tenant.entity';
 import { Usuario } from '../../../entities/Usuario.entity';
+import { Configuracion } from '../../../entities/Configuracion.entity';
+import { uniqueIntegrationSuffix } from './integration-ids';
 
 export interface OtherTenantFixture {
   token:    string;
@@ -16,14 +18,14 @@ export interface OtherTenantFixture {
 }
 
 export async function createOtherTenantAdmin(): Promise<OtherTenantFixture> {
-  const ts = Date.now();
+  const suffix = uniqueIntegrationSuffix();
   const tenantRepo = AppDataSource.getRepository(Tenant);
   const userRepo = AppDataSource.getRepository(Usuario);
 
   const t2 = await tenantRepo.save(
     tenantRepo.create({
-      nombre:   `Org aislamiento ${ts}`,
-      slug:     `org-aisl-${ts}`,
+      nombre:   `Org aislamiento ${suffix}`,
+      slug:     `org-aisl-${suffix}`,
       activo:   true,
       planCode: 'standard',
     }),
@@ -33,7 +35,7 @@ export async function createOtherTenantAdmin(): Promise<OtherTenantFixture> {
   const u2 = await userRepo.save(
     userRepo.create({
       nombre:       'Admin otra org',
-      email:        `admin-otra-${ts}@example.com`,
+      email:        `admin-otra-${suffix}@example.com`,
       passwordHash: hash,
       rol:          'admin',
       tenant:       t2,
@@ -42,7 +44,7 @@ export async function createOtherTenantAdmin(): Promise<OtherTenantFixture> {
 
   const login = await request(app)
     .post('/api/v1/auth/login')
-    .send({ email: `admin-otra-${ts}@example.com`, password: 'Test1234!' });
+    .send({ email: `admin-otra-${suffix}@example.com`, password: 'Test1234!' });
   if (login.status !== 200 || !login.body?.data?.accessToken) {
     throw new Error(`Login usuario otra org falló: ${login.status} ${JSON.stringify(login.body)}`);
   }
@@ -55,6 +57,7 @@ export async function createOtherTenantAdmin(): Promise<OtherTenantFixture> {
 }
 
 export async function deleteOtherTenantUser(f: OtherTenantFixture): Promise<void> {
+  await AppDataSource.getRepository(Configuracion).delete({ tenant: { id: f.tenantId } });
   await AppDataSource.getRepository(Usuario).delete({ id: f.userId });
   await AppDataSource.getRepository(Tenant).delete({ id: f.tenantId });
 }

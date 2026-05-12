@@ -6,7 +6,7 @@ import {
   cambiarEstadoSchema,
 } from './dto/cotizaciones.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendFail, sendPaginated } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new CotizacionesService();
@@ -18,7 +18,7 @@ export class CotizacionesController {
       const { data, total, page, limit } = await service.findAll(req);
       return sendPaginated(res, data, total, page, limit);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -26,7 +26,7 @@ export class CotizacionesController {
     try {
       return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error', 404);
+      return sendFail(res, e, { defaultStatus: 404 });
     }
   }
 
@@ -41,7 +41,7 @@ export class CotizacionesController {
       });
       return sendSuccess(res, data, 'Cotización creada exitosamente', 201);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error al crear cotización');
+      return sendFail(res, e, { defaultMessage: 'Error al crear cotización' });
     }
   }
 
@@ -57,7 +57,7 @@ export class CotizacionesController {
       });
       return sendSuccess(res, data, 'Cotización actualizada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -73,7 +73,7 @@ export class CotizacionesController {
       });
       return sendSuccess(res, data, `Estado cambiado a ${dto.estado}`);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -88,7 +88,7 @@ export class CotizacionesController {
       });
       return sendSuccess(res, data, `Cotización convertida a venta #${data.id}`, 201);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -103,7 +103,7 @@ export class CotizacionesController {
       });
       return sendSuccess(res, null, 'Cotización eliminada');
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -112,7 +112,7 @@ export class CotizacionesController {
       const count = await service.checkVencidas(req.user!);
       return sendSuccess(res, { actualizadas: count }, `${count} cotización(es) marcadas como vencidas`);
     } catch (e: unknown) {
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 }

@@ -13,6 +13,7 @@ import { redis } from '../../config/redis';
 import { Tenant } from '../../entities/Tenant.entity';
 import { Usuario } from '../../entities/Usuario.entity';
 import { Venta } from '../../entities/Venta.entity';
+import { uniqueIntegrationSuffix } from './helpers/integration-ids';
 
 describe('ventas — aislamiento por tenant', () => {
   let otherTenantToken: string;
@@ -25,20 +26,21 @@ describe('ventas — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    const first = await AppDataSource.getRepository(Venta).findOne({
-      order: { id: 'ASC' },
-      select: ['id'],
-    });
-    anyVentaId = first?.id ?? null;
+    const row = await AppDataSource.getRepository(Venta)
+      .createQueryBuilder('v')
+      .select('v.id', 'id')
+      .orderBy('v.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    anyVentaId = row?.id != null ? Number(row.id) : null;
 
-    const ts = Date.now();
+    const suffix = uniqueIntegrationSuffix();
     const tenantRepo = AppDataSource.getRepository(Tenant);
     const userRepo = AppDataSource.getRepository(Usuario);
 
     const t2 = await tenantRepo.save(
       tenantRepo.create({
-        nombre:   `Org aislamiento ${ts}`,
-        slug:     `org-aisl-${ts}`,
+        nombre:   `Org aislamiento ${suffix}`,
+        slug:     `org-aisl-${suffix}`,
         activo:   true,
         planCode: 'standard',
       }),
@@ -49,7 +51,7 @@ describe('ventas — aislamiento por tenant', () => {
     const u2 = await userRepo.save(
       userRepo.create({
         nombre:       'Admin otra org',
-        email:        `admin-otra-${ts}@example.com`,
+        email:        `admin-otra-${suffix}@example.com`,
         passwordHash: hash,
         rol:          'admin',
         tenant:       t2,
@@ -59,7 +61,7 @@ describe('ventas — aislamiento por tenant', () => {
 
     const login = await request(app)
       .post('/api/v1/auth/login')
-      .send({ email: `admin-otra-${ts}@example.com`, password: 'Test1234!' });
+      .send({ email: `admin-otra-${suffix}@example.com`, password: 'Test1234!' });
     if (login.status !== 200 || !login.body?.data?.accessToken) {
       throw new Error(`Login usuario otra org falló: ${login.status} ${JSON.stringify(login.body)}`);
     }

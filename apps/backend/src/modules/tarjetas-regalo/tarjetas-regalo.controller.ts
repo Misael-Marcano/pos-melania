@@ -5,7 +5,7 @@ import {
   usarTarjetaSchema, updateTarjetaSchema,
 } from './dto/tarjetas-regalo.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendFail, sendPaginated } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new TarjetasRegaloService();
@@ -16,7 +16,7 @@ export class TarjetasRegaloController {
       const { data, total, page, limit } = await service.findAll(req);
       return sendPaginated(res, data, total, page, limit);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -25,7 +25,7 @@ export class TarjetasRegaloController {
       const data = await service.findById(Number(req.params.id), req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error', 404);
+      return sendFail(res, err, { defaultStatus: 404 });
     }
   }
 
@@ -34,7 +34,7 @@ export class TarjetasRegaloController {
       const data = await service.findByCodigo(req.params.codigo, req.user!);
       return sendSuccess(res, data);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error', 404);
+      return sendFail(res, err, { defaultStatus: 404 });
     }
   }
 
@@ -49,7 +49,7 @@ export class TarjetasRegaloController {
       });
       return sendSuccess(res, data, 'Tarjeta de regalo creada', 201);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -65,7 +65,7 @@ export class TarjetasRegaloController {
       });
       return sendSuccess(res, data, 'Tarjeta recargada');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -81,7 +81,7 @@ export class TarjetasRegaloController {
       });
       return sendSuccess(res, data, 'Pago con tarjeta procesado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -97,7 +97,7 @@ export class TarjetasRegaloController {
       });
       return sendSuccess(res, data, 'Tarjeta actualizada');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -112,7 +112,7 @@ export class TarjetasRegaloController {
       });
       return sendSuccess(res, null, 'Tarjeta eliminada');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 }

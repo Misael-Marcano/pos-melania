@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { ComprobantesService } from './comprobantes.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new ComprobantesService();
@@ -9,7 +9,7 @@ const service = new ComprobantesService();
 export class ComprobantesController {
   async findAll(req: AuthRequest, res: Response) {
     try { return sendSuccess(res, await service.findAll(req.user!)); }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
 
   async create(req: AuthRequest, res: Response) {
@@ -27,7 +27,7 @@ export class ComprobantesController {
       });
       return sendSuccess(res, data, 'Comprobante creado', 201);
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
 
   async update(req: AuthRequest, res: Response) {
@@ -48,6 +48,6 @@ export class ComprobantesController {
       });
       return sendSuccess(res, data, 'Actualizado');
     }
-    catch (e: unknown) { return sendError(res, e instanceof Error ? e.message : 'Error'); }
+    catch (e: unknown) { return sendFail(res, e); }
   }
 }

@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { EmpleadosService } from './empleados.service';
 import { createEmpleadoSchema, updateEmpleadoSchema } from './dto/empleados.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
 
 const service = new EmpleadosService();
@@ -12,7 +12,7 @@ export class EmpleadosController {
     try {
       return sendSuccess(res, await service.findAll(req.user!));
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -20,7 +20,7 @@ export class EmpleadosController {
     try {
       return sendSuccess(res, await service.findById(Number(req.params.id), req.user!));
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error', 404);
+      return sendFail(res, err, { defaultStatus: 404 });
     }
   }
 
@@ -40,7 +40,7 @@ export class EmpleadosController {
       });
       return sendSuccess(res, data, 'Empleado creado', 201);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -69,7 +69,7 @@ export class EmpleadosController {
       });
       return sendSuccess(res, data, 'Empleado actualizado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -90,7 +90,7 @@ export class EmpleadosController {
       });
       return sendSuccess(res, null, 'Empleado eliminado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 }

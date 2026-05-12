@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendError, sendFail } from '../../utils/response';
 import { runTrialReminderJob } from '../../saas/trial-reminders';
 
 export class InternalController {
@@ -21,7 +21,7 @@ export class InternalController {
       const data = await runTrialReminderJob();
       sendSuccess(res, data);
     } catch (e: unknown) {
-      sendError(res, e instanceof Error ? e.message : 'Error');
+      sendFail(res, e);
     }
   }
 }

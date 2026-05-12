@@ -23,11 +23,12 @@ describe('compras — aislamiento por tenant', () => {
     await initDatabaseForTests();
     await redis.connect();
 
-    const first = await AppDataSource.getRepository(OrdenCompra).findOne({
-      order: { id: 'ASC' },
-      select: ['id'],
-    });
-    anyOrdenId = first?.id ?? null;
+    const row = await AppDataSource.getRepository(OrdenCompra)
+      .createQueryBuilder('o')
+      .select('o.id', 'id')
+      .orderBy('o.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    anyOrdenId = row?.id != null ? Number(row.id) : null;
 
     fixture = await createOtherTenantAdmin();
   });

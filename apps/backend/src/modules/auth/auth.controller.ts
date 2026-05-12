@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { loginSchema, refreshTokenSchema } from './dto/auth.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
-import { AppError } from '../../middlewares/error.middleware';
+import { sendSuccess, sendFail } from '../../utils/response';
 import { z } from 'zod';
 
 const service = new AuthService();
@@ -22,10 +21,7 @@ export class AuthController {
       const data = await service.login(dto, { tenantSlug });
       return sendSuccess(res, data, 'Inicio de sesión exitoso');
     } catch (err: unknown) {
-      if (err instanceof AppError) {
-        return sendError(res, err.message, err.statusCode);
-      }
-      return sendError(res, err instanceof Error ? err.message : 'Error al iniciar sesión', 401);
+      return sendFail(res, err, { defaultStatus: 401, defaultMessage: 'Error al iniciar sesión' });
     }
   }
 
@@ -35,7 +31,7 @@ export class AuthController {
       const data = await service.refresh(refreshToken);
       return sendSuccess(res, data, 'Token renovado');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Token inválido', 401);
+      return sendFail(res, err, { defaultStatus: 401, defaultMessage: 'Token inválido' });
     }
   }
 
@@ -44,7 +40,7 @@ export class AuthController {
       await service.logout(req.user!.id);
       return sendSuccess(res, null, 'Sesión cerrada');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -53,7 +49,7 @@ export class AuthController {
       const data = await service.getProfile(req.user!.id);
       return sendSuccess(res, data);
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 
@@ -63,7 +59,7 @@ export class AuthController {
       await service.changePassword(req.user!.id, currentPassword, newPassword);
       return sendSuccess(res, null, 'Contraseña actualizada. Inicia sesión nuevamente.');
     } catch (err: unknown) {
-      return sendError(res, err instanceof Error ? err.message : 'Error');
+      return sendFail(res, err);
     }
   }
 }

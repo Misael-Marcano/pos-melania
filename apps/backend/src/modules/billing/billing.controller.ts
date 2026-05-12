@@ -1,8 +1,7 @@
 import { Response } from 'express';
 import { ZodError } from 'zod';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { AppError } from '../../middlewares/error.middleware';
-import { sendSuccess, sendError } from '../../utils/response';
+import { sendSuccess, sendError, sendFail } from '../../utils/response';
 import { BillingService } from './billing.service';
 import { createCheckoutSessionSchema, createPortalSessionSchema } from './dto/billing.dto';
 
@@ -15,8 +14,7 @@ export class BillingController {
       const data = await service.getPublicStatus(req.user);
       return sendSuccess(res, data, 'Estado de facturación');
     } catch (e: unknown) {
-      if (e instanceof AppError) return sendError(res, e.message, e.statusCode);
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -28,8 +26,7 @@ export class BillingController {
       return sendSuccess(res, data, 'Sesión de checkout');
     } catch (e: unknown) {
       if (e instanceof ZodError) return sendError(res, 'Datos inválidos', 422);
-      if (e instanceof AppError) return sendError(res, e.message, e.statusCode);
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 
@@ -41,8 +38,7 @@ export class BillingController {
       return sendSuccess(res, data, 'Portal de facturación');
     } catch (e: unknown) {
       if (e instanceof ZodError) return sendError(res, 'Datos inválidos', 422);
-      if (e instanceof AppError) return sendError(res, e.message, e.statusCode);
-      return sendError(res, e instanceof Error ? e.message : 'Error');
+      return sendFail(res, e);
     }
   }
 }
