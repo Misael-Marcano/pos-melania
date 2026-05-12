@@ -42,7 +42,7 @@
 | `/recetas` | `recetas.service` | **OK** | `tenantIdOrThrow` en CRUD. |
 | `/tenants` | `tenants.service` | **BY_DESIGN** | Solo rol **`plataforma`**: lista todas las organizaciones (`/` y `/panel`). No es fuga de datos entre tenants de cliente; es panel de instancia. |
 | `/saas` | `saas.service` | **OK** | `contextForUser`: org del usuario; `plataforma` + `X-Tenant-Id` elige otra org activa. |
-| `/billing` | `billing.service` | **OK** | `tenantIdOrThrow` para checkout/portal/status sobre fila `tenants`. |
+| `/billing` | `billing.service` | **OK** | `tenantIdOrThrow` para checkout/portal/status sobre fila `tenants`. POST checkout/portal: aislamiento en servicio, pero prueba de integracion dedicada a tenant sin mock Stripe = **N/A** (ver tabla de tests). |
 
 ### Webhook Stripe
 
@@ -75,8 +75,12 @@
 | Tiendas — GET / sin sucursales ajenas; PUT ajeno → 403 | `tiendas-tenant-isolation.integration.test.ts` |
 | Cajas — id ajeno → 403 | `cajas-tenant-isolation.integration.test.ts` |
 | Auditoría — GET / sin filas ajenas | `auditoria-tenant-isolation.integration.test.ts` |
+| SaaS — GET /context acotado; `X-Tenant-Id` ajeno → 403 | `saas-tenant-isolation.integration.test.ts` |
+| Billing — GET /status acotado (forzar `BILLING_PROVIDER=stripe` en test, sin llamar Stripe); `X-Tenant-Id` ajeno → 403 | `billing-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
+
+**N/A integracion (tenant) en billing POST:** `create-checkout-session` / `create-portal-session` llaman al SDK de Stripe tras `tenantIdOrThrow`; no hay mock compartido en el repo. La cobertura de aislamiento aqui es GET `/billing/status` + cabecera `X-Tenant-Id` (middleware) y `billing-portal` para flujos portal con claves opcionales.
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
@@ -104,3 +108,4 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 | 2026-05-12 | Tests `empleados-`, `kits-`, `proveedores-tenant-isolation.integration.test.ts`; brecha P1 actualizada. |
 | 2026-05-12 | Tests `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts`; brecha P1 = comprobantes, tiendas, cajas, auditoría. |
 | 2026-05-12 | Tests `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-tenant-isolation.integration.test.ts`; brecha P1 de tests dedicados cerrada. |
+| 2026-05-12 | Tests `saas-`, `billing-tenant-isolation.integration.test.ts` (superficies GET + `X-Tenant-Id`); POST billing checkout/portal documentados N/A sin mock Stripe. |
