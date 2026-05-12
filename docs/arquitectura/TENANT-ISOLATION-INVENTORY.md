@@ -71,12 +71,16 @@
 | Cotizaciones — id ajeno → 404 | `cotizaciones-tenant-isolation.integration.test.ts` |
 | Tarjetas regalo — id ajeno → 403 | `tarjetas-regalo-tenant-isolation.integration.test.ts` |
 | Recetas — id ajeno → 404 | `recetas-tenant-isolation.integration.test.ts` |
+| Comprobantes — GET / sin filas ajenas; PUT ajeno → 403 | `comprobantes-tenant-isolation.integration.test.ts` |
+| Tiendas — GET / sin sucursales ajenas; PUT ajeno → 403 | `tiendas-tenant-isolation.integration.test.ts` |
+| Cajas — id ajeno → 403 | `cajas-tenant-isolation.integration.test.ts` |
+| Auditoría — GET / sin filas ajenas | `auditoria-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
-**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` si se exige cobertura exhaustiva (p. ej. **comprobantes**, **tiendas**, **cajas**, **auditoría**); `clientes`, `gastos`, `empleados`, `kits`, `proveedores`, `promociones`, `cotizaciones`, `tarjetas-regalo` y `recetas` ya tienen test (ver tabla arriba).
+**Brecha P1 (tests dedicados):** cerrada para los módulos **OK** listados en inventario; nuevos `GET/PUT …/:id` o listados sensibles → añadir fila en esta tabla y caso en `*-tenant-isolation.integration.test.ts` cuando aplique.
 
 ---
 
@@ -99,3 +103,4 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 | 2026-05 | Mención breve de accesibilidad (a11y) en páginas públicas legales y demo (`/terminos`, `/privacidad`, `/solicitar-demo`, `/cuenta-suspendida`); sin reclasificar rutas API. |
 | 2026-05-12 | Tests `empleados-`, `kits-`, `proveedores-tenant-isolation.integration.test.ts`; brecha P1 actualizada. |
 | 2026-05-12 | Tests `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts`; brecha P1 = comprobantes, tiendas, cajas, auditoría. |
+| 2026-05-12 | Tests `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-tenant-isolation.integration.test.ts`; brecha P1 de tests dedicados cerrada. |
