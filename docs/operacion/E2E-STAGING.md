@@ -13,6 +13,16 @@
 
 Nombres de secretos en el repo, propósito y tabla E2E: [SECRETS-RUNBOOK.md § 1](SECRETS-RUNBOOK.md#1-github-actions-repositorio). El workflow es **`.github/workflows/e2e-manual.yml`** (nombre en la UI de GitHub: **E2E Playwright (manual dispatch)**).
 
+### Checklist — secretos en GitHub (solo nombres)
+
+Antes de **Run workflow** en Actions, confirmar que el repositorio tiene configurados estos **repository secrets** (no pegar valores en `docs/`, PRs ni issues públicos):
+
+- [ ] `E2E_EMAIL`
+- [ ] `E2E_PASSWORD`
+- [ ] `PLAYWRIGHT_BASE_URL`
+
+En local, usar variables de sesión como en la sección *Ejecución local (Windows PowerShell)*; no versionar credenciales.
+
 ## Ejecución local (bash)
 
 ```bash
