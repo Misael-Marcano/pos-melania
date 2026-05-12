@@ -77,6 +77,7 @@
 | Auditoría — GET / sin filas ajenas | `auditoria-tenant-isolation.integration.test.ts` |
 | SaaS — GET /context acotado; `X-Tenant-Id` ajeno → 403 | `saas-tenant-isolation.integration.test.ts` |
 | Billing — GET /status acotado (forzar `BILLING_PROVIDER=stripe` en test, sin llamar Stripe); `X-Tenant-Id` ajeno → 403 | `billing-tenant-isolation.integration.test.ts` |
+| Tenants — `GET /` y `GET /panel` con JWT **sin** rol `plataforma` → 403 (panel no es listado cross-tenant para clientes) | `tenants-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
 
@@ -96,6 +97,12 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 
 ---
 
+## Cierre (cobertura integración)
+
+A **2026-05-12**, las superficies HTTP `/api/v1` con datos de negocio por organización quedan cubiertas por la batería `*-tenant-isolation.integration.test.ts` descrita arriba, más `saas`/`billing` (GET y cabecera `X-Tenant-Id`) y la verificación de que el panel **`/tenants`** no es accesible como usuario de tenant normal. Los POST de Stripe (`checkout`/`portal`) siguen documentados como **N/A** en integración hasta contar con mock del SDK compartido en el repo.
+
+---
+
 ## Historial
 
 | Fecha | Cambio |
@@ -109,3 +116,4 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 | 2026-05-12 | Tests `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts`; brecha P1 = comprobantes, tiendas, cajas, auditoría. |
 | 2026-05-12 | Tests `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-tenant-isolation.integration.test.ts`; brecha P1 de tests dedicados cerrada. |
 | 2026-05-12 | Tests `saas-`, `billing-tenant-isolation.integration.test.ts` (superficies GET + `X-Tenant-Id`); POST billing checkout/portal documentados N/A sin mock Stripe. |
+| 2026-05-12 | Test `tenants-tenant-isolation.integration.test.ts` (admin org → 403 en `/tenants` y `/tenants/panel`); párrafo de cierre de cobertura integración. |
