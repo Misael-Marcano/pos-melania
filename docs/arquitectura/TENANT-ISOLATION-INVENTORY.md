@@ -64,12 +64,15 @@
 | Configuración — GET acotado por tenant (sin `/:id`) | `configuracion-tenant-isolation.integration.test.ts` |
 | Clientes — id ajeno → 404 | `clientes-tenant-isolation.integration.test.ts` |
 | Gastos — id ajeno → 403 | `gastos-tenant-isolation.integration.test.ts` |
+| Empleados — id ajeno → 404 | `empleados-tenant-isolation.integration.test.ts` |
+| Kits — id ajeno → 403 | `kits-tenant-isolation.integration.test.ts` |
+| Proveedores — id ajeno → 403 | `proveedores-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
-**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` (p. ej. empleados, kits, proveedores…) si se exige cobertura exhaustiva; `clientes` y `gastos` ya tienen test de integración (ver tabla arriba).
+**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` si se exige cobertura exhaustiva (p. ej. promociones, cotizaciones, comprobantes, recetas, tarjetas-regalo, tiendas, cajas, auditoría); `clientes`, `gastos`, `empleados`, `kits` y `proveedores` ya tienen test (ver tabla arriba).
 
 ---
 
@@ -90,3 +93,4 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 | 2026-05-11 | Reconciliación backlog Issues 3–4: test dedicado `configuracion-tenant-isolation.integration.test.ts` en repo; P1 = otros módulos si se amplía alcance. |
 | 2026-05-11 | Añadido `configuracion-tenant-isolation.integration.test.ts`; brecha P1 de configuración cerrada. |
 | 2026-05 | Mención breve de accesibilidad (a11y) en páginas públicas legales y demo (`/terminos`, `/privacidad`, `/solicitar-demo`, `/cuenta-suspendida`); sin reclasificar rutas API. |
+| 2026-05-12 | Tests `empleados-`, `kits-`, `proveedores-tenant-isolation.integration.test.ts`; brecha P1 actualizada. |
