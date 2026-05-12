@@ -20,6 +20,10 @@ Esta política aplica al **código y documentación** de este repositorio (API, 
 
 En el texto del informe **no pegues secretos** (tokens, claves API, contraseñas, fragmentos de `.env` reales); describe el problema con valores ficticios o referencias genéricas. En PR de solo documentación, no comitees credenciales reales ni ejemplos con secretos recuperables.
 
+## Operación, cierre y evidencia (solo documentación)
+
+Para **go-live**, runbooks y plantillas de evidencia (Stripe, backup, legal, E2E, observabilidad), ver **[`docs/PLAN-CIERRE-PROYECTO.md`](docs/PLAN-CIERRE-PROYECTO.md)** (índice WS1–WS6) y el hub **[`docs/operacion/evidence/README.md`](docs/operacion/evidence/README.md)**. Sigue aplicando esta política: **no** pegar secretos ni PII en issues, PRs ni plantillas de log.
+
 ## Contribuciones y buenas prácticas
 
 Para flujo de trabajo, revisiones y checklist antes de un PR, ver **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.

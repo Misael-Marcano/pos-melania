@@ -41,7 +41,7 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 
 | Recurso | Ruta |
 |--------|------|
-| Seguridad (divulgación responsable) | `SECURITY.md` |
+| Seguridad (divulgación responsable; enlace a plan de cierre / evidencia) | `SECURITY.md` |
 | Estilo de edición común (EditorConfig) | `.editorconfig` |
 | Normalización de fin de línea (Git) | `.gitattributes` |
 | Pin de versión Node.js (local / nvm) | `.nvmrc` |
@@ -176,6 +176,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Doc: `CONTRIBUTING.md` — enlace explícito al plan de cierre y al índice WS1–WS6 / hub evidence (tras checklist PR) | Hecho | Guía contribución; no duplica la tabla del plan | 2026-05-12 |
 | Doc: `README.md` — tabla *Documentación destacada*: fila de cierre alinea texto con índice WS1–WS6 / apoyo en `PLAN-CIERRE-PROYECTO`; comprobado `PLAN-MEJORAS` ya enlaza el plan | Hecho | Descubrimiento desde entrada del repo; no marca workstreams operativos cerrados | 2026-05-12 |
 | Doc: `.github/pull_request_template.md` — dos líneas (plan de cierre + índice de apoyo / hub `evidence`) para PRs que toquen go-live | Hecho | Cierra hilo doc repo-side sin duplicar subsección en plan (ya existen índice WS1–WS6 y tabla *Estado ingeniería vs pendiente humano*) | 2026-05-12 |
+| Doc: `SECURITY.md` — sección *Operación, cierre y evidencia* con enlace al plan de cierre y al hub `docs/operacion/evidence/README.md` | Hecho | Divulgación responsable sigue siendo este doc; runbooks/evidencia son referencia, no canal de vulnerabilidades | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---
