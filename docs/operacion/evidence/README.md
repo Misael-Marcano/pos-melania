@@ -6,6 +6,7 @@ Carpeta para **artefactos de validación** (Stripe, backups, E2E) que el equipo 
 
 ## Runbooks relacionados (no sustituyen las plantillas)
 
+- **Seguridad (vulnerabilidades):** no usar esta carpeta para reportes de CVE; seguir [`SECURITY.md`](../../../SECURITY.md) (divulgación responsable). Las plantillas de aquí son para **evidencia operativa** (Stripe, backup, E2E), no para sustituir el canal de seguridad.
 - Checklist Stripe producción / pre-live: [`docs/operacion/STRIPE-PROD-CHECKLIST.md`](../STRIPE-PROD-CHECKLIST.md)
 - Backup y política de restore: [`docs/operacion/BACKUP-SQL-SERVER.md`](../BACKUP-SQL-SERVER.md)
 - E2E manual / staging y secretos CI (WS6): [`docs/operacion/E2E-STAGING.md`](../E2E-STAGING.md)

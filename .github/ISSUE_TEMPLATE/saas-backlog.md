@@ -11,6 +11,7 @@ Antes de escribir el cuerpo del issue, copia y adapta el formato desde el invent
 
 - **Backlog e issues numerados:** `docs/ISSUES-SAAS-BACKLOG.md`
 - **Plan de cierre (go-live, workstreams, evidencias):** `docs/PLAN-CIERRE-PROYECTO.md`
+- **Hub de plantillas de evidencia (Stripe, backup, E2E):** `docs/operacion/evidence/README.md`
 
 ## Descripción
 
