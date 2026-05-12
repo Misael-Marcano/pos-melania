@@ -35,7 +35,7 @@
     "react-toastify": "^11.1.0",
     "recharts": "^2.12.7",
     "tailwind-merge": "^2.4.0",
-    "zod": "^3.23.8",
+    "zod": "^4.4.3",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
