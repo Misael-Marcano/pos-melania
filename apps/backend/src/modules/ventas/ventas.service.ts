@@ -12,7 +12,9 @@ import { AppError }      from '../../middlewares/error.middleware';
 import { getPagination } from '../../utils/pagination';
 import { resolveFiscalProvider } from '../../fiscal';
 import { registrarMovimiento } from '../inventario/inventario.service';
-import { CreateVentaDto, UpdateVentaDto, FullUpdateVentaDto, AperturaCajaDto, CierreCajaDto } from './dto/ventas.dto';
+import { CreateVentaDto, UpdateVentaDto, FullUpdateVentaDto, AperturaCajaDto, CierreCajaDto, CAJA_DENOMINACIONES } from './dto/ventas.dto';
+import { computeFullUpdateVentaTotals, fullUpdateVentaTotalViolationMessage } from './ventas-full-update-totals';
+import { stripVentaDetalleParentRef, syncFullUpdateVentaDetalleGraph } from './ventas-full-update-detail-graph';
 import { AuthUser } from '@pos/shared';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { Brackets, EntityManager, SelectQueryBuilder } from 'typeorm';
@@ -24,12 +26,49 @@ const artRepo     = () => AppDataSource.getRepository(Articulo);
 const clienteRepo = () => AppDataSource.getRepository(Cliente);
 const cajaRepo    = () => AppDataSource.getRepository(CajaApertura);
 const cajaCatalog = () => AppDataSource.getRepository(Caja);
-const tiendaRepo  = () => AppDataSource.getRepository(Tienda);
 
 // Denominaciones RD$
-export const DENOMINACIONES = ['2000','1000','500','200','100','50','25','10','5','1'];
+export const DENOMINACIONES = [...CAJA_DENOMINACIONES];
 
 export class VentasService {
+  private static readonly MAX_CAJA_AMOUNT = 10_000_000;
+
+  private static roundCurrency(value: number): number {
+    return Math.round(Number(value) * 100) / 100;
+  }
+
+  private static denominacionesTotal(denominaciones: Record<string, number>): number {
+    return VentasService.roundCurrency(
+      DENOMINACIONES.reduce(
+        (total, denominacion) => total + (denominaciones[denominacion] ?? 0) * Number(denominacion),
+        0,
+      ),
+    );
+  }
+
+  private assertCajaSessionAccess(user: AuthUser, apertura: CajaApertura): void {
+    assertTiendaCaja(user, apertura.tienda?.id ?? apertura.caja?.tienda?.id);
+    assertTenantForTienda(user, apertura.tienda ?? apertura.caja?.tienda);
+
+    if (user.rol === 'cajero') {
+      const ownerId = apertura.usuario?.id ?? (apertura as { usuarioId?: number }).usuarioId;
+      if (ownerId == null || Number(ownerId) !== Number(user.id)) {
+        throw new AppError('Esta sesión de caja pertenece a otro cajero.', 403);
+      }
+    }
+  }
+
+  private assertMontoCajaValido(monto: number, denominaciones: Record<string, number>, campo: string): number {
+    const rounded = VentasService.roundCurrency(monto);
+    if (!Number.isFinite(rounded) || rounded < 0 || rounded > VentasService.MAX_CAJA_AMOUNT) {
+      throw new AppError(`${campo} inválido`, 422);
+    }
+    const total = VentasService.denominacionesTotal(denominaciones);
+    if (Math.abs(total - rounded) > 0.001) {
+      throw new AppError(`${campo} no coincide con el conteo de denominaciones`, 422);
+    }
+    return rounded;
+  }
 
   /**
    * Aislamiento multi-tenant: venta con sesión de caja → tienda de la sesión (apertura o catálogo caja);
@@ -126,6 +165,9 @@ export class VentasService {
     else if (estado === 'activa') qb.andWhere("CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) != 1");
 
     const [data, total] = await qb.getManyAndCount();
+    for (const row of data) {
+      stripVentaDetalleParentRef(row);
+    }
     return { data, total, page, limit };
   }
 
@@ -141,6 +183,7 @@ export class VentasService {
       ],
     });
     if (!v) throw new AppError('Venta no encontrada', 404);
+    stripVentaDetalleParentRef(v);
     return v;
   }
 
@@ -284,7 +327,9 @@ export class VentasService {
           : {}),
       });
 
-      return manager.save(Venta, venta);
+      const saved = await manager.save(Venta, venta);
+      stripVentaDetalleParentRef(saved);
+      return saved;
     });
   }
 
@@ -348,6 +393,33 @@ export class VentasService {
         venta.cliente = dto.clienteId ? { id: dto.clienteId } as any : null as any;
       }
       if ('notas' in dto) venta.notas = dto.notas ?? undefined;
+      const descuento = dto.descuento ?? Number(venta.descuento ?? 0);
+      const {
+        esDelivery,
+        deliveryCargo,
+        deliveryDireccion,
+        total,
+      } = computeFullUpdateVentaTotals({
+        subtotal: Number(venta.subtotal ?? 0),
+        descuento,
+        venta: {
+          esDelivery: venta.esDelivery,
+          deliveryCargo: venta.deliveryCargo,
+          deliveryDireccion: venta.deliveryDireccion,
+        },
+        dto: {
+          esDelivery: dto.esDelivery,
+          deliveryCargo: dto.deliveryCargo,
+          deliveryDireccion: dto.deliveryDireccion,
+        },
+      });
+      const totalViolation = fullUpdateVentaTotalViolationMessage(total);
+      if (totalViolation) throw new AppError(totalViolation, 400);
+      venta.descuento = descuento;
+      venta.esDelivery = esDelivery;
+      venta.deliveryCargo = deliveryCargo;
+      venta.deliveryDireccion = deliveryDireccion;
+      venta.total = total;
 
       const nuevoMetodo    = venta.metodoPago;
       const nuevoClienteId = 'clienteId' in dto ? dto.clienteId : viejoClienteId;
@@ -361,7 +433,9 @@ export class VentasService {
         }
       }
 
-      return manager.save(Venta, venta);
+      const saved = await manager.save(Venta, venta);
+      stripVentaDetalleParentRef(saved);
+      return saved;
     });
   }
 
@@ -420,23 +494,54 @@ export class VentasService {
         }));
       }
       await manager.save(VentaDetalle, nuevosDetalles);
+      syncFullUpdateVentaDetalleGraph(venta, nuevosDetalles);
 
       // 5. Actualizar cabecera
       const descuento = dto.descuento ?? 0;
+      const {
+        esDelivery,
+        deliveryCargo,
+        deliveryDireccion,
+        total,
+      } = computeFullUpdateVentaTotals({
+        subtotal,
+        descuento,
+        venta: {
+          esDelivery: venta.esDelivery,
+          deliveryCargo: venta.deliveryCargo,
+          deliveryDireccion: venta.deliveryDireccion,
+        },
+        dto: {
+          esDelivery: dto.esDelivery,
+          deliveryCargo: dto.deliveryCargo,
+          deliveryDireccion: dto.deliveryDireccion,
+        },
+      });
+      const totalViolation = fullUpdateVentaTotalViolationMessage(total);
+      if (totalViolation) throw new AppError(totalViolation, 400);
       venta.subtotal  = subtotal;
       venta.descuento = descuento;
-      venta.total     = subtotal - descuento;
+      venta.esDelivery = esDelivery;
+      venta.deliveryCargo = deliveryCargo;
+      venta.deliveryDireccion = deliveryDireccion;
+      venta.total     = total;
       venta.metodoPago = dto.metodoPago;
-      venta.cliente   = dto.clienteId ? { id: dto.clienteId } as any : null as any;
-      venta.notas     = dto.notas ?? undefined;
+      if ('clienteId' in dto) {
+        venta.cliente = dto.clienteId ? { id: dto.clienteId } as any : null as any;
+      }
+      if ('notas' in dto) venta.notas = dto.notas ?? undefined;
 
-      // 6. Aplicar nuevo saldo crédito
-      if (dto.metodoPago === 'CREDITO' && dto.clienteId) {
-        const cli = await manager.findOne(Cliente, { where: { id: dto.clienteId } });
+      // 6. Aplicar nuevo saldo crédito (misma noción de cliente efectivo que update())
+      const clienteIdCredito =
+        'clienteId' in dto ? dto.clienteId : (venta.cliente?.id ?? null);
+      if (venta.metodoPago === 'CREDITO' && clienteIdCredito) {
+        const cli = await manager.findOne(Cliente, { where: { id: clienteIdCredito } });
         if (cli) { cli.saldo += venta.total; await manager.save(Cliente, cli); }
       }
 
-      return manager.save(Venta, venta);
+      const saved = await manager.save(Venta, venta);
+      stripVentaDetalleParentRef(saved);
+      return saved;
     });
   }
 
@@ -478,129 +583,142 @@ export class VentasService {
   // ── CAJA ──────────────────────────────────────────────────────────────────
 
   async abrirCaja(dto: AperturaCajaDto, user: AuthUser): Promise<CajaApertura> {
-    let nombre: string;
-    let tiendaRef: { id: number } | undefined;
-    let cajaEnt: Caja | undefined;
+    const montoApertura = this.assertMontoCajaValido(dto.montoApertura, dto.denominaciones, 'Monto de apertura');
 
-    if (dto.cajaId) {
-      const caja = await cajaCatalog().findOne({
-        where: { id: dto.cajaId },
-        relations: ['tienda', 'tienda.tenant'],
-      });
-      if (!caja) throw new AppError('Caja no encontrada', 404);
-      if (!caja.activo) throw new AppError('La caja está desactivada', 400);
-      nombre = caja.nombre;
-      const tid = caja.tienda?.id ?? (caja as { tiendaId?: number }).tiendaId;
-      if (tid) tiendaRef = { id: tid };
-      cajaEnt = caja;
-    } else {
-      nombre = dto.cajaNombre!.trim();
-      tiendaRef = dto.tiendaId ? { id: dto.tiendaId } : undefined;
-    }
+    return AppDataSource.transaction('SERIALIZABLE', async (manager) => {
+      let nombre: string;
+      let tiendaRef: { id: number };
+      let cajaEnt: Caja | undefined;
 
-    if (dto.cajaId && cajaEnt) {
-      const tid = cajaEnt.tienda?.id ?? (cajaEnt as { tiendaId?: number }).tiendaId;
-      assertTiendaCaja(user, tid);
-      assertTenantForTienda(user, cajaEnt.tienda ?? undefined);
-    } else {
-      assertTiendaCaja(user, dto.tiendaId ?? null);
-      if (dto.tiendaId) {
-        const t = await tiendaRepo().findOne({
+      if (dto.cajaId) {
+        const caja = await manager.findOne(Caja, {
+          where: { id: dto.cajaId },
+          relations: ['tienda', 'tienda.tenant'],
+        });
+        if (!caja) throw new AppError('Caja no encontrada', 404);
+        if (!caja.activo) throw new AppError('La caja está desactivada', 400);
+        nombre = caja.nombre.trim();
+        const tid = caja.tienda?.id ?? (caja as { tiendaId?: number }).tiendaId;
+        assertTiendaCaja(user, tid);
+        assertTenantForTienda(user, caja.tienda ?? undefined);
+        if (tid == null) throw new AppError('La caja no tiene sucursal asignada.', 400);
+        tiendaRef = { id: tid };
+        cajaEnt = caja;
+      } else {
+        if (!dto.tiendaId) throw new AppError('Seleccione una sucursal para abrir caja', 422);
+        nombre = dto.cajaNombre!.trim();
+        const tienda = await manager.findOne(Tienda, {
           where: { id: dto.tiendaId },
           relations: ['tenant'],
         });
-        assertTenantForTienda(user, t ?? undefined);
+        if (!tienda) throw new AppError('Sucursal no encontrada', 404);
+        assertTiendaCaja(user, tienda.id);
+        assertTenantForTienda(user, tienda);
+        tiendaRef = { id: tienda.id };
       }
-    }
 
-    const abierta = await cajaRepo().findOne({
-      where: dto.cajaId
-        ? { caja: { id: dto.cajaId }, abierta: true }
-        : { cajaNombre: nombre, abierta: true },
-      relations: ['caja'],
-    });
-    if (abierta) throw new AppError(`La caja "${nombre}" ya está abierta`, 400);
+      const abierta = await manager.findOne(CajaApertura, {
+        where: cajaEnt
+          ? { caja: { id: cajaEnt.id }, abierta: true }
+          : { cajaNombre: nombre, tienda: { id: tiendaRef.id }, abierta: true },
+        relations: ['caja', 'tienda'],
+      });
+      if (abierta) throw new AppError(`La caja "${nombre}" ya está abierta`, 409);
 
-    const apertura = cajaRepo().create({
-      cajaNombre:             nombre,
-      montoApertura:          dto.montoApertura,
-      denominacionesApertura: JSON.stringify(dto.denominaciones),
-      usuario:                { id: user.id } as any,
-      tienda:                 tiendaRef as any,
-      caja:                   cajaEnt ? ({ id: cajaEnt.id } as any) : undefined,
+      const apertura = manager.create(CajaApertura, {
+        cajaNombre:             nombre,
+        montoApertura,
+        denominacionesApertura: JSON.stringify(dto.denominaciones),
+        usuario:                { id: user.id } as any,
+        tienda:                 tiendaRef as any,
+        caja:                   cajaEnt ? ({ id: cajaEnt.id } as any) : undefined,
+      });
+      return manager.save(CajaApertura, apertura);
     });
-    return cajaRepo().save(apertura);
   }
 
   async cerrarCaja(dto: CierreCajaDto, user: AuthUser): Promise<CajaApertura & { resumen: any }> {
-    const apertura = await cajaRepo().findOne({
-      where: { id: dto.aperturaId, abierta: true },
-      relations: ['usuario', 'tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
-    });
-    if (!apertura) throw new AppError('No se encontró caja abierta con ese ID', 404);
-    assertTiendaCaja(user, apertura.tienda?.id ?? apertura.caja?.tienda?.id);
-    assertTenantForTienda(user, apertura.tienda ?? apertura.caja?.tienda);
+    const montoCierre = this.assertMontoCajaValido(dto.montoCierre, dto.denominaciones, 'Monto de cierre');
+    const tenantId = tenantIdOrThrow(user);
 
-    // Calcular ventas durante la apertura
-    const hoy = apertura.fechaApertura;
-    const ahora = new Date();
-
-    const resumenVentas = await ventaRepo()
-      .createQueryBuilder('v')
-      .select('v.metodoPago', 'metodoPago')
-      .addSelect('COUNT(v.id)', 'cantidad')
-      .addSelect('SUM(v.total)', 'total')
-      .where('v.fecha >= :desde AND v.fecha <= :hasta', { desde: hoy, hasta: ahora })
-      .groupBy('v.metodoPago')
-      .getRawMany();
-
-    apertura.montoCierre           = dto.montoCierre;
-    apertura.denominacionesCierre  = JSON.stringify(dto.denominaciones);
-    apertura.fechaCierre           = ahora;
-    apertura.abierta               = false;
-    if (dto.notas !== undefined && String(dto.notas).trim() !== '')
-      apertura.notasCierre = String(dto.notas).trim();
-    else apertura.notasCierre = null;
-    const saved = await cajaRepo().save(apertura);
-
-    // ── Registrar gasto automático por delivery si hubo entregas en la sesión ─
-    const vw = VentasService.VENTAS_SESION_WHERE;
-    const [deliveryRow] = await AppDataSource.query(
-      `SELECT ISNULL(SUM(v.deliveryCargo), 0) AS total
-       FROM ventas v
-       WHERE ${vw} AND v.esDelivery = 1`,
-      [hoy, ahora, dto.aperturaId]
-    );
-    const totalDelivery = Number(deliveryRow?.total ?? 0);
-    if (totalDelivery > 0) {
-      const tiendaId = (apertura as { tiendaId?: number }).tiendaId
-        ?? apertura.tienda?.id
-        ?? apertura.caja?.tienda?.id;
-      const tenantId = tenantIdOrThrow(user);
-      const gasto = AppDataSource.getRepository(Gasto).create({
-        escribe:    `Pago delivery — cierre caja #${dto.aperturaId}`,
-        categoria:  'Delivery',
-        fecha:      ahora,
-        cantidad:   totalDelivery,
-        impuesto:   0,
-        tenant:     { id: tenantId } as any,
-        tienda:     tiendaId ? { id: tiendaId } as any : undefined,
-        aprobadoPor: { id: user.id } as any,
+    return AppDataSource.transaction('SERIALIZABLE', async (manager) => {
+      const apertura = await manager.findOne(CajaApertura, {
+        where: { id: dto.aperturaId },
+        relations: ['usuario', 'tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
+        lock: { mode: 'pessimistic_write' },
       });
-      await AppDataSource.getRepository(Gasto).save(gasto);
-    }
+      if (!apertura) throw new AppError('Apertura no encontrada', 404);
+      if (!apertura.abierta) throw new AppError('Esta sesión de caja ya está cerrada', 409);
+      this.assertCajaSessionAccess(user, apertura);
 
-    return { ...saved, resumen: resumenVentas };
+      const hoy = apertura.fechaApertura;
+      const ahora = new Date();
+      const vw = VentasService.VENTAS_SESION_WHERE;
+      const params = [hoy, ahora, dto.aperturaId, tenantId];
+
+      const resumenVentas = await manager.query(
+        `SELECT v.metodoPago, COUNT(v.id) AS cantidad, ISNULL(SUM(v.total), 0) AS total
+         FROM ventas v
+         WHERE ${vw}
+         GROUP BY v.metodoPago`,
+        params,
+      );
+
+      apertura.montoCierre           = montoCierre;
+      apertura.denominacionesCierre  = JSON.stringify(dto.denominaciones);
+      apertura.fechaCierre           = ahora;
+      apertura.abierta               = false;
+      if (dto.notas !== undefined && String(dto.notas).trim() !== '')
+        apertura.notasCierre = String(dto.notas).trim();
+      else apertura.notasCierre = null;
+      const saved = await manager.save(CajaApertura, apertura);
+
+      const [deliveryRow] = await manager.query(
+        `SELECT ISNULL(SUM(v.deliveryCargo), 0) AS total
+         FROM ventas v
+         WHERE ${vw} AND v.esDelivery = 1`,
+        params,
+      );
+      const totalDelivery = Number(deliveryRow?.total ?? 0);
+      if (totalDelivery > 0) {
+        const tiendaId = (apertura as { tiendaId?: number }).tiendaId
+          ?? apertura.tienda?.id
+          ?? apertura.caja?.tienda?.id;
+        const gasto = manager.create(Gasto, {
+          escribe:    `Pago delivery — cierre caja #${dto.aperturaId}`,
+          categoria:  'Delivery',
+          fecha:      ahora,
+          cantidad:   VentasService.roundCurrency(totalDelivery),
+          impuesto:   0,
+          tenant:     { id: tenantId } as any,
+          tienda:     tiendaId ? { id: tiendaId } as any : undefined,
+          aprobadoPor: { id: user.id } as any,
+        });
+        await manager.save(Gasto, gasto);
+      }
+
+      return { ...saved, resumen: resumenVentas };
+    });
   }
 
   async getCajaActiva(cajaNombre: string, user: AuthUser): Promise<CajaApertura | null> {
-    const s = await cajaRepo().findOne({
-      where: { cajaNombre, abierta: true },
-      relations: ['usuario', 'tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
-    });
+    const tenantId = tenantIdOrThrow(user);
+    const qb = cajaRepo()
+      .createQueryBuilder('ca')
+      .leftJoinAndSelect('ca.usuario', 'u')
+      .leftJoinAndSelect('ca.tienda', 't')
+      .leftJoinAndSelect('t.tenant', 'tt')
+      .leftJoinAndSelect('ca.caja', 'c')
+      .leftJoinAndSelect('c.tienda', 'ct')
+      .leftJoinAndSelect('ct.tenant', 'ctt')
+      .where('ca.cajaNombre = :cajaNombre', { cajaNombre })
+      .andWhere('ca.abierta = :abierta', { abierta: true })
+      .andWhere('((t.id IS NOT NULL AND tt.id = :tenantId) OR (ct.id IS NOT NULL AND ctt.id = :tenantId))', { tenantId });
+    const tiendaId = tiendaIdForUserOrThrow(user);
+    if (tiendaId != null) qb.andWhere('(t.id = :tiendaId OR ct.id = :tiendaId)', { tiendaId });
+    const s = await qb.getOne();
     if (!s) return null;
-    assertTiendaCaja(user, s.tienda?.id ?? s.caja?.tienda?.id);
-    assertTenantForTienda(user, s.tienda ?? s.caja?.tienda);
+    this.assertCajaSessionAccess(user, s);
     return s;
   }
 
@@ -613,16 +731,23 @@ export class VentasService {
     if (!cat) return null;
     assertTiendaCaja(user, cat.tienda?.id ?? (cat as { tiendaId?: number }).tiendaId);
     assertTenantForTienda(user, cat.tienda ?? undefined);
-    return cajaRepo().findOne({
+    const s = await cajaRepo().findOne({
       where: { caja: { id: cajaId }, abierta: true },
       relations: ['usuario', 'tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
     });
+    if (!s) return null;
+    this.assertCajaSessionAccess(user, s);
+    return s;
   }
 
-  /** @0 desde @1 hasta @2 aperturaId */
+  /** @0 desde @1 hasta @2 aperturaId @3 tenantId */
   private static readonly VENTAS_SESION_WHERE = `
     v.fecha >= @0 AND v.fecha <= @1
     AND CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) = 0
+    AND EXISTS (
+      SELECT 1 FROM usuarios vu
+      WHERE vu.id = v.usuarioId AND vu.tenantId = @3
+    )
     AND (
       v.cajaAperturaId = @2
       OR (
@@ -656,18 +781,18 @@ export class VentasService {
   }> {
     const apertura = await cajaRepo().findOne({
       where: { id: aperturaId },
-      relations: ['tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
+      relations: ['usuario', 'tienda', 'tienda.tenant', 'caja', 'caja.tienda', 'caja.tienda.tenant'],
     });
     if (!apertura) throw new AppError('Apertura no encontrada', 404);
-    assertTiendaCaja(user, apertura.tienda?.id ?? apertura.caja?.tienda?.id);
-    assertTenantForTienda(user, apertura.tienda ?? apertura.caja?.tienda);
+    this.assertCajaSessionAccess(user, apertura);
 
     const desde = apertura.fechaApertura;
     /** Cierre contable: si la sesión ya cerró, no incluir ventas/gastos posteriores al cierre */
     const hasta = !apertura.abierta && apertura.fechaCierre ? apertura.fechaCierre : new Date();
     const ds = AppDataSource;
     const vw = VentasService.VENTAS_SESION_WHERE;
-    const p = [desde, hasta, aperturaId];
+    const tenantId = tenantIdOrThrow(user);
+    const p = [desde, hasta, aperturaId, tenantId];
 
     const [efectivo] = await ds.query(
       `SELECT ISNULL(SUM(v.total), 0) AS totalEfectivo
@@ -694,13 +819,14 @@ export class VentasService {
         `SELECT ISNULL(SUM(g.cantidad), 0) AS totalGastos
          FROM gastos g
          WHERE g.fecha >= @0 AND g.fecha <= @1
+           AND g.tenantId = @3
            AND (g.tiendaId IS NULL OR g.tiendaId = @2)`,
-        [desde, hasta, tiendaId]
+        [desde, hasta, tiendaId, tenantId]
       )
       : await ds.query(
         `SELECT ISNULL(SUM(g.cantidad), 0) AS totalGastos
-         FROM gastos g WHERE g.fecha >= @0 AND g.fecha <= @1`,
-        [desde, hasta]
+         FROM gastos g WHERE g.fecha >= @0 AND g.fecha <= @1 AND g.tenantId = @2`,
+        [desde, hasta, tenantId]
       );
 
     const porMetodo = await ds.query(
@@ -715,16 +841,18 @@ export class VentasService {
       ? await ds.query(
         `SELECT g.id, g.escribe, g.categoria, g.cantidad, g.fecha AS fecha
          FROM gastos g
-         WHERE g.fecha >= @0 AND g.fecha <= @1 AND (g.tiendaId IS NULL OR g.tiendaId = @2)
+         WHERE g.fecha >= @0 AND g.fecha <= @1
+           AND g.tenantId = @3
+           AND (g.tiendaId IS NULL OR g.tiendaId = @2)
          ORDER BY g.fecha ASC, g.id ASC`,
-        [desde, hasta, tiendaId]
+        [desde, hasta, tiendaId, tenantId]
       )
       : await ds.query(
         `SELECT g.id, g.escribe, g.categoria, g.cantidad, g.fecha AS fecha
          FROM gastos g
-         WHERE g.fecha >= @0 AND g.fecha <= @1
+         WHERE g.fecha >= @0 AND g.fecha <= @1 AND g.tenantId = @2
          ORDER BY g.fecha ASC, g.id ASC`,
-        [desde, hasta]
+        [desde, hasta, tenantId]
       );
 
     const [cnt] = await ds.query(
@@ -741,8 +869,12 @@ export class VentasService {
       `SELECT COUNT(*) AS n FROM ventas v
        WHERE v.fecha >= @0 AND v.fecha <= @1
          AND CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) > 0
-         AND v.cajaAperturaId = @2`,
-      [desde, hasta, aperturaId]
+         AND v.cajaAperturaId = @2
+         AND EXISTS (
+           SELECT 1 FROM usuarios vu
+           WHERE vu.id = v.usuarioId AND vu.tenantId = @3
+         )`,
+      p
     );
 
     const ventasMix = await ds.query(
@@ -1109,6 +1241,9 @@ export class VentasService {
       if (tid != null) {
         qb.andWhere('(t.id = :tid OR ct.id = :tid)', { tid });
       }
+      if (user.rol === 'cajero') {
+        qb.andWhere('u.id = :uid', { uid: user.id });
+      }
     }
 
     const [data, total] = await qb.skip(skip).take(limit).getManyAndCount();
@@ -1135,6 +1270,9 @@ export class VentasService {
       .orderBy('ca.cajaNombre', 'ASC');
     if (tid != null) {
       qb.andWhere('(t.id = :tid OR ct.id = :tid)', { tid });
+    }
+    if (user.rol === 'cajero') {
+      qb.andWhere('u.id = :uid', { uid: user.id });
     }
     return qb.getMany();
   }
