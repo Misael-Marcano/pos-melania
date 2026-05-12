@@ -195,7 +195,7 @@ Seed adicional de tenant: `apps/backend/src/seeds/new-tenant.seed.ts` (documenta
 | Secretos (GitHub Actions + runtime) | `docs/operacion/SECRETS-RUNBOOK.md` |
 | Checklist caja | `docs/operacion/CHECKLIST-CAJA.md` |
 | Backlog issues SaaS | `docs/ISSUES-SAAS-BACKLOG.md` |
-| Cierre del proyecto (go-live, evidencias) | `docs/PLAN-CIERRE-PROYECTO.md` |
+| Cierre del proyecto (go-live, evidencias; **Índice — documentación de apoyo** WS1–WS6 en el mismo doc) | `docs/PLAN-CIERRE-PROYECTO.md` |
 | Visión de producto (alto nivel) | `VISION-PRODUCTO.md` |
 | Paquete compartido (`@pos/shared`) | `packages/shared/README.md` |
 | Checker enlaces en docs / landing (`verify:docs-links`) | `scripts/check-docs-links.mjs` |
