@@ -4,6 +4,8 @@
 
 ## Checklist
 
+- **Cierre / go-live (Stripe live, evidencia, WS1–WS6):** [`docs/PLAN-CIERRE-PROYECTO.md`](../docs/PLAN-CIERRE-PROYECTO.md) — ejecución humana y checklist; no declarar operativo cerrado sin artefactos acordados.
+- **Índice de apoyo:** sección *Índice — documentación de apoyo* en el mismo plan + hub [`docs/operacion/evidence/README.md`](../docs/operacion/evidence/README.md).
 - [ ] Tests relevantes pasan (unit / integración / e2e según el cambio). Si falla **integración** en CI o en local: [`docs/operacion/INTEGRATION-TESTS-LOCAL.md`](../docs/operacion/INTEGRATION-TESTS-LOCAL.md).
 - [ ] Fallos locales (PowerShell, Docker, DB, enlaces en docs) → `docs/operacion/TROUBLESHOOTING-DEV.md`.
 - [ ] No se commitean secretos ni `.env` con datos reales.
