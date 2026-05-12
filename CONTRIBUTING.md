@@ -51,6 +51,8 @@ Si cambias rutas públicas, contratos o documentación que deban compartirse con
 5. **Tests:** al menos `npm test` en backend para cambios de API o lógica; integración cuando el cambio afecte flujos multi-tenant o HTTP (ver tabla arriba).
 6. **Evidencia operativa:** plantillas y política en **[`docs/operacion/evidence/README.md`](docs/operacion/evidence/README.md)** (no versionar material sensible).
 
+En [`docs/PLAN-CIERRE-PROYECTO.md`](docs/PLAN-CIERRE-PROYECTO.md), la sección *Índice — documentación de apoyo* enlaza por workstream **WS1–WS6** los runbooks y plantillas; el hub de evidencia operativa sigue centralizado en [`docs/operacion/evidence/README.md`](docs/operacion/evidence/README.md).
+
 ## CI
 
 El workflow `.github/workflows/ci.yml` ejecuta typecheck, build frontend, tests unitarios del backend, el mismo paso de landing que **`npm run verify`** en la raíz (`node scripts/verify-plan-limits-landing.mjs`) y **`npm run verify:docs-links`**. Los tests de integración corren en **push a `main`** con servicios levantados en el job.
