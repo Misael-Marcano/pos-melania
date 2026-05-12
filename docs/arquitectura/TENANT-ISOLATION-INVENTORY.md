@@ -67,12 +67,16 @@
 | Empleados — id ajeno → 404 | `empleados-tenant-isolation.integration.test.ts` |
 | Kits — id ajeno → 403 | `kits-tenant-isolation.integration.test.ts` |
 | Proveedores — id ajeno → 403 | `proveedores-tenant-isolation.integration.test.ts` |
+| Promociones — id ajeno → 403 | `promociones-tenant-isolation.integration.test.ts` |
+| Cotizaciones — id ajeno → 404 | `cotizaciones-tenant-isolation.integration.test.ts` |
+| Tarjetas regalo — id ajeno → 403 | `tarjetas-regalo-tenant-isolation.integration.test.ts` |
+| Recetas — id ajeno → 404 | `recetas-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
-**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` si se exige cobertura exhaustiva (p. ej. promociones, cotizaciones, comprobantes, recetas, tarjetas-regalo, tiendas, cajas, auditoría); `clientes`, `gastos`, `empleados`, `kits` y `proveedores` ya tienen test (ver tabla arriba).
+**Brecha P1:** módulos **OK** en inventario sin test dedicado `*-tenant-isolation` si se exige cobertura exhaustiva (p. ej. **comprobantes**, **tiendas**, **cajas**, **auditoría**); `clientes`, `gastos`, `empleados`, `kits`, `proveedores`, `promociones`, `cotizaciones`, `tarjetas-regalo` y `recetas` ya tienen test (ver tabla arriba).
 
 ---
 
@@ -94,3 +98,4 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 | 2026-05-11 | Añadido `configuracion-tenant-isolation.integration.test.ts`; brecha P1 de configuración cerrada. |
 | 2026-05 | Mención breve de accesibilidad (a11y) en páginas públicas legales y demo (`/terminos`, `/privacidad`, `/solicitar-demo`, `/cuenta-suspendida`); sin reclasificar rutas API. |
 | 2026-05-12 | Tests `empleados-`, `kits-`, `proveedores-tenant-isolation.integration.test.ts`; brecha P1 actualizada. |
+| 2026-05-12 | Tests `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts`; brecha P1 = comprobantes, tiendas, cajas, auditoría. |

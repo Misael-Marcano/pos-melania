@@ -37,7 +37,7 @@ Las **Fases 1–5** siguientes tienen `[x]` donde la capacidad está **implement
 - [x] Tests de integración API — `npm run test:integration` en `apps/backend` (auth, perfil, listado ventas, detalle + auditoría recibo si hay datos, `GET /saas/context`; requiere **SQL Server + Redis** y seed `admin@pos.com`)
 - [x] Tests focalizados: cierre de caja / `resumenCaja` — mismo `npm run test:integration` (`describe` «caja + resumenCaja»)
 - [x] Integración: **límites de plan** (`starter` → 403 en alta de usuario / sucursal) — `src/__tests__/integration/enforce-plan.integration.test.ts`
-- [x] Integración multi-tenant: **ventas** (detalle ajeno → 404), **reportes** (cierre ajeno), **inventario** (detalle ajeno → 404), **compras** (detalle ajeno → 403), **devoluciones** (detalle ajeno → 404) — `*-tenant-isolation.integration.test.ts`; helper `helpers/other-tenant-auth.ts`
+- [x] Integración multi-tenant: **ventas** (detalle ajeno → 404), **reportes** (cierre ajeno), **inventario** (detalle ajeno → 404), **compras** (detalle ajeno → 403), **devoluciones** (detalle ajeno → 404), **clientes/gastos/empleados/kits/proveedores**, **promociones** y **tarjetas-regalo** (GET ajeno → 403), **cotizaciones** y **recetas** (GET ajeno → 404) — `*-tenant-isolation.integration.test.ts`; helper `helpers/other-tenant-auth.ts`
 
 ## Fase 3 — Observabilidad y endurecimiento
 
