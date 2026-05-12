@@ -3,5 +3,12 @@
   "version": "1.0.0",
   "description": "Tipos y utilidades compartidas entre apps del monorepo POS.",
   "main": "types/index.d.ts",
-  "types": "types/index.d.ts"
+  "types": "types/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "npm run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
 }

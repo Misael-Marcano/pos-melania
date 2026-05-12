@@ -189,6 +189,34 @@ Continuidad una vez Semana 1 iniciada; puede solaparse con WS2–WS5.
 - [x] Verificación de enlaces internos en `docs/` integrada en `npm run verify` (`verify:docs-links` / `scripts/check-docs-links.mjs`).
 - [x] Hub de troubleshooting de desarrollo (`docs/operacion/TROUBLESHOOTING-DEV.md`) enlazado desde runbooks y README.
 - [x] `CONTRIBUTING.md` ampliado con ejemplos prácticos (clone, tests por paquete, PR).
+- [x] Test backend de acceso por tienda (`tienda-access.test.ts`).
+- [x] Mejoras de accesibilidad (a11y) en `select-organizacion/page.tsx` (selector de organización).
+- [x] Nota en `docs/operacion/E2E-STAGING.md` sobre smoke CI (workflow / expectativas del job).
+- [x] `app-error.test.ts` — caso **5xx**.
+- [x] Mejoras de accesibilidad (a11y) en `plataforma/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `auditoria/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `inventario/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `ventas/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `reportes/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `clientes/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `compras/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `proveedores/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `gastos/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `promociones/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `cotizaciones/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `devoluciones/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `kits/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `tarjeta-de-regalo/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `empleados/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `recetas/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `comprobante/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `cajas/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y) en `tiendas/page.tsx`.
+- [x] Mejoras de accesibilidad (a11y): landmark `<main>` en rutas `/configuracion`, `/inventario/buscar`, `/ventas/cierres-caja` y `/ventas/historial`.
+- [x] **Ventas / login:** `PUT /ventas/:id` (actualización completa con **delivery**, total alineado) + **VentaModal** (rejilla de pago, UI de entrega); login — `<main>`, `h1` sr-only y `h2` visible (`apps/frontend/src/app/(auth)/login/page.tsx`).
+- [x] **Ventas (fix backend) — edición completa sin cascade roto:** `fullUpdate` en `apps/backend/src/modules/ventas/ventas.service.ts` sincroniza el grafo de `venta.detalles` vía `syncFullUpdateVentaDetalleGraph` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`); evita que el cascade de TypeORM emita `UPDATE venta_detalles SET ventaId = NULL` sobre filas ya borradas y rompa SQL Server (`Cannot insert the value NULL into column 'ventaId'`).
+- [x] **Ventas — respuestas HTTP sin JSON circular:** `stripVentaDetalleParentRef` (`ventas-full-update-detail-graph.ts`) aplicado en `ventas.service.ts` tras la persistencia / sync de detalles en `create`, `update`, `fullUpdate` y en `findById`, eliminando la referencia padre en cada línea para que `Venta.detalles` no cierre ciclo con `Venta` al responder (`sendSuccess` / `res.json`).
+- [x] **Suite integración backend:** verde tras correcciones en `tenant-usage.ts` (conteos de ventas sin `anulada`), **403** desde `AppError` en `sendFail`/controladores, `findOne`+`where` en tests, `tienda` en apertura de caja, orden de teardown en configuración (FK) y esquema Zod de cotización (`clienteId`).
 
 - Las iteraciones recientes en repo se orientaron principalmente a **DX y documentación**: runbooks, `verify:docs-links`, hub de troubleshooting en `docs/operacion/TROUBLESHOOTING-DEV.md` y aclaraciones en CI (jobs/comentarios útiles al contribuir).
 - El **backlog de producto/ingeniería** y el cierre **humano** descrito en WS1–WS6 siguen pendientes; este documento ordena ese trabajo, no lo marca como hecho.

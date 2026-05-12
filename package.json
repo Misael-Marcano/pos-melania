@@ -14,9 +14,10 @@
     "dev:backend": "npm run dev --workspace=apps/backend",
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "test:e2e": "npm run test:e2e --workspace=apps/frontend",
-    "verify": "npm run verify:landing-plans && npm run verify:docs-links",
+    "verify": "npm run verify:landing-plans && npm run verify:docs-links && npm run verify:shared",
     "verify:landing-plans": "node scripts/verify-plan-limits-landing.mjs",
     "verify:docs-links": "node scripts/check-docs-links.mjs",
+    "verify:shared": "npm run typecheck -w @pos/shared",
     "build": "npm run build --workspaces",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"

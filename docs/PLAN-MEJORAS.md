@@ -88,6 +88,33 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] Verificación de enlaces internos en documentación en CI (`npm run verify:docs-links` vía `scripts/check-docs-links.mjs`, paso en `.github/workflows/ci.yml`).
 - [x] Tests de acceso por tienda (`apps/backend/src/__tests__/tienda-access.test.ts`).
 - [x] Mejoras de accesibilidad (a11y) en selección de organización (`apps/frontend/src/app/select-organizacion/page.tsx`).
+- [x] Panel autenticado: contenedor semántico `<main>` en el layout del dashboard (`apps/frontend`, rutas bajo `/panel`).
+- [x] Tests fiscales ampliados en backend (más cobertura en `apps/backend/src/__tests__/fiscal/` y escenarios NCF asociados).
+- [x] E2E: nota de smoke y ejecución mínima documentada en `apps/frontend/e2e/README.md`.
+- [x] Tests `AppError` incluyen caso **5xx** (`apps/backend/src/__tests__/app-error.test.ts`).
+- [x] Mejoras de accesibilidad (a11y) en auditoría: landmark `<main>` (`apps/frontend/src/app/(dashboard)/auditoria/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en inventario: landmark `<main>` (`apps/frontend/src/app/(dashboard)/inventario/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en ventas: landmark `<main>` (`apps/frontend/src/app/(dashboard)/ventas/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en reportes: landmark `<main>` (`apps/frontend/src/app/(dashboard)/reportes/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en clientes: landmark `<main>` (`apps/frontend/src/app/(dashboard)/clientes/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en compras: landmark `<main>` (`apps/frontend/src/app/(dashboard)/compras/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en proveedores: landmark `<main>` (`apps/frontend/src/app/(dashboard)/proveedores/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en gastos: landmark `<main>` (`apps/frontend/src/app/(dashboard)/gastos/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en promociones: landmark `<main>` (`apps/frontend/src/app/(dashboard)/promociones/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en cotizaciones: landmark `<main>` (`apps/frontend/src/app/(dashboard)/cotizaciones/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en devoluciones: landmark `<main>` (`apps/frontend/src/app/(dashboard)/devoluciones/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en kits: landmark `<main>` (`apps/frontend/src/app/(dashboard)/kits/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en tarjetas regalo: landmark `<main>` (`apps/frontend/src/app/(dashboard)/tarjeta-de-regalo/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en empleados: landmark `<main>` (`apps/frontend/src/app/(dashboard)/empleados/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en recetas: landmark `<main>` (`apps/frontend/src/app/(dashboard)/recetas/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en comprobantes: landmark `<main>` (`apps/frontend/src/app/(dashboard)/comprobante/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en cajas: landmark `<main>` (`apps/frontend/src/app/(dashboard)/cajas/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y) en tiendas: landmark `<main>` (`apps/frontend/src/app/(dashboard)/tiendas/page.tsx`).
+- [x] Mejoras de accesibilidad (a11y): landmark `<main>` en `/configuracion`, `/inventario/buscar`, `/ventas/cierres-caja` y `/ventas/historial` (páginas bajo `apps/frontend/src/app/(dashboard)/`).
+- [x] **Ventas:** edición `PUT /ventas/:id` con campos de **delivery** y total coherente con entrega (backend DTO/servicio); **VentaModal** — métodos de pago en rejilla y UI de delivery más clara. **Login:** landmark `<main>`, `h1` sr-only y `h2` visible en `apps/frontend/src/app/(auth)/login/page.tsx`.
+- [x] **Ventas (fix backend):** edición completa de venta no rompe SQL Server por `venta_detalles.ventaId NULL`. `fullUpdate` en `apps/backend/src/modules/ventas/ventas.service.ts` ahora invoca `syncFullUpdateVentaDetalleGraph` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) para reatachar los `VentaDetalle` recién persistidos al `Venta` cargado antes del `manager.save`, de modo que el cascade de TypeORM no emite `UPDATE venta_detalles SET ventaId = NULL` sobre las filas borradas.
+- [x] **Ventas (JSON serializable):** `stripVentaDetalleParentRef` en el mismo módulo (`ventas-full-update-detail-graph.ts`) elimina `detalles[].venta` antes de serializar; `ventas.service.ts` lo invoca al cerrar `findById`, `create`, `update` y `fullUpdate` (después del sync de grafo en `fullUpdate`) para que las respuestas de venta no fallen por ciclo objeto ↔ `JSON.stringify` / `sendSuccess`; tests en `ventas-full-update-detail-graph.test.ts`.
+- [x] **Integración backend en verde:** `apps/backend/src/saas/tenant-usage.ts` (ventas sin columna `anulada`); propagación **403** desde `AppError` vía `sendFail`/controladores; `findOne` con `where` en suites de integración; caja apertura con `tienda`; teardown de `configuracion` y FK; cotización — Zod `clienteId`.
 
 ## Notas
 

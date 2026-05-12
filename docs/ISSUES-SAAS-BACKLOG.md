@@ -23,6 +23,35 @@ Hechos verificables en el repo (orientación para priorizar issues; no sustituye
 - [x] Refuerzo Playwright `e2e/smoke.spec.ts`.
 - [x] `tienda-access.test.ts` (`apps/backend/src/__tests__/tienda-access.test.ts`).
 - [x] Accesibilidad en `select-organizacion/page.tsx` (`apps/frontend/src/app/select-organizacion/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en panel dashboard: landmark `<main>` en `apps/frontend/src/app/(dashboard)/panel/page.tsx`.
+- [x] Ampliación de tests `resolve-fiscal-provider` en `apps/backend/src/__tests__/fiscal/resolve-fiscal-provider.test.ts`.
+- [x] Nota smoke / CI staging en `apps/frontend/e2e/README.md` (enlace a `docs/operacion/E2E-STAGING.md`, `smoke.spec.ts`, secretos E2E).
+- [x] `app-error.test.ts` (`apps/backend/src/__tests__/app-error.test.ts`).
+- [x] Accesibilidad en `plataforma/page.tsx` (`apps/frontend/src/app/(dashboard)/plataforma/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Cobertura extra `AppError` con status **5xx** en `apps/backend/src/__tests__/app-error.test.ts` (sin DB).
+- [x] Accesibilidad en `auditoria/page.tsx` (`apps/frontend/src/app/(dashboard)/auditoria/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `inventario/page.tsx` (`apps/frontend/src/app/(dashboard)/inventario/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `ventas/page.tsx` (`apps/frontend/src/app/(dashboard)/ventas/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `reportes/page.tsx` (`apps/frontend/src/app/(dashboard)/reportes/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `clientes/page.tsx` (`apps/frontend/src/app/(dashboard)/clientes/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `compras/page.tsx` (`apps/frontend/src/app/(dashboard)/compras/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `proveedores/page.tsx` (`apps/frontend/src/app/(dashboard)/proveedores/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `gastos/page.tsx` (`apps/frontend/src/app/(dashboard)/gastos/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `promociones/page.tsx` (`apps/frontend/src/app/(dashboard)/promociones/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `cotizaciones/page.tsx` (`apps/frontend/src/app/(dashboard)/cotizaciones/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `devoluciones/page.tsx` (`apps/frontend/src/app/(dashboard)/devoluciones/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `kits/page.tsx` (`apps/frontend/src/app/(dashboard)/kits/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `tarjeta-de-regalo/page.tsx` (`apps/frontend/src/app/(dashboard)/tarjeta-de-regalo/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `empleados/page.tsx` (`apps/frontend/src/app/(dashboard)/empleados/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `recetas/page.tsx` (`apps/frontend/src/app/(dashboard)/recetas/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `comprobante/page.tsx` (`apps/frontend/src/app/(dashboard)/comprobante/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `cajas/page.tsx` (`apps/frontend/src/app/(dashboard)/cajas/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad en `tiendas/page.tsx` (`apps/frontend/src/app/(dashboard)/tiendas/page.tsx`): landmark `<main>` y `h1` sr-only.
+- [x] Accesibilidad: landmark `<main>` en `/configuracion`, `/inventario/buscar`, `/ventas/cierres-caja` y `/ventas/historial` (`apps/frontend/src/app/(dashboard)/configuracion/page.tsx`, `apps/frontend/src/app/(dashboard)/inventario/buscar/page.tsx`, `apps/frontend/src/app/(dashboard)/ventas/cierres-caja/page.tsx`, `apps/frontend/src/app/(dashboard)/ventas/historial/page.tsx`).
+- [x] **Ventas (edición completa):** `PUT /ventas/:id` acepta campos de **delivery** y el total queda alineado con entrega; DTO/servicio backend acorde. **VentaModal** (`apps/frontend/src/components/ventas/VentaModal.tsx`): rejilla de método de pago y conmutador/UI de entrega más claros. **Login (a11y):** `apps/frontend/src/app/(auth)/login/page.tsx` — `<main>`, `h1` sr-only y `h2` visible.
+- [x] **Ventas (edición completa) — fix backend cascade:** `fullUpdate` (`apps/backend/src/modules/ventas/ventas.service.ts`) ya no deja `venta.detalles` apuntando a filas borradas; nuevo helper `syncFullUpdateVentaDetalleGraph` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) reengancha los `VentaDetalle` recién persistidos al `Venta` antes de `manager.save`, evitando que el cascade de TypeORM emita `UPDATE venta_detalles SET ventaId = NULL` y rompa SQL Server (`Cannot insert the value NULL into column 'ventaId'`).
+- [x] **Ventas (respuestas API / JSON):** `stripVentaDetalleParentRef` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) se aplica en `findById`, `create`, `update` y `fullUpdate` de `apps/backend/src/modules/ventas/ventas.service.ts` (tras `syncFullUpdateVentaDetalleGraph` donde aplica, antes de devolver al controlador) para quitar en memoria `detalles[].venta` y evitar referencia circular `Venta ↔ VentaDetalle` que rompe `JSON.stringify` / `sendSuccess` / `res.json`; cobertura en `apps/backend/src/__tests__/ventas-full-update-detail-graph.test.ts`.
+- [x] **Integración backend (`npm run test:integration`) en verde:** `tenant-usage.ts` sin referencia a columna inexistente `anulada` en ventas; `sendFail`/controladores propagan **403** desde `AppError`; tests de integración con `findOne` y `where` correctos; apertura de caja con `tienda`; teardown de configuración respetando FK; DTO Zod de cotización (`clienteId`).
 
 Lista tipo GitHub para crear issues (copiar título + cuerpo). Etiquetas sugeridas: `saas`, `p0`, `p1`, `security`, `billing`, `ops`, `product`.
 

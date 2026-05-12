@@ -33,7 +33,8 @@ Variables de entorno: copia desde `.env.example` a `apps/backend/.env` y `apps/f
 | Integración HTTP | `cd apps/backend && npm run test:integration` | Requiere SQL Server + Redis, migraciones y seed. Guía paso a paso: **[`docs/operacion/INTEGRATION-TESTS-LOCAL.md`](docs/operacion/INTEGRATION-TESTS-LOCAL.md)**. |
 | E2E (Playwright) | `cd apps/frontend && npm run test:e2e` | Credenciales y base URL: `apps/frontend/e2e/README.md`. |
 
-- Ejemplo de test **puro** sin BD: `apps/backend/src/__tests__/plan-limits.test.ts` (`cd apps/backend && npm test` lo ejecuta); otro: `apps/backend/src/__tests__/trial-pure.test.ts` (fake timers / `trialStateFromEndsAt`); `apps/backend/src/__tests__/tenant-access.test.ts` (JWT / branching tenant sin DB); `apps/backend/src/__tests__/tienda-access.test.ts` (helpers tienda/caja sin DB).
+- Ejemplo de test **puro** sin BD: `apps/backend/src/__tests__/plan-limits.test.ts` (`cd apps/backend && npm test` lo ejecuta); otro: `apps/backend/src/__tests__/trial-pure.test.ts` (fake timers / `trialStateFromEndsAt`); `apps/backend/src/__tests__/tenant-access.test.ts` (JWT / branching tenant sin DB); `apps/backend/src/__tests__/tienda-access.test.ts` (helpers tienda/caja sin DB); `apps/backend/src/__tests__/app-error.test.ts` (clase `AppError`: `message` / `statusCode` / herencia de `Error`, sin servidor ni BD).
+  - A11y: la página `apps/frontend/src/app/(dashboard)/plataforma/page.tsx` envuelve su contenido en un landmark `<main aria-labelledby="plataforma-heading">` para que lectores de pantalla y auditorías (axe / Lighthouse) reconozcan la región principal; si añades páginas nuevas en `(dashboard)`, mantén ese patrón.
 
 Desde la raíz también: `npm run test:e2e` (reenvía al workspace frontend).
 

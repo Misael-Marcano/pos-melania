@@ -6,11 +6,32 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      prod-http-and-lodash:
+        dependency-type: production
+        patterns:
+          - "axios"
+          - "follow-redirects"
+          - "lodash"
   - package-ecosystem: npm
     directory: /apps/backend
     schedule:
       interval: monthly
+    groups:
+      prod-http-and-lodash:
+        dependency-type: production
+        patterns:
+          - "axios"
+          - "follow-redirects"
+          - "lodash"
   - package-ecosystem: npm
     directory: /apps/frontend
     schedule:
       interval: monthly
+    groups:
+      prod-http-and-lodash:
+        dependency-type: production
+        patterns:
+          - "axios"
+          - "follow-redirects"
+          - "lodash"
