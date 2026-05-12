@@ -69,7 +69,7 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 | **Estado en repo** | Código billing/webhook/portal **implementado**; checklist del plan maestro: Stripe **live** y evidencia en log **pendientes** (`[ ]` en `docs/PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md`). Plantillas vacías o locales: `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md`. |
 | **Próximo paso concreto** | Ejecutar `docs/operacion/STRIPE-PROD-CHECKLIST.md` en entorno **live** (claves live, webhook URL prod, precios live); completar `STRIPE-VALIDATION-LOG.md` (copia en `evidence/` según `evidence/README.md`); solo entonces fijar en WS1 la fecha de `BILLING_ENFORCE_PAYMENT=true` si aplica. |
 | **Responsable sugerido** | **Ingeniería** (configuración técnica, pruebas); **Ops** (acceso dashboard Stripe, rotación secretos); **Comercial** (aceptación de mensajes de impago/suspensión). |
-| **Artefacto de evidencia** | `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` (relleno + fecha + responsable); export o notas auditable en `stripe_audit_logs` según checklist §8–10 del runbook Stripe. |
+| **Artefacto de evidencia** | `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` (relleno + fecha + responsable); export o notas auditable en `stripe_audit_logs` según checklist §8–10 del runbook Stripe. **Paridad con backup:** misma convención de evidencia que [`docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md`](operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md) (WS3) y hub [`docs/operacion/evidence/README.md`](operacion/evidence/README.md). |
 
 ---
 
@@ -139,6 +139,20 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 
 ---
 
+## Registro de avance (repo)
+
+Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítems operativos humanos de WS1–WS6 sin evidencia en repo).
+
+| Ítem | Estado | Nota | Fecha |
+|------|--------|------|-------|
+| Historial en `origin/main` agrupado por tema (ventas; backend auditoría + tests; frontend POS borrador + Vitest; chore monorepo) | Hecho | Push de commits locales ordenados al remoto | 2026-05-12 |
+| Chore `*.tsbuildinfo`; dejar de versionar `apps/frontend/tsconfig.tsbuildinfo` | Hecho | Referencia de historia: `6ccc9f1` | 2026-05-12 |
+| Docs troubleshooting Windows (rutas largas); enlaces en hub `docs/operacion/evidence/*` y plantilla `STRIPE-VALIDATION-LOG` | Hecho | Commit `c7dc102` | 2026-05-12 |
+| Gate `npm run verify` (incluye `verify:docs-links`) previo a sincronizar documentación de cierre | Hecho | Verificación local verde (mismo gate que enlaces internos en `docs/`) | 2026-05-12 |
+| **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
+
+---
+
 ## Semana 1 — checklist humano (arranque de cierre)
 
 Tareas **fuera del código** que desbloquean evidencia y fechas; orden sugerido dentro de la semana.
@@ -182,6 +196,9 @@ Continuidad una vez Semana 1 iniciada; puede solaparse con WS2–WS5.
 
 #### Últimas entregas (repo) — 2026-05
 
+- [x] Push a `origin/main` con commits agrupados por tema (ventas; backend auditoría y suites; frontend POS borrador + Vitest; chore monorepo).
+- [x] Chore `*.tsbuildinfo` y exclusión de `apps/frontend/tsconfig.tsbuildinfo` del índice git (historial: `6ccc9f1`).
+- [x] Documentación troubleshooting Windows (rutas largas), enlaces en `docs/operacion/evidence/*` y `STRIPE-VALIDATION-LOG` (historial: `c7dc102`).
 - [x] Tests unitarios de límites por plan (`plan-limits`) para validar enforcement SaaS sin levantar DB.
 - [x] Suite `trial-pure` (lógica de trial/fechas) aislada de integración.
 - [x] Helpers fiscales NCF + tests dedicados (`ncf-pure` / resolución de proveedor fiscal).
