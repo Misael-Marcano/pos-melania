@@ -12,67 +12,75 @@ Roadmap derivado del análisis del producto. Se va completando **por fases**; el
 
 ## Leyenda
 
-- Pendiente  
-- Hecho o iniciado en el repo
+- `[ ]` Pendiente (código, evidencia o tarea operativa por ejecutar)
+- `[x]` **Hecho en el repositorio** — código o documentación versionada verificada en el monorepo
+
+### Sincronización código ↔ docs (revisión 2026-05)
+
+Las **Fases 1–5** siguientes tienen `[x]` donde la capacidad está **implementada** en backend/frontend/migraciones/CI. Los checklists en `docs/operacion/*-CHECKLIST.md` siguen siendo **guías**; el cumplimiento en campo o ante DGII es **operación / normativa**, no una tarea de código en el repo. El **go-live humano** (Stripe live, backups, legal, alertas) permanece en [`docs/PLAN-CIERRE-PROYECTO.md`](PLAN-CIERRE-PROYECTO.md).
 
 ---
 
 ## Fase 1 — Documentación operativa y auditoría ampliada
 
-- Plan maestro (`docs/PLAN-MEJORAS.md`)
-- Checklist de reconciliación de caja (`docs/operacion/CHECKLIST-CAJA.md`)
-- Runbook de **backup** SQL Server (`docs/operacion/BACKUP-SQL-SERVER.md`) — plantilla operativa
-- Auditoría en **empleados** (crear / actualizar / desactivar)
-- Auditoría en **tiendas** (crear / actualizar / desactivar)
+- [x] Plan maestro (`docs/PLAN-MEJORAS.md`)
+- [x] Checklist de reconciliación de caja (`docs/operacion/CHECKLIST-CAJA.md`)
+- [x] Runbook de **backup** SQL Server (`docs/operacion/BACKUP-SQL-SERVER.md`) — plantilla operativa *(drill real = operación; ver plan de cierre WS3)*
+- [x] Auditoría en **empleados** (crear / actualizar / desactivar) — `apps/backend/src/modules/empleados/empleados.controller.ts` (`registrarAudit`)
+- [x] Auditoría en **tiendas** (crear / actualizar / desactivar) — `apps/backend/src/modules/tiendas/tiendas.controller.ts` (`registrarAudit`)
 
 ## Fase 2 — Pruebas automatizadas (crítico)
 
-- **E2E frontend (Playwright):** `apps/frontend/e2e/smoke.spec.ts`, scripts `test:e2e` / `test:e2e:ui`, doc `apps/frontend/e2e/README.md`
-- Configuración **Jest** + prueba smoke (`apps/backend`)
-- Test de integración HTTP mínimo (`GET /health`, `X-Request-Id`, 404 JSON) — sin BD
-- Tests de integración API — `npm run test:integration` en `apps/backend` (auth, perfil, listado ventas, detalle + auditoría recibo si hay datos, `**GET /saas/context`**; requiere **SQL Server + Redis** y seed `admin@pos.com`)
-- Tests focalizados: cierre de caja / `resumenCaja` — mismo `npm run test:integration` (`describe` «caja + resumenCaja»)
-- Integración: **límites de plan** (`starter` → 403 en alta de usuario / sucursal) — `src/__tests__/integration/enforce-plan.integration.test.ts`
-- Integración multi-tenant: **ventas** (detalle ajeno → 404), **reportes** (cierre ajeno), **inventario** (detalle ajeno → 404), **compras** (detalle ajeno → 403), **devoluciones** (detalle ajeno → 404) — `*-tenant-isolation.integration.test.ts`; helper `helpers/other-tenant-auth.ts`
+- [x] **E2E frontend (Playwright):** `apps/frontend/e2e/smoke.spec.ts`, scripts `test:e2e` / `test:e2e:ui`, doc `apps/frontend/e2e/README.md`
+- [x] Configuración **Jest** + prueba smoke (`apps/backend`)
+- [x] Test de integración HTTP mínimo (`GET /health`, `X-Request-Id`, 404 JSON) — sin BD — `apps/backend/src/__tests__/app.integration.test.ts`
+- [x] Tests de integración API — `npm run test:integration` en `apps/backend` (auth, perfil, listado ventas, detalle + auditoría recibo si hay datos, `GET /saas/context`; requiere **SQL Server + Redis** y seed `admin@pos.com`)
+- [x] Tests focalizados: cierre de caja / `resumenCaja` — mismo `npm run test:integration` (`describe` «caja + resumenCaja»)
+- [x] Integración: **límites de plan** (`starter` → 403 en alta de usuario / sucursal) — `src/__tests__/integration/enforce-plan.integration.test.ts`
+- [x] Integración multi-tenant: **ventas** (detalle ajeno → 404), **reportes** (cierre ajeno), **inventario** (detalle ajeno → 404), **compras** (detalle ajeno → 403), **devoluciones** (detalle ajeno → 404) — `*-tenant-isolation.integration.test.ts`; helper `helpers/other-tenant-auth.ts`
 
 ## Fase 3 — Observabilidad y endurecimiento
 
-- **Request ID** por petición (`X-Request-Id` + logs Morgan)
-- **Rate limit** dedicado: `/api/v1/reportes` (90/min) y PDF cierre `/ventas/caja/:id/pdf` (40/min), además del global 300/min
-- Índice compuesto `**ventas(cajaAperturaId, fecha)`** (migración `1700000000022`)
+- [x] **Request ID** por petición (`X-Request-Id` + logs Morgan) — `request-id.middleware.ts`, Morgan `:req-id`, CORS `exposedHeaders`
+- [x] **Rate limit** dedicado: `/api/v1/reportes` (90/min) y PDF cierre `/ventas/caja/:id/pdf` (40/min), además del global 300/min — `apps/backend/src/app.ts`
+- [x] Índice compuesto **ventas(cajaAperturaId, fecha)** — migración `1700000000022-VentasIndexCajaFecha.ts`
 
 ## Fase 4 — Producto / UX
 
-- Mensajes claros ante **fallo de red / timeout** en el cliente API (`api.client.ts`)
-- Recibo: **logotipo** (`logotipoUrl`) y **símbolo de moneda** (`simboloMoneda`) desde configuración
+- [x] Mensajes claros ante **fallo de red / timeout** en el cliente API — `apps/frontend/src/services/api.client.ts` + `apps/frontend/src/lib/api-network-error.ts`
+- [x] Recibo: **logotipo** (`logotipoUrl`) y **símbolo de moneda** (`simboloMoneda`) desde configuración — `apps/frontend/src/components/ventas/Receipt.tsx`
 
 ## Fase 5 — Cumplimiento fiscal (según normativa vigente)
 
-- Checklist operativo **NCF / DGII** (`docs/operacion/FISCAL-DGII-CHECKLIST.md`)
-- Auditoría en **comprobantes** (crear / actualizar series fiscales)
-- Revisión en campo del checklist y normativa vigente al desplegar
-- Auditoría de **impresión / reimpresión de recibo** (`POST /ventas/:id/auditoria-recibo` + hook en `Receipt`)
+- [x] Checklist operativo **NCF / DGII** (`docs/operacion/FISCAL-DGII-CHECKLIST.md`) — *plantilla; revisión en campo no es código*
+- [x] Auditoría en **comprobantes** (crear / actualizar series fiscales) — `apps/backend/src/modules/comprobantes/comprobantes.controller.ts` (`registrarAudit`)
+- [ ] **Solo operación / normativa:** revisión en campo del checklist y normativa vigente al desplegar *(fuera del alcance del código en este repo)*
+- [x] Auditoría de **impresión / reimpresión de recibo** — `POST /ventas/:id/auditoria-recibo` + `Receipt` (`apps/backend` + `apps/frontend`)
+
+---
+
+## Fase 6 — Operación SaaS
+
+- [x] **Email notifications** — `notifications/email.service.ts` (nodemailer, opt-in `NOTIFICATIONS_EMAIL_ENABLED=true`); templates `payment_failed`, `subscription_canceled`, `subscription_activated`; trial reminders + cron `POST /api/v1/internal/cron/trial-reminders` (`CRON_SECRET`); hooks en `billing.webhook.ts` incl. `invoice.payment_failed` y `past_due` vía `subscription.updated`.
+- [x] **Panel admin plataforma** — `GET /api/v1/tenants/panel` + UI `/plataforma` (KPIs, tabla, barras de uso, chips billing, búsqueda y filtros). *Mejoras UX por feedback = trabajo iterativo, no bloque de código base.*
+- [x] **CI pipeline** — `.github/workflows/ci.yml` (typecheck, unit, build frontend, `verify-plan-limits-landing.mjs`); integración en push a `main`; E2E disparo manual `e2e-manual.yml` + `docs/operacion/E2E-STAGING.md`.
+- [x] **Docker Compose producción**: `docker-compose.production.yml` — sin credenciales hardcodeadas, healthchecks en todos los servicios, Redis con AOF, recursos limitados.
+- [x] **Seed de nuevo tenant** — `apps/backend/src/seeds/new-tenant.seed.ts` (+ `TRIAL_DAYS` opcional).
+- [x] **Runbook de despliegue** — `docs/operacion/DEPLOY-SAAS.md`; evidencia operativa en `docs/operacion/evidence/`; observabilidad mínima en `docs/operacion/OBSERVABILITY-RUNBOOK.md`. *Mantener al cambiar infra.*
 
 ---
 
 ## Visión futura (multi‑negocio / otros puntos de venta)
 
-- Roadmap estratégico: `**docs/PLAN-EVOLUCION-POS-GENERICO.md`** (neutralizar marca, producto genérico, fiscal plug‑in, multi‑tenant opcional).
+Las viñetas siguientes son el **mapa estratégico** del POS genérico; la **implementación base** de las fases A–D del documento enlazado está en el repositorio. Sigue abierta la **evolución por país** (nuevo `FiscalProvider`) y las **decisiones de despliegue** de §2 en [`docs/PLAN-EVOLUCION-POS-GENERICO.md`](PLAN-EVOLUCION-POS-GENERICO.md).
+
+- Roadmap estratégico: [`docs/PLAN-EVOLUCION-POS-GENERICO.md`](PLAN-EVOLUCION-POS-GENERICO.md) (neutralizar marca, producto genérico, fiscal plug‑in, multi‑tenant opcional).
 - **Fase A (marca neutra)**: `app-brand` + `.env.example`; seed demo genérico; README / OpenAPI neutros; **landing page** pública (`app/page.tsx` — planes, módulos, FAQ, CTA → `/login`; dashboard movido a `/panel`).
 - **Fase B (etiquetas / módulo recetas-BOM)**: `ui-labels` + `NEXT_PUBLIC_FEATURE_RECETAS` / `NEXT_PUBLIC_LABEL_RECETAS` — ver `docs/PLAN-EVOLUCION-POS-GENERICO.md`.
 - **Fase B (unidad por artículo)**: columna `unidadMedida` + `format-articulo` en POS/recibo; migración `1700000000023`.
 - **Fase B (reportes)**: `NEXT_PUBLIC_LABEL_REPORTES` / `NEXT_PUBLIC_LABEL_REPORTES_TAB_`* en `apps/frontend/src/lib/ui-labels.ts` — título y pestañas del módulo `/reportes`.
 - **Fase C (fiscal)**: `FISCAL_JURISDICTION` + `configuracion.fiscalJurisdiccion` (prioridad BD) + `FiscalProvider` en `apps/backend/src/fiscal/` — DGII/RD vía `DgiiRdFiscalProvider`; docs por jurisdicción: `docs/operacion/jurisdicciones/`; plan maestro: `docs/PLAN-EVOLUCION-POS-GENERICO.md`.
 - **Fase D (multi-tenant)**: cimientos `0025`–`0031` + aislamiento por tenant + rol `plataforma` + `GET /saas/context` (uso: seats, tiendasActivas, articulosActivos, ventasMesActual) — detalle en `docs/arquitectura/MULTI-TENANT.md`. **Planes definitivos**: `starter` ($29, 3u/1s/500art), `standard` ($79, 15u/5s/5000art), `enterprise` ($199, sin límite); **feature flags** en `plan-limits.ts` — módulos `kits/cotizaciones/promociones/tarjetasRegalo/recetas/compras` bloqueados en starter; sidebar con candado. Tests: `enforce-plan`, `enforce-features`, `*tenant-isolation`*. **Stripe completo**: checkout, portal, webhook, `billingGuard` (opt-in), auditoría `stripe_audit_logs` (migración `0032`). **Provisioning guiado** (`OnboardingBanner`). Docs: `docs/arquitectura/BILLING-SAAS.md`.
-
-## Fase 6 — Operación SaaS
-
-- **Email notifications** — *hecho:* `notifications/email.service.ts` (nodemailer, opt-in `NOTIFICATIONS_EMAIL_ENABLED=true`); templates `payment_failed`, `subscription_canceled`, `subscription_activated`; trial reminders + cron `POST /api/v1/internal/cron/trial-reminders` (`CRON_SECRET`); hooks en `billing.webhook.ts` incl. `invoice.payment_failed` y `past_due` vía `subscription.updated`.
-- **Panel admin plataforma** — *hecho / iterar:* `GET /api/v1/tenants/panel` + UI `/plataforma` (KPIs, tabla, barras de uso, chips billing, búsqueda y filtros por facturación/plan). Mejoras UX según feedback soporte.
-- **CI pipeline** — *hecho:* `.github/workflows/ci.yml` (typecheck, unit, build frontend, script `verify-plan-limits-landing.mjs`); integración en push a `main`; E2E disparo manual `e2e-manual.yml` + `docs/operacion/E2E-STAGING.md`.
-- **Docker Compose producción**: `docker-compose.production.yml` — sin credenciales hardcodeadas, healthchecks en todos los servicios, Redis con AOF, recursos limitados.
-- **Seed de nuevo tenant** — *hecho:* `apps/backend/src/seeds/new-tenant.seed.ts` (+ `TRIAL_DAYS` opcional).
-- **Runbook de despliegue** — *hecho / mantener:* `docs/operacion/DEPLOY-SAAS.md`; evidencia operativa en `docs/operacion/evidence/`; observabilidad mínima en `docs/operacion/OBSERVABILITY-RUNBOOK.md`.
 
 ## Plan de implementación SaaS multi-tenant
 
@@ -115,6 +123,7 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Ventas (fix backend):** edición completa de venta no rompe SQL Server por `venta_detalles.ventaId NULL`. `fullUpdate` en `apps/backend/src/modules/ventas/ventas.service.ts` ahora invoca `syncFullUpdateVentaDetalleGraph` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) para reatachar los `VentaDetalle` recién persistidos al `Venta` cargado antes del `manager.save`, de modo que el cascade de TypeORM no emite `UPDATE venta_detalles SET ventaId = NULL` sobre las filas borradas.
 - [x] **Ventas (JSON serializable):** `stripVentaDetalleParentRef` en el mismo módulo (`ventas-full-update-detail-graph.ts`) elimina `detalles[].venta` antes de serializar; `ventas.service.ts` lo invoca al cerrar `findById`, `create`, `update` y `fullUpdate` (después del sync de grafo en `fullUpdate`) para que las respuestas de venta no fallen por ciclo objeto ↔ `JSON.stringify` / `sendSuccess`; tests en `ventas-full-update-detail-graph.test.ts`.
 - [x] **Integración backend en verde:** `apps/backend/src/saas/tenant-usage.ts` (ventas sin columna `anulada`); propagación **403** desde `AppError` vía `sendFail`/controladores; `findOne` con `where` en suites de integración; caja apertura con `tienda`; teardown de `configuracion` y FK; cotización — Zod `clienteId`.
+- [x] **PLAN-MEJORAS (docs):** leyenda `[x]`/`[ ]`, bloque *Sincronización código ↔ docs* (2026-05), Fases 1–6 y *Visión futura* reordenadas; único `[ ]` explícito: revisión fiscal en campo (operación, no código).
 
 ## Notas
 

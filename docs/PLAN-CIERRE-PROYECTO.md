@@ -181,6 +181,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Doc: `docs/operacion/SECRETS-RUNBOOK.md` — remisión a `PLAN-CIERRE-PROYECTO.md` y hub `evidence/README.md`; `PLAN-IMPLEMENTACION-SAAS-MULTI-TENANT.md` — relación explícita con plan de cierre | Hecho | Secretos solo como nombres; plan maestro enlaza cierre sin duplicar checklist | 2026-05-12 |
 | Doc: `docs/operacion/DEPLOY-SAAS.md` — enlace explícito a `PLAN-CIERRE-PROYECTO.md` (go-live, registro, evidencias) en cabecera | Hecho | Despliegue y cierre enlazados para quien opera prod/staging | 2026-05-12 |
 | Doc: `STRIPE-PROD-CHECKLIST.md` y `BACKUP-SQL-SERVER.md` — enlace en cabecera a `PLAN-CIERRE-PROYECTO.md` (WS2 / WS3 y registro) | Hecho | Runbooks operativos enlazan el hilo de cierre sin sustituir checklist maestro | 2026-05-12 |
+| Doc: `PLAN-MEJORAS.md` + `PLAN-EVOLUCION-POS-GENERICO.md` — leyenda `[x]`/`[ ]`, sync código Fases 1–6; §3 A–D enlazado a `PLAN-MEJORAS` | Hecho | Cierra inventario código vs operación/normativa; ver `PLAN-MEJORAS` *Sincronización* | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---

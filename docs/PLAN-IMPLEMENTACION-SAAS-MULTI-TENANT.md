@@ -3,7 +3,7 @@
 Objetivo: llevar el producto a un **modelo comercial SaaS multi-tenant** vendible y operable: captación, facturación del software, aislamiento de datos confiable, operación 24/7 y base legal mínima.
 
 **Audiencia:** equipo de producto e ingeniería.  
-**Relación con otros documentos:** estrategia en `docs/PLAN-EVOLUCION-POS-GENERICO.md`, backlog operativo en `docs/PLAN-MEJORAS.md`, técnica multi-tenant en `docs/arquitectura/MULTI-TENANT.md`, billing en `docs/arquitectura/BILLING-SAAS.md`, runbooks en `docs/operacion/`, **plan de cierre y registro de avance (go-live, WS1–WS7)** en `docs/PLAN-CIERRE-PROYECTO.md`.
+**Relación con otros documentos:** estrategia en `docs/PLAN-EVOLUCION-POS-GENERICO.md`, backlog operativo y **inventario código `[x]` por fase** en `docs/PLAN-MEJORAS.md`, técnica multi-tenant en `docs/arquitectura/MULTI-TENANT.md`, billing en `docs/arquitectura/BILLING-SAAS.md`, runbooks en `docs/operacion/`, **plan de cierre y registro de avance (go-live, WS1–WS7)** en `docs/PLAN-CIERRE-PROYECTO.md`.
 
 **Nota (mantenimiento de `docs/`):** si editas muchos archivos bajo `docs/`, ejecuta desde la raíz del monorepo `npm run verify:docs-links` para validar enlaces internos. No dupliques convenciones o flujo de contribución que ya están en `CONTRIBUTING.md`.
 

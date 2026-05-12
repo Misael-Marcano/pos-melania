@@ -107,6 +107,10 @@ Recomendación pragmática para la mayoría de PYME: **instancia por cliente + c
 5. Mantener `docs/PLAN-MEJORAS.md` y `docs/arquitectura/MULTI-TENANT.md` alineados con este documento cuando cambie el alcance multi-tenant o fiscal.
 6. Tras ediciones masivas bajo `docs/`, ejecutar `npm run verify:docs-links` además del `npm run verify` habitual cuando toque landing o límites de planes.
 
+### Sincronización con `PLAN-MEJORAS.md` (código en repo, 2026-05)
+
+Las **Fases A–D** de §3 tienen su **implementación base** en el monorepo (rutas citadas en cada subfase). El inventario con checkboxes **`[x]` / `[ ]`** por entregable está en [`docs/PLAN-MEJORAS.md`](PLAN-MEJORAS.md) (Fases 1–6 y *Visión futura*). **Go-live, evidencias y workstreams humanos:** [`docs/PLAN-CIERRE-PROYECTO.md`](PLAN-CIERRE-PROYECTO.md).
+
 ---
 
 *Documento vivo: actualizar fases cuando se cierre cada etapa.*
