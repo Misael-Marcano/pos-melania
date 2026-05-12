@@ -26,12 +26,25 @@ Ejemplos a configurar en el sistema de monitoreo elegido (Datadog, Grafana Cloud
 
 Rotación de `STRIPE_WEBHOOK_SECRET` y otros secretos runtime: [SECRETS-RUNBOOK.md § 3](SECRETS-RUNBOOK.md#3-rotación-e-incidentes).
 
-## 4. Correlación en incidentes
+## 4. Checklist previa a conectar prod
+
+Antes de enrutar tráfico real al API y exponer el webhook de facturación, revisar en el entorno **destino** (nombres de cuenta o proyecto: `TBD`; sin URLs ni claves en git):
+
+| Ítem | Qué comprobar | Nota |
+|------|-----------------|------|
+| **Logs** | Origen de logs del backend y del proxy apuntan al mismo **destino de agregación** (`TBD`) y retención mínima acordada con ops. | Ver correlación en §5. |
+| **Alertas mínimas** | Reglas equivalentes a §3 creadas en el sistema de monitoreo (`TBD`) y asignadas a un espacio de equipo (`TBD`). | Umbrales iniciales conservadores; ajustar tras la primera semana. |
+| **Webhook billing** | Monitoreo o filtro de logs sobre la ruta de webhook de facturación (`billing/webhook` en este repo) y alerta asociada a picos de `4xx`/`5xx`. | Paridad con [STRIPE-PROD-CHECKLIST.md](STRIPE-PROD-CHECKLIST.md); no versionar secretos. |
+| **Canal de guardia** | Canal operativo (`TBD`: p. ej. chat interno) con rotación o lista de contacto y enlace al dashboard interno (`TBD`). | Completar placeholders de §6 cuando existan. |
+
+Esta lista **no** sustituye la conexión real ni el cierre de WS5 en el plan de cierre hasta que haya alertas activas y evidencia según política interna.
+
+## 5. Correlación en incidentes
 
 - Recoger **`X-Request-Id`** del cliente o de los logs del proxy.
 - Buscar la misma cadena en logs del backend para la traza completa.
 
-## 5. Revisión periódica
+## 6. Revisión periódica
 
 - Tras cada cambio en facturación o auth, validar que los dashboards siguen alimentados.
 - Documentar aquí el **enlace al dashboard** interno (no público) si aplica:
@@ -41,14 +54,14 @@ URL dashboard: ___
 Responsable on-call: ___
 ```
 
-## 6. Ante una alerta (guía rápida)
+## 7. Ante una alerta (guía rápida)
 
 Usar esta sección como checklist operativo; enlazada desde [DEPLOY-SAAS.md](DEPLOY-SAAS.md) §8.
 
 | Alerta | Comprobar primero | Acciones típicas |
 |--------|-------------------|------------------|
 | **`/health` no 200** | Contenedor backend, SQL Server, Redis; DNS/SSL del proxy | Reinicio controlado del stack; ver logs del backend en la ventana del incidente; escalar si BD corrupta o disco lleno. |
-| **Pico de `5xx`** | Deploy reciente; saturación DB; timeouts | Correlacionar con `X-Request-Id` (§4); revertir imagen si coincide con release; revisar queries lentas / pool de conexiones. |
+| **Pico de `5xx`** | Deploy reciente; saturación DB; timeouts | Correlacionar con `X-Request-Id` (§5); revertir imagen si coincide con release; revisar queries lentas / pool de conexiones. |
 | **Webhook Stripe `4xx`/`5xx`** | `STRIPE_WEBHOOK_SECRET` y URL del endpoint en Stripe; reloj del servidor | Verificar firma y payload en logs (`billing/webhook`); reprocesar eventos desde Stripe si aplica; coordinar con [STRIPE-PROD-CHECKLIST.md](STRIPE-PROD-CHECKLIST.md) §8–10. |
 
 Tras mitigar: anotar causa raíz breve y, si aplica, actualizar umbrales o runbooks en la wiki interna (sin secretos en git).

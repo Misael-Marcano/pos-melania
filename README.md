@@ -120,7 +120,7 @@ Comprueba que los límites numéricos de la landing coinciden con `apps/backend/
 
 ## CI (GitHub Actions)
 
-Archivo **`.github/workflows/ci.yml`** (ramas `main` y `develop`; eventos `push` y `pull_request`); **concurrency** por rama con `cancel-in-progress` para no acumular jobs obsoletos. Cierre operativo y evidencias: fila **Cierre del proyecto** en [Documentación destacada](#documentación-destacada); ante alertas en prod: `docs/operacion/OBSERVABILITY-RUNBOOK.md` §6.
+Archivo **`.github/workflows/ci.yml`** (ramas `main` y `develop`; eventos `push` y `pull_request`); **concurrency** por rama con `cancel-in-progress` para no acumular jobs obsoletos. Cierre operativo y evidencias: fila **Cierre del proyecto** en [Documentación destacada](#documentación-destacada); ante alertas en prod: `docs/operacion/OBSERVABILITY-RUNBOOK.md` §7.
 
 1. **TypeScript + unit tests:** `npm ci` en raíz, `apps/backend` y `apps/frontend`; `tsc --noEmit` en backend y frontend; `npm run build` en frontend (`NEXT_PUBLIC_API_URL` de ejemplo); mismos pasos que `npm run verify` en la raíz (`verify:landing-plans` + `verify:docs-links`); `npm test` en backend.
 2. **Integration tests:** solo en **push a `main`**; servicios SQL Server 2019 y Redis; migraciones + seed; `npm run test:integration` en backend (variables de test y `BILLING_PROVIDER=none`, `FISCAL_JURISDICTION=NONE` en el job).

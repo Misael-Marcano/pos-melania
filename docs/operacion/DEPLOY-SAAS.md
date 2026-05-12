@@ -194,7 +194,7 @@ docker run --rm \
 
 ## 8. Monitoreo
 
-**Alertas y respuesta ante incidentes:** ver `docs/operacion/OBSERVABILITY-RUNBOOK.md` (métricas mínimas, 2–3 alertas recomendadas y **§6 — ante una alerta**).
+**Alertas y respuesta ante incidentes:** ver `docs/operacion/OBSERVABILITY-RUNBOOK.md` (métricas mínimas, 2–3 alertas recomendadas y **§7 — ante una alerta**).
 
 | Endpoint | Qué indica |
 |----------|------------|

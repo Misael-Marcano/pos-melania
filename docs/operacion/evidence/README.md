@@ -9,6 +9,7 @@ Carpeta para **artefactos de validación** (Stripe, backups, E2E) que el equipo 
 - Checklist Stripe producción / pre-live: [`docs/operacion/STRIPE-PROD-CHECKLIST.md`](../STRIPE-PROD-CHECKLIST.md)
 - Backup y política de restore: [`docs/operacion/BACKUP-SQL-SERVER.md`](../BACKUP-SQL-SERVER.md)
 - E2E manual / staging y secretos CI (WS6): [`docs/operacion/E2E-STAGING.md`](../E2E-STAGING.md)
+- Observabilidad, alertas y checklist previa a prod (WS5): [`docs/operacion/OBSERVABILITY-RUNBOOK.md`](../OBSERVABILITY-RUNBOOK.md)
 
 ## Uso
 

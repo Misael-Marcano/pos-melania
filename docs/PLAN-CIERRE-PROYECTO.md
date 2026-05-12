@@ -101,7 +101,7 @@ La verificación raíz `npm run verify` incluye `npm run verify:docs-links` para
 | Campo | Contenido |
 |--------|-----------|
 | **Estado en repo** | Runbook `docs/operacion/OBSERVABILITY-RUNBOOK.md` y prácticas en código (p. ej. `X-Request-Id`) **hechos** según checklist plan maestro; **pendiente** por entorno: conectar proveedor (logs/APM/uptime) y **alertas reales** en prod. |
-| **Próximo paso concreto** | Seguir runbook: integrar destino de logs/métricas del entorno prod; crear 2–3 alertas (p. ej. tasa 5xx, fallos webhook Stripe); documentar canal de guardia y enlace al dashboard en el mismo runbook o wiki ops. Guía «ante alerta» en `OBSERVABILITY-RUNBOOK.md` §6; enlace desde `DEPLOY-SAAS.md` §8. |
+| **Próximo paso concreto** | Seguir runbook: integrar destino de logs/métricas del entorno prod; crear 2–3 alertas (p. ej. tasa 5xx, fallos webhook Stripe); documentar canal de guardia y enlace al dashboard en el mismo runbook o wiki ops. Checklist previa en `OBSERVABILITY-RUNBOOK.md` §4; guía «ante alerta» en §7; enlace desde `DEPLOY-SAAS.md` §8. |
 | **Responsable sugerido** | **Ops** (cuentas, alertas); **Ingeniería** (queries/dashboards si aplica). |
 | **Artefacto de evidencia** | Captura o enlace interno al dashboard + lista de alertas activas (política de no versionar secretos: ver `docs/operacion/evidence/README.md`). |
 
@@ -155,6 +155,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Doc: subsección «Cómo cerrar esta sección» (tabla checklist) en `docs/arquitectura/SAAS-FASE-0-DECISIONES.md` §6 — WS1; placeholders `TBD` | Hecho | Guía operativa repo-only; no sustituye reunión ni filas *Revisión comercial* rellenas | 2026-05-12 |
 | Doc: checklist **previa a live** en `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` — WS2; enlaces a `STRIPE-PROD-CHECKLIST.md` / hub evidence | Hecho | Orden repo antes de Stripe live; **no** marca live ni WS2 completados | 2026-05-12 |
 | Doc: `docs/operacion/LEGAL-ADVISOR-HANDOFF.md` — checklist preparación asesor (URLs placeholder, mapa datos PII/pagos/logs, rutas repo `/terminos` / `/privacidad`) | Hecho | Apoyo WS4 repo-only; **no** sustituye dictamen, revisión externa ni “legal operativo cerrado” | 2026-05-12 |
+| Doc: checklist **previa a conectar prod** en `docs/operacion/OBSERVABILITY-RUNBOOK.md` — WS5 (logs, alertas mínimas, webhook billing, canal guardia; placeholders `TBD`); enlace en hub `docs/operacion/evidence/README.md` | Hecho | Complementa §3–§7 del runbook; **no** marca observabilidad prod conectada ni WS5 operativo cerrado | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---
@@ -181,7 +182,7 @@ Continuidad una vez Semana 1 iniciada; puede solaparse con WS2–WS5.
 |-----|--------|----------------|-----------|
 | 1 | Cerrar o actualizar `STRIPE-VALIDATION-LOG.md` con resultado último test live (WS2) | Ingeniería | Log con fecha |
 | 1–2 | Repetir o programar siguiente ventana restore staging si política lo exige (WS3) | Ops | `BACKUP-RESTORE-DRILL-LOG.md` |
-| 2 | Confirmar canal de guardia y enlace dashboard accesible al equipo (WS5 §6) | Ops | Nota en runbook o wiki |
+| 2 | Confirmar canal de guardia y enlace dashboard accesible al equipo (WS5 §4 checklist / §7 guía alerta) | Ops | Nota en runbook o wiki |
 | 3–5 | Seguimiento dictamen legal: incorporar textos acordados en frontend si aplica (WS4) | Legal + ingeniería | PR o ticket |
 
 ---
@@ -194,7 +195,7 @@ Continuidad una vez Semana 1 iniciada; puede solaparse con WS2–WS5.
 | **WS2** Stripe | Billing, webhooks, portal, plantillas `evidence/STRIPE-VALIDATION-LOG.md` | Stripe **live**, webhook prod, log rellenado con prueba real |
 | **WS3** Backup | `BACKUP-SQL-SERVER.md`, plantilla `BACKUP-RESTORE-DRILL-LOG.md` | Restore drill en staging (fecha, responsable, OK en plantilla) |
 | **WS4** Legal | Rutas `/terminos`, `/privacidad`, enlaces en login/landing | Dictamen / revisión jurídica externa antes de escala masiva |
-| **WS5** Observabilidad | `OBSERVABILITY-RUNBOOK.md` §6, `X-Request-Id`, enlace `DEPLOY-SAAS.md` §8 | Conectar proveedor (logs/APM), 2–3 alertas **activas** en prod, canal de guardia |
+| **WS5** Observabilidad | `OBSERVABILITY-RUNBOOK.md` §4 (checklist previa prod), §7 «ante alerta», `X-Request-Id`, enlace `DEPLOY-SAAS.md` §8 | Conectar proveedor (logs/APM), 2–3 alertas **activas** en prod, canal de guardia |
 | **WS6** E2E | Playwright smoke, `e2e-manual.yml`, `E2E-STAGING.md` | Secretos `E2E_*` / `PLAYWRIGHT_BASE_URL` en GitHub o run local archivado |
 | **WS7** Registro | `/solicitar-demo` (lead mailto); sin POST público tenant | Opción B (self-service) solo si WS1 lo define |
 

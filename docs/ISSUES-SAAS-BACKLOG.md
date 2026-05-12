@@ -316,7 +316,7 @@ SaaS multi-tenant requiere detección temprana de incidentes.
 - Alertas: Stripe webhook 4xx/5xx, error rate backend
 
 ## Criterios de aceptación
-- [x] Runbook: qué hacer ante alerta (enlace desde `DEPLOY-SAAS.md` §8 → `OBSERVABILITY-RUNBOOK.md` §6)
+- [x] Runbook: qué hacer ante alerta (enlace desde `DEPLOY-SAAS.md` §8 → `OBSERVABILITY-RUNBOOK.md` §7)
 - [ ] Umbrales de alerta **activos** en producción (Stripe webhook fallidos, tasa 5xx) — *pendiente ops por entorno*; no se marca hecho sin evidencia en dashboard/canal de guardia (ver `PLAN-CIERRE-PROYECTO.md` WS5).
 ```
 

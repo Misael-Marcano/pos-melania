@@ -187,7 +187,7 @@ flowchart TD
 - [x] Trial + política de fin de trial **implementada** (`trialEndsAt`, banners, 402 opt-in, cron); **definición comercial** final en `SAAS-FASE-0-DECISIONES.md` (filas revisión).
 - [ ] Stripe **live** configurado; webhooks OK; evidencia en `docs/operacion/evidence/STRIPE-VALIDATION-LOG.md` (test/staging puede estar validado).
 - [x] Emails o alternativa auditada para eventos de billing (templates + `stripe_audit_logs`).
-- [x] Observabilidad **en repo** (runbook `docs/operacion/OBSERVABILITY-RUNBOOK.md` §6 “ante una alerta”, prácticas como `X-Request-Id`, enlace desde `docs/operacion/DEPLOY-SAAS.md` §8).
+- [x] Observabilidad **en repo** (runbook `docs/operacion/OBSERVABILITY-RUNBOOK.md` §7 “ante una alerta”, prácticas como `X-Request-Id`, enlace desde `docs/operacion/DEPLOY-SAAS.md` §8).
 - [ ] **Pendiente por entorno (ops):** proveedor de logs/APM conectado y 2–3 **alertas reales** en producción (ver `PLAN-CIERRE-PROYECTO.md` WS5; sin evidencia en git).
 - [ ] Backup + restore probado (plantilla `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` + drill real).
 - [x] Legal mínimo publicado (rutas `/terminos`, `/privacidad`); **revisión jurídica** pendiente antes de escala.
