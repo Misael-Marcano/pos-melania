@@ -150,6 +150,7 @@ Hechos **versionados** en esta línea de trabajo (no marca como hechos los ítem
 | Docs troubleshooting Windows (rutas largas); enlaces en hub `docs/operacion/evidence/*` y plantilla `STRIPE-VALIDATION-LOG` | Hecho | Commit `c7dc102` | 2026-05-12 |
 | Gate `npm run verify` (incluye `verify:docs-links`) previo a sincronizar documentación de cierre | Hecho | Verificación local verde (mismo gate que enlaces internos en `docs/`) | 2026-05-12 |
 | Doc: checklist en `docs/operacion/E2E-STAGING.md` — secretos GitHub (`E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`) solo como nombres, sin valores | Hecho | Apoyo operativo a WS6 (config); no sustituye run verde ni secretos reales en el remoto | 2026-05-12 |
+| Doc: checklist previa al drill en `docs/operacion/evidence/BACKUP-RESTORE-DRILL-LOG.md` (WS3; sin fechas de ejemplo) | Hecho | Complementa `BACKUP-SQL-SERVER.md`; no sustituye restore ejecutado ni filas de evidencia rellenas | 2026-05-12 |
 | **Próximo:** WS1–WS6 (Fase 0 formal, Stripe live + log relleno, drill restore real, legal externo, alertas prod, secretos E2E / run staging) | Pendiente | Seguir tablas de workstreams y semanas 1–2; no marcar completo sin artefacto o ticket acordado | — |
 
 ---
