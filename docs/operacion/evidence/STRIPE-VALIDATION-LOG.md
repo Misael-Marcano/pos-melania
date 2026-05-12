@@ -1,5 +1,7 @@
 # Registro de validación — Stripe (test / pre-live)
 
+**Referencia:** [`STRIPE-PROD-CHECKLIST.md`](../STRIPE-PROD-CHECKLIST.md) — ejecutar y marcar ítems antes de considerar este log completo.
+
 **Entorno:** (test | staging | prod)  
 **Fecha:** YYYY-MM-DD  
 **Responsable:**  
