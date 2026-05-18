@@ -28,17 +28,47 @@ export interface PnL {
   gastosPorCategoria: { categoria: string; cantidad: number; total: number }[];
 }
 
+export interface InventarioArticulo {
+  nombre: string; codigoBarras: string; cantidad: number;
+  costo: number; precioVenta: number;
+  valorCosto: number; valorVenta: number; categoria: string;
+}
+
 export interface InventarioValorizado {
   articulos: {
-    nombre: string; codigoBarras: string; cantidad: number;
-    costo: number; precioVenta: number;
-    valorCosto: number; valorVenta: number; categoria: string;
-  }[];
+    items: InventarioArticulo[];
+    total: number;
+    page: number;
+    limit: number;
+  };
   totales: {
     totalCosto: number; totalVenta: number;
     totalArticulos: number; totalUnidades: number; gananciaLatente: number;
   };
   porCategoria: { categoria: string; articulos: number; valorCosto: number }[];
+}
+
+export interface Dgii607Preview {
+  periodo: string;
+  lineas: number;
+  totalVentas: number;
+  itbisEstimado: number;
+  sinNcf: number;
+  clienteSinIdentificacion: number;
+  rncEmpresa: string | null;
+  alertas: string[];
+}
+
+export interface Dgii606Preview {
+  periodo: string;
+  lineas: number;
+  lineasOrdenes: number;
+  lineasGastos: number;
+  totalCompras: number;
+  itbisEstimado: number;
+  ordenSinRncProveedor: number;
+  rncEmpresa: string | null;
+  alertas: string[];
 }
 
 export interface TopCliente {
@@ -66,34 +96,89 @@ export interface ResumenPorSucursal {
   }[];
 }
 
+export interface VentaPorUsuario {
+  usuarioId: number;
+  usuarioNombre: string;
+  transacciones: number;
+  totalMonto: number;
+}
+
+export interface VentaPorCaja {
+  tiendaNombre: string;
+  cajaNombre: string;
+  transacciones: number;
+  totalMonto: number;
+}
+
+function rangoParams(desde: string, hasta: string, tiendaId?: number | null, extra?: Record<string, unknown>) {
+  const params: Record<string, string | number> = { desde, hasta, ...extra as Record<string, string | number> };
+  if (tiendaId != null) params.tiendaId = tiendaId;
+  return params;
+}
+
 export const reportesService = {
-  ventasPorDia: async (desde: string, hasta: string): Promise<VentaDia[]> => {
-    const { data } = await apiClient.get('/reportes/ventas-por-dia', { params: { desde, hasta } });
+  ventasPorDia: async (desde: string, hasta: string, tiendaId?: number | null): Promise<VentaDia[]> => {
+    const { data } = await apiClient.get('/reportes/ventas-por-dia', { params: rangoParams(desde, hasta, tiendaId) });
     return data.data;
   },
 
-  topProductos: async (desde: string, hasta: string, limit = 10): Promise<TopProducto[]> => {
-    const { data } = await apiClient.get('/reportes/top-productos', { params: { desde, hasta, limit } });
+  topProductos: async (desde: string, hasta: string, limit = 10, tiendaId?: number | null): Promise<TopProducto[]> => {
+    const { data } = await apiClient.get('/reportes/top-productos', {
+      params: rangoParams(desde, hasta, tiendaId, { limit }),
+    });
     return data.data;
   },
 
-  resumenDia: async (fecha: string): Promise<ResumenDia> => {
-    const { data } = await apiClient.get('/reportes/resumen-dia', { params: { fecha } });
+  resumenDia: async (fecha: string, tiendaId?: number | null): Promise<ResumenDia> => {
+    const params: Record<string, string | number> = { fecha };
+    if (tiendaId != null) params.tiendaId = tiendaId;
+    const { data } = await apiClient.get('/reportes/resumen-dia', { params });
     return data.data;
   },
 
-  ganancias: async (desde: string, hasta: string): Promise<PnL> => {
-    const { data } = await apiClient.get('/reportes/ganancias', { params: { desde, hasta } });
+  ganancias: async (desde: string, hasta: string, tiendaId?: number | null): Promise<PnL> => {
+    const { data } = await apiClient.get('/reportes/ganancias', { params: rangoParams(desde, hasta, tiendaId) });
     return data.data;
   },
 
-  inventarioValorizado: async (): Promise<InventarioValorizado> => {
-    const { data } = await apiClient.get('/reportes/inventario-valorizado');
+  inventarioValorizado: async (page = 1, limit = 25, q = ''): Promise<InventarioValorizado> => {
+    const { data } = await apiClient.get('/reportes/inventario-valorizado', {
+      params: { page, limit, q: q || undefined },
+    });
     return data.data;
   },
 
-  topClientes: async (desde: string, hasta: string, limit = 10): Promise<TopCliente[]> => {
-    const { data } = await apiClient.get('/reportes/top-clientes', { params: { desde, hasta, limit } });
+  inventarioValorizadoExport: async (q = ''): Promise<InventarioArticulo[]> => {
+    const { data } = await apiClient.get('/reportes/inventario-valorizado/export', {
+      params: q ? { q } : undefined,
+    });
+    return data.data;
+  },
+
+  dgii607Preview: async (periodo: string): Promise<Dgii607Preview> => {
+    const { data } = await apiClient.get('/reportes/dgii-607/preview', { params: { periodo } });
+    return data.data;
+  },
+
+  dgii606Preview: async (periodo: string): Promise<Dgii606Preview> => {
+    const { data } = await apiClient.get('/reportes/dgii-606/preview', { params: { periodo } });
+    return data.data;
+  },
+
+  topClientes: async (desde: string, hasta: string, limit = 10, tiendaId?: number | null): Promise<TopCliente[]> => {
+    const { data } = await apiClient.get('/reportes/top-clientes', {
+      params: rangoParams(desde, hasta, tiendaId, { limit }),
+    });
+    return data.data;
+  },
+
+  ventasPorUsuario: async (desde: string, hasta: string, tiendaId?: number | null): Promise<VentaPorUsuario[]> => {
+    const { data } = await apiClient.get('/reportes/ventas-por-usuario', { params: rangoParams(desde, hasta, tiendaId) });
+    return data.data;
+  },
+
+  ventasPorCaja: async (desde: string, hasta: string, tiendaId?: number | null): Promise<VentaPorCaja[]> => {
+    const { data } = await apiClient.get('/reportes/ventas-por-caja', { params: rangoParams(desde, hasta, tiendaId) });
     return data.data;
   },
 

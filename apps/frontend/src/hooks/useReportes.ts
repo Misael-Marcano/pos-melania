@@ -1,49 +1,69 @@
 import { useQuery } from '@tanstack/react-query';
 import { reportesService } from '@/services/reportes.service';
 
-export function useVentasPorDia(desde: string, hasta: string) {
+function tiendaKey(tiendaId?: number | null) {
+  return tiendaId ?? 'all';
+}
+
+export function useVentasPorDia(desde: string, hasta: string, tiendaId?: number | null) {
   return useQuery({
-    queryKey: ['reportes', 'ventas-por-dia', desde, hasta],
-    queryFn:  () => reportesService.ventasPorDia(desde, hasta),
+    queryKey: ['reportes', 'ventas-por-dia', desde, hasta, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.ventasPorDia(desde, hasta, tiendaId),
     enabled:  !!(desde && hasta),
   });
 }
 
-export function useTopProductos(desde: string, hasta: string, limit = 10) {
+export function useTopProductos(desde: string, hasta: string, limit = 10, tiendaId?: number | null) {
   return useQuery({
-    queryKey: ['reportes', 'top-productos', desde, hasta, limit],
-    queryFn:  () => reportesService.topProductos(desde, hasta, limit),
+    queryKey: ['reportes', 'top-productos', desde, hasta, limit, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.topProductos(desde, hasta, limit, tiendaId),
     enabled:  !!(desde && hasta),
   });
 }
 
-export function useResumenDia(fecha: string) {
+export function useResumenDia(fecha: string, tiendaId?: number | null) {
   return useQuery({
-    queryKey: ['reportes', 'resumen-dia', fecha],
-    queryFn:  () => reportesService.resumenDia(fecha),
+    queryKey: ['reportes', 'resumen-dia', fecha, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.resumenDia(fecha, tiendaId),
     enabled:  !!fecha,
   });
 }
 
-export function useGanancias(desde: string, hasta: string) {
+export function useGanancias(desde: string, hasta: string, tiendaId?: number | null) {
   return useQuery({
-    queryKey: ['reportes', 'ganancias', desde, hasta],
-    queryFn:  () => reportesService.ganancias(desde, hasta),
+    queryKey: ['reportes', 'ganancias', desde, hasta, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.ganancias(desde, hasta, tiendaId),
     enabled:  !!(desde && hasta),
   });
 }
 
-export function useInventarioValorizado() {
+export function useInventarioValorizado(page = 1, limit = 25, q = '') {
   return useQuery({
-    queryKey: ['reportes', 'inventario-valorizado'],
-    queryFn:  reportesService.inventarioValorizado,
+    queryKey: ['reportes', 'inventario-valorizado', page, limit, q],
+    queryFn:  () => reportesService.inventarioValorizado(page, limit, q),
   });
 }
 
-export function useTopClientes(desde: string, hasta: string, limit = 10) {
+export function useDgii607Preview(periodo: string) {
   return useQuery({
-    queryKey: ['reportes', 'top-clientes', desde, hasta, limit],
-    queryFn:  () => reportesService.topClientes(desde, hasta, limit),
+    queryKey: ['reportes', 'dgii-607-preview', periodo],
+    queryFn:  () => reportesService.dgii607Preview(periodo),
+    enabled:  /^\d{6}$/.test(periodo),
+  });
+}
+
+export function useDgii606Preview(periodo: string) {
+  return useQuery({
+    queryKey: ['reportes', 'dgii-606-preview', periodo],
+    queryFn:  () => reportesService.dgii606Preview(periodo),
+    enabled:  /^\d{6}$/.test(periodo),
+  });
+}
+
+export function useTopClientes(desde: string, hasta: string, limit = 10, tiendaId?: number | null) {
+  return useQuery({
+    queryKey: ['reportes', 'top-clientes', desde, hasta, limit, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.topClientes(desde, hasta, limit, tiendaId),
     enabled:  !!(desde && hasta),
   });
 }
@@ -53,5 +73,21 @@ export function useResumenPorSucursal(tiendaId: number | null, desde: string, ha
     queryKey: ['reportes', 'por-sucursal', tiendaId, desde, hasta],
     queryFn:  () => reportesService.resumenPorSucursal(tiendaId!, desde, hasta),
     enabled:  !!(tiendaId && desde && hasta),
+  });
+}
+
+export function useVentasPorUsuario(desde: string, hasta: string, tiendaId?: number | null) {
+  return useQuery({
+    queryKey: ['reportes', 'ventas-por-usuario', desde, hasta, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.ventasPorUsuario(desde, hasta, tiendaId),
+    enabled:  !!(desde && hasta),
+  });
+}
+
+export function useVentasPorCaja(desde: string, hasta: string, tiendaId?: number | null) {
+  return useQuery({
+    queryKey: ['reportes', 'ventas-por-caja', desde, hasta, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.ventasPorCaja(desde, hasta, tiendaId),
+    enabled:  !!(desde && hasta),
   });
 }

@@ -36,6 +36,7 @@ export const reportesTabs = {
   inventario: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_INVENTARIO ?? 'Inventario',
   clientes: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_CLIENTES ?? 'Clientes',
   sucursal: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_SUCURSAL ?? 'Por sucursal',
+  auditoria: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_AUDITORIA ?? 'Auditoría',
   dgii: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_DGII ?? 'DGII',
 } as const;
 

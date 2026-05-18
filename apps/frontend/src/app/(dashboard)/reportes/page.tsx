@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import {
   useVentasPorDia, useTopProductos, useResumenDia,
   useGanancias, useInventarioValorizado, useTopClientes,
-  useResumenPorSucursal,
+  useResumenPorSucursal, useVentasPorUsuario, useVentasPorCaja,
+  useDgii607Preview, useDgii606Preview,
 } from '@/hooks/useReportes';
 import { useTiendas } from '@/hooks/useTiendas';
 import { PageHeader }    from '@/components/layout/PageHeader';
@@ -13,7 +14,8 @@ import { formatCurrency } from '@/lib/utils';
 import { reportesPageTitle, reportesTabs, uiLabels } from '@/lib/ui-labels';
 import {
   BarChart3, TrendingUp, ShoppingBag, Calendar, ArrowUpRight,
-  Loader2, DollarSign, Package, Users,   Download, FileText, Store,
+  Loader2, DollarSign, Package, Users, Download, FileText, Store,
+  ClipboardList, RefreshCw, ChevronLeft, ChevronRight, AlertTriangle,
 } from 'lucide-react';
 import { reportesService } from '@/services/reportes.service';
 import { useAuthStore } from '@/store/auth.store';
@@ -96,9 +98,26 @@ function LoadingCard() {
 
 // ── Filtro de fechas compartido ───────────────────────────────────────────────
 
-function DateFilter({ desde, hasta, setDesde, setHasta }: {
+function QueryError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm text-rose-700">{message}</p>
+      <button type="button" onClick={onRetry}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 hover:text-rose-900">
+        <RefreshCw size={13} /> Reintentar
+      </button>
+    </div>
+  );
+}
+
+function DateFilter({ desde, hasta, setDesde, setHasta, tiendaId, setTiendaId, tiendas, isAdmin, userTiendaId }: {
   desde: string; hasta: string;
   setDesde: (v: string) => void; setHasta: (v: string) => void;
+  tiendaId: number | '';
+  setTiendaId: (v: number | '') => void;
+  tiendas: { id: number; nombre: string }[];
+  isAdmin: boolean;
+  userTiendaId?: number | null;
 }) {
   const PRESETS = [
     { label: 'Hoy',       d: 0  },
@@ -131,6 +150,25 @@ function DateFilter({ desde, hasta, setDesde, setHasta }: {
         <input type="date" value={hasta} min={desde}
           onChange={(e) => setHasta(e.target.value)} className="input-field w-40" />
       </div>
+      <div>
+        <label className="text-xs font-medium text-navy-600 block mb-1">Sucursal</label>
+        {!isAdmin && userTiendaId ? (
+          <p className="input-field w-48 bg-navy-50 text-navy-700 cursor-default text-sm">
+            {tiendas.find((t) => t.id === userTiendaId)?.nombre ?? `Sucursal #${userTiendaId}`}
+          </p>
+        ) : (
+          <Select
+            wrapperClassName="w-48"
+            value={tiendaId === '' ? '' : String(tiendaId)}
+            onChange={(e) => setTiendaId(e.target.value === '' ? '' : Number(e.target.value))}
+          >
+            <option value="">Todas las sucursales</option>
+            {tiendas.map((t) => (
+              <option key={t.id} value={t.id}>{t.nombre}</option>
+            ))}
+          </Select>
+        )}
+      </div>
       <div className="flex gap-2 ml-auto flex-wrap">
         {PRESETS.map(({ label, d }) => (
           <button key={label} onClick={() => apply(d)}
@@ -145,11 +183,14 @@ function DateFilter({ desde, hasta, setDesde, setHasta }: {
 
 // ── Tab: Ventas ───────────────────────────────────────────────────────────────
 
-function TabVentas({ desde, hasta }: { desde: string; hasta: string }) {
+function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
   const hoy = new Date().toISOString().split('T')[0];
-  const { data: ventasDia = [],    isLoading: lv } = useVentasPorDia(desde, hasta);
-  const { data: topProductos = [], isLoading: lt } = useTopProductos(desde, hasta);
-  const { data: resumenHoy }                        = useResumenDia(hoy);
+  const { data: ventasDia = [], isLoading: lv, isError: ev, error: errV, refetch: rv } = useVentasPorDia(desde, hasta, tiendaId);
+  const { data: topProductos = [], isLoading: lt, isError: et, error: errT, refetch: rt } = useTopProductos(desde, hasta, 10, tiendaId);
+  const { data: resumenHoy } = useResumenDia(hoy, tiendaId);
+
+  if (ev) return <QueryError message={errV instanceof Error ? errV.message : 'Error al cargar ventas'} onRetry={() => rv()} />;
+  if (et) return <QueryError message={errT instanceof Error ? errT.message : 'Error al cargar productos'} onRetry={() => rt()} />;
 
   const totalMonto         = ventasDia.reduce((s, d) => s + Number(d.totalMonto), 0);
   const totalTransacciones = ventasDia.reduce((s, d) => s + Number(d.totalVentas), 0);
@@ -308,10 +349,11 @@ function PnLRow({ label, value, indent, bold, negative, positive, separator }: {
   );
 }
 
-function TabPnL({ desde, hasta }: { desde: string; hasta: string }) {
-  const { data: pnl, isLoading } = useGanancias(desde, hasta);
+function TabPnL({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
+  const { data: pnl, isLoading, isError, error, refetch } = useGanancias(desde, hasta, tiendaId);
 
   if (isLoading) return <LoadingCard />;
+  if (isError) return <QueryError message={error instanceof Error ? error.message : 'Error al cargar P&L'} onRetry={() => refetch()} />;
   if (!pnl) return <p className="text-center text-navy-400 text-sm py-8">Sin datos</p>;
 
   const exportarPnL = () => {
@@ -331,6 +373,11 @@ function TabPnL({ desde, hasta }: { desde: string; hasta: string }) {
   };
 
   return (
+    <div className="space-y-4">
+      <p className="text-xs text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
+        El costo usa el costo actual del artículo; las devoluciones por fecha de aprobación.
+        Los pagos mixtos se desglosan según el detalle registrado en cada venta.
+      </p>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       {/* Estado de resultados */}
       <div className="lg:col-span-2 bg-white rounded-[12px] shadow-card overflow-hidden">
@@ -437,36 +484,54 @@ function TabPnL({ desde, hasta }: { desde: string; hasta: string }) {
         </div>
       </div>
     </div>
+    </div>
   );
 }
 
 // ── Tab: Inventario ───────────────────────────────────────────────────────────
 
-function TabInventario() {
-  const { data: inv, isLoading } = useInventarioValorizado();
-  const [buscar, setBuscar] = useState('');
+const INVENTARIO_PAGE_SIZE = 25;
 
-  if (isLoading) return <LoadingCard />;
+function TabInventario() {
+  const [page, setPage] = useState(1);
+  const [buscar, setBuscar] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedQ(buscar); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [buscar]);
+
+  const { data: inv, isLoading, isFetching } = useInventarioValorizado(page, INVENTARIO_PAGE_SIZE, debouncedQ);
+
+  if (isLoading && !inv) return <LoadingCard />;
   if (!inv) return <p className="text-center text-navy-400 text-sm py-8">Sin datos</p>;
 
-  const exportarInventario = () => {
-    downloadCSV(`inventario_valorizado_${new Date().toISOString().split('T')[0]}.csv`,
-      ['Artículo', 'Categoría', 'Stock', 'Costo unit.', 'Valor costo', 'Valor venta'],
-      inv.articulos.map((a) => [
-        a.nombre, a.categoria ?? '', a.cantidad ?? 0,
-        Number(a.costo).toFixed(2), Number(a.valorCosto).toFixed(2), Number(a.valorVenta).toFixed(2),
-      ])
-    );
-  };
+  const { items, total } = inv.articulos;
+  const totalPages = Math.max(1, Math.ceil(total / INVENTARIO_PAGE_SIZE));
 
-  const artsFiltrados = inv.articulos.filter((a) =>
-    a.nombre.toLowerCase().includes(buscar.toLowerCase()) ||
-    (a.categoria ?? '').toLowerCase().includes(buscar.toLowerCase())
-  );
+  const exportarInventario = async () => {
+    setExporting(true);
+    try {
+      const rows = await reportesService.inventarioValorizadoExport(debouncedQ);
+      downloadCSV(`inventario_valorizado_${new Date().toISOString().split('T')[0]}.csv`,
+        ['Artículo', 'Categoría', 'Stock', 'Costo unit.', 'Valor costo', 'Valor venta'],
+        rows.map((a) => [
+          a.nombre, a.categoria ?? '', a.cantidad ?? 0,
+          Number(a.costo).toFixed(2), Number(a.valorCosto).toFixed(2), Number(a.valorVenta).toFixed(2),
+        ]),
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
-      {/* KPIs */}
+      <p className="text-xs text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
+        Totales y categorías incluyen todo el inventario activo. La tabla muestra {INVENTARIO_PAGE_SIZE} artículos por página; el CSV exporta hasta 15 000 filas.
+      </p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Valor a costo" value={formatCurrency(inv.totales.totalCosto)}
           icon={<Package size={18} className="text-navy-600" />} color="bg-navy-100" />
@@ -511,12 +576,18 @@ function TabInventario() {
             <p className="font-semibold text-navy-800 text-sm">Artículos valorizados</p>
             <input className="input-field text-sm py-1.5 ml-auto w-48" value={buscar}
               onChange={(e) => setBuscar(e.target.value)} placeholder="Filtrar..." />
-            <button onClick={exportarInventario}
-              className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium transition-colors border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg shrink-0">
-              <Download size={12} /> CSV
+            <button onClick={exportarInventario} disabled={exporting}
+              className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium transition-colors border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg shrink-0 disabled:opacity-50">
+              {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+              CSV
             </button>
           </div>
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto relative">
+            {isFetching && (
+              <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-20">
+                <Loader2 className="animate-spin text-primary-500" size={20} />
+              </div>
+            )}
             <table className="w-full">
               <thead className="sticky top-0 bg-white z-10">
                 <tr>
@@ -528,7 +599,13 @@ function TabInventario() {
                 </tr>
               </thead>
               <tbody>
-                {artsFiltrados.map((a, i) => (
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="table-cell text-center text-navy-400 text-sm py-6">
+                      Sin artículos que coincidan.
+                    </td>
+                  </tr>
+                ) : items.map((a, i) => (
                   <tr key={i} className="table-row-hover">
                     <td className="table-cell">
                       <p className="font-medium text-navy-700 text-sm">{a.nombre}</p>
@@ -548,6 +625,19 @@ function TabInventario() {
               </tbody>
             </table>
           </div>
+          <div className="px-4 py-2 border-t border-navy-100/40 flex items-center justify-between text-xs text-navy-500">
+            <span>{total.toLocaleString()} artículo(s) · página {page} de {totalPages}</span>
+            <div className="flex gap-1">
+              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
+                className="p-1.5 rounded-lg border border-navy-200 disabled:opacity-40 hover:border-primary-400">
+                <ChevronLeft size={14} />
+              </button>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
+                className="p-1.5 rounded-lg border border-navy-200 disabled:opacity-40 hover:border-primary-400">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -556,10 +646,11 @@ function TabInventario() {
 
 // ── Tab: Clientes ─────────────────────────────────────────────────────────────
 
-function TabClientes({ desde, hasta }: { desde: string; hasta: string }) {
-  const { data: clientes = [], isLoading } = useTopClientes(desde, hasta, 20);
+function TabClientes({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
+  const { data: clientes = [], isLoading, isError, error, refetch } = useTopClientes(desde, hasta, 20, tiendaId);
 
   if (isLoading) return <LoadingCard />;
+  if (isError) return <QueryError message={error instanceof Error ? error.message : 'Error al cargar clientes'} onRetry={() => refetch()} />;
 
   const totalComprasSum = clientes.reduce((s, c) => s + Number(c.totalCompras), 0);
 
@@ -653,6 +744,22 @@ function TabClientes({ desde, hasta }: { desde: string; hasta: string }) {
 
 // ── Tab: DGII ─────────────────────────────────────────────────────────────────
 
+function DgiiPreviewAlerts({ alertas }: { alertas: string[] }) {
+  if (!alertas.length) {
+    return <p className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">Sin alertas para este período.</p>;
+  }
+  return (
+    <ul className="text-xs text-amber-900 bg-amber-50 px-3 py-2 rounded-lg space-y-1 list-none">
+      {alertas.map((a, i) => (
+        <li key={i} className="flex gap-1.5 items-start">
+          <AlertTriangle size={12} className="shrink-0 mt-0.5 text-amber-600" />
+          <span>{a}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function TabDGII() {
   const now = new Date();
   const defaultPeriodo = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -661,6 +768,8 @@ function TabDGII() {
   const [loading606, setLoading606] = useState(false);
   const [error607, setError607] = useState('');
   const [error606, setError606] = useState('');
+  const { data: preview607, isLoading: loadingPreview607 } = useDgii607Preview(periodo);
+  const { data: preview606, isLoading: loadingPreview606 } = useDgii606Preview(periodo);
 
   const handleDescargar607 = async () => {
     setLoading607(true); setError607('');
@@ -727,6 +836,25 @@ function TabDGII() {
               </p>
             </div>
           </div>
+          {loadingPreview607 ? (
+            <div className="flex justify-center py-2"><Loader2 size={16} className="animate-spin text-navy-400" /></div>
+          ) : preview607 && (
+            <div className="text-xs space-y-2 border border-navy-100 rounded-lg p-3 bg-navy-50/60">
+              <p className="text-navy-700">
+                <span className="font-semibold">{preview607.lineas}</span> líneas ·{' '}
+                {formatCurrency(preview607.totalVentas)}
+              </p>
+              <p className="text-navy-500">ITBIS estimado (18% incluido): {formatCurrency(preview607.itbisEstimado)}</p>
+              {(preview607.sinNcf > 0 || preview607.clienteSinIdentificacion > 0) && (
+                <p className="text-rose-600">
+                  {preview607.sinNcf > 0 && `${preview607.sinNcf} sin NCF`}
+                  {preview607.sinNcf > 0 && preview607.clienteSinIdentificacion > 0 && ' · '}
+                  {preview607.clienteSinIdentificacion > 0 && `${preview607.clienteSinIdentificacion} cliente sin ID`}
+                </p>
+              )}
+              <DgiiPreviewAlerts alertas={preview607.alertas} />
+            </div>
+          )}
           {error607 && <p className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg">{error607}</p>}
           <button
             onClick={handleDescargar607}
@@ -754,6 +882,22 @@ function TabDGII() {
               </p>
             </div>
           </div>
+          {loadingPreview606 ? (
+            <div className="flex justify-center py-2"><Loader2 size={16} className="animate-spin text-navy-400" /></div>
+          ) : preview606 && (
+            <div className="text-xs space-y-2 border border-navy-100 rounded-lg p-3 bg-navy-50/60">
+              <p className="text-navy-700">
+                <span className="font-semibold">{preview606.lineas}</span> líneas
+                ({preview606.lineasOrdenes} compras + {preview606.lineasGastos} gastos) ·{' '}
+                {formatCurrency(preview606.totalCompras)}
+              </p>
+              <p className="text-navy-500">ITBIS estimado: {formatCurrency(preview606.itbisEstimado)}</p>
+              {preview606.ordenSinRncProveedor > 0 && (
+                <p className="text-rose-600">{preview606.ordenSinRncProveedor} orden(es) sin RNC de proveedor</p>
+              )}
+              <DgiiPreviewAlerts alertas={preview606.alertas} />
+            </div>
+          )}
           {error606 && <p className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg">{error606}</p>}
           <button
             onClick={handleDescargar606}
@@ -777,6 +921,90 @@ function TabDGII() {
           <li>Ventas anuladas quedan excluidas del 607.</li>
           <li>El RNC de la empresa se toma de la configuración del sistema.</li>
         </ul>
+      </div>
+    </div>
+  );
+}
+
+// ── Tab: Auditoría ────────────────────────────────────────────────────────────
+
+function TabAuditoria({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
+  const { data: porUsuario = [], isLoading: lu, isError: eu, error: errU, refetch: ru } =
+    useVentasPorUsuario(desde, hasta, tiendaId);
+  const { data: porCaja = [], isLoading: lc, isError: ec, error: errC, refetch: rc } =
+    useVentasPorCaja(desde, hasta, tiendaId);
+
+  if (lu || lc) return <LoadingCard />;
+  if (eu) return <QueryError message={errU instanceof Error ? errU.message : 'Error'} onRetry={() => ru()} />;
+  if (ec) return <QueryError message={errC instanceof Error ? errC.message : 'Error'} onRetry={() => rc()} />;
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
+        Ventas activas (sin anuladas) en el período. Enlace a cierres en la pestaña Por sucursal.
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-navy-100/40 flex items-center gap-2 font-semibold text-navy-800 text-sm">
+            <ClipboardList size={15} className="text-primary-500" /> Por cajero
+          </div>
+          <div className="overflow-x-auto">
+            {porUsuario.length === 0 ? (
+              <p className="text-sm text-navy-400 p-4">Sin ventas en el período.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-navy-500 border-b border-navy-100">
+                    <th className="py-2 px-4">Cajero</th>
+                    <th className="py-2 px-4 text-center">Trans.</th>
+                    <th className="py-2 px-4 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {porUsuario.map((u) => (
+                    <tr key={u.usuarioId} className="border-b border-navy-50">
+                      <td className="py-2 px-4 font-medium text-navy-800">{u.usuarioNombre}</td>
+                      <td className="py-2 px-4 text-center">{u.transacciones}</td>
+                      <td className="py-2 px-4 text-right font-semibold">{formatCurrency(Number(u.totalMonto))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+        <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-navy-100/40 flex items-center gap-2 font-semibold text-navy-800 text-sm">
+            <Store size={15} className="text-primary-500" /> Por caja
+          </div>
+          <div className="overflow-x-auto">
+            {porCaja.length === 0 ? (
+              <p className="text-sm text-navy-400 p-4">Sin ventas en el período.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-navy-500 border-b border-navy-100">
+                    <th className="py-2 px-4">Caja</th>
+                    <th className="py-2 px-4 text-center">Trans.</th>
+                    <th className="py-2 px-4 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {porCaja.map((c, i) => (
+                    <tr key={`${c.cajaNombre}-${i}`} className="border-b border-navy-50">
+                      <td className="py-2 px-4">
+                        <p className="font-medium text-navy-800">{c.cajaNombre}</p>
+                        {c.tiendaNombre && <p className="text-xs text-navy-400">{c.tiendaNombre}</p>}
+                      </td>
+                      <td className="py-2 px-4 text-center">{c.transacciones}</td>
+                      <td className="py-2 px-4 text-right font-semibold">{formatCurrency(Number(c.totalMonto))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -955,22 +1183,33 @@ function TabPorSucursal({ desde, hasta }: { desde: string; hasta: string }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
-type Tab = 'ventas' | 'pnl' | 'inventario' | 'clientes' | 'sucursal' | 'dgii';
+type Tab = 'ventas' | 'pnl' | 'inventario' | 'clientes' | 'auditoria' | 'sucursal' | 'dgii';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'ventas',     label: reportesTabs.ventas,      icon: <BarChart3  size={15} /> },
   { id: 'pnl',        label: reportesTabs.pnl,         icon: <DollarSign size={15} /> },
   { id: 'inventario', label: reportesTabs.inventario,  icon: <Package    size={15} /> },
   { id: 'clientes',   label: reportesTabs.clientes,    icon: <Users      size={15} /> },
+  { id: 'auditoria',  label: reportesTabs.auditoria,   icon: <ClipboardList size={15} /> },
   { id: 'sucursal',   label: reportesTabs.sucursal,    icon: <Store      size={15} /> },
   { id: 'dgii',       label: reportesTabs.dgii,        icon: <FileText   size={15} /> },
 ];
 
 export default function ReportesPage() {
   const defaults = getDefaultDates();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol === 'admin';
+  const { data: tiendas = [] } = useTiendas();
   const [tab,   setTab]   = useState<Tab>('ventas');
   const [desde, setDesde] = useState(defaults.desde);
   const [hasta, setHasta] = useState(defaults.hasta);
+  const [tiendaFiltro, setTiendaFiltro] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (!isAdmin && user?.tiendaId) setTiendaFiltro(user.tiendaId);
+  }, [isAdmin, user?.tiendaId]);
+
+  const tiendaIdParam = tiendaFiltro === '' ? null : Number(tiendaFiltro);
 
   return (
     <main className="space-y-5" aria-labelledby="reportes-heading">
@@ -998,14 +1237,19 @@ export default function ReportesPage() {
 
       {/* Filtro de fechas (no aplica para inventario ni DGII) */}
       {tab !== 'inventario' && tab !== 'dgii' && (
-        <DateFilter desde={desde} hasta={hasta} setDesde={setDesde} setHasta={setHasta} />
+        <DateFilter
+          desde={desde} hasta={hasta} setDesde={setDesde} setHasta={setHasta}
+          tiendaId={tiendaFiltro} setTiendaId={setTiendaFiltro}
+          tiendas={tiendas} isAdmin={isAdmin} userTiendaId={user?.tiendaId}
+        />
       )}
 
       {/* Contenido del tab activo */}
-      {tab === 'ventas'     && <TabVentas     desde={desde} hasta={hasta} />}
-      {tab === 'pnl'        && <TabPnL        desde={desde} hasta={hasta} />}
+      {tab === 'ventas'     && <TabVentas     desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
+      {tab === 'pnl'        && <TabPnL        desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
       {tab === 'inventario' && <TabInventario />}
-      {tab === 'clientes'   && <TabClientes   desde={desde} hasta={hasta} />}
+      {tab === 'clientes'   && <TabClientes   desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
+      {tab === 'auditoria'  && <TabAuditoria  desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
       {tab === 'sucursal'   && <TabPorSucursal desde={desde} hasta={hasta} />}
       {tab === 'dgii'       && <TabDGII />}
     </main>
