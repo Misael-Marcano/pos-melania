@@ -108,7 +108,7 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 
 ### P3 — Valor ampliado (cuando P0–P2 estén estables)
 
-- [ ] Comparar períodos (mes actual vs anterior) en ventas y P&L.
+- [x] Comparar períodos (mes actual vs anterior) en ventas y P&L — `GET /reportes/comparar-periodos` (MTD alineado); banner en `TabVentas` y `TabPnL`.
 - [ ] Reporte stock bajo / sin movimiento (umbrales configurables).
 - [ ] Cartera y crédito (antigüedad de saldos, más allá del top clientes).
 - [ ] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`).
