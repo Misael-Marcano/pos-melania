@@ -81,6 +81,18 @@ export interface BillingEmailContext {
   planLabel?: string;
   /** URL al portal de facturación para que el tenant actúe. */
   portalUrl?: string;
+  /** Teléfono / web desde configuración de empresa (pie del correo). */
+  contactLine?: string;
+}
+
+function contactFooterHtml(contactLine?: string): string {
+  if (!contactLine?.trim()) return '';
+  return `<p style="color:#4a5568;font-size:13px;margin-top:8px">${contactLine}</p>`;
+}
+
+function contactFooterText(contactLine?: string): string {
+  if (!contactLine?.trim()) return '';
+  return `\n${contactLine}\n`;
 }
 
 /**
@@ -103,10 +115,11 @@ export async function sendPaymentFailedEmail(ctx: BillingEmailContext): Promise<
         <p>No pudimos procesar el pago de la suscripción <strong>${ctx.planLabel ?? ''}</strong> para <strong>${ctx.tenantNombre}</strong>.</p>
         <p>Tu cuenta permanece activa por el momento, pero si el pago no se resuelve en los próximos días el acceso podría suspenderse.</p>
         ${action}
+        ${contactFooterHtml(ctx.contactLine)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
         <p style="color:#888;font-size:12px">Este mensaje es automático. Si ya actualizaste tu método de pago, ignóralo.</p>
       </div>`,
-    text: `Pago no procesado para ${ctx.tenantNombre}.\n\nNo pudimos cobrar la suscripción ${ctx.planLabel ?? ''}. Actualiza tu método de pago antes de que se suspenda el acceso.\n\n${ctx.portalUrl ? `Portal: ${ctx.portalUrl}` : 'Ve a Configuración → Plan.'}`,
+    text: `Pago no procesado para ${ctx.tenantNombre}.\n\nNo pudimos cobrar la suscripción ${ctx.planLabel ?? ''}. Actualiza tu método de pago antes de que se suspenda el acceso.\n\n${ctx.portalUrl ? `Portal: ${ctx.portalUrl}` : 'Ve a Configuración → Plan.'}${contactFooterText(ctx.contactLine)}`,
   });
 }
 
@@ -129,10 +142,11 @@ export async function sendSubscriptionCanceledEmail(ctx: BillingEmailContext): P
         <p>Hola,</p>
         <p>La suscripción de <strong>${ctx.tenantNombre}</strong> ha sido cancelada. El acceso a los módulos premium se ha restringido.</p>
         ${action}
+        ${contactFooterHtml(ctx.contactLine)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
         <p style="color:#888;font-size:12px">Si cancelaste intencionalmente, ignora este mensaje.</p>
       </div>`,
-    text: `La suscripción de ${ctx.tenantNombre} fue cancelada. Para reactivarla: ${ctx.portalUrl ?? 'Configuración → Plan'}.`,
+    text: `La suscripción de ${ctx.tenantNombre} fue cancelada. Para reactivarla: ${ctx.portalUrl ?? 'Configuración → Plan'}.${contactFooterText(ctx.contactLine)}`,
   });
 }
 
@@ -151,10 +165,11 @@ export async function sendSubscriptionActivatedEmail(ctx: BillingEmailContext): 
         <h2 style="color:#276749">Suscripción confirmada</h2>
         <p>Hola,</p>
         <p>La suscripción <strong>${ctx.planLabel ?? ''}</strong> de <strong>${ctx.tenantNombre}</strong> está activa. Ya tienes acceso a todos los módulos de tu plan.</p>
+        ${contactFooterHtml(ctx.contactLine)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
         <p style="color:#888;font-size:12px">Gracias por tu confianza.</p>
       </div>`,
-    text: `Suscripción ${ctx.planLabel ?? ''} de ${ctx.tenantNombre} confirmada y activa.`,
+    text: `Suscripción ${ctx.planLabel ?? ''} de ${ctx.tenantNombre} confirmada y activa.${contactFooterText(ctx.contactLine)}`,
   });
 }
 
@@ -206,10 +221,11 @@ export async function sendTrialReminderEmail(ctx: TrialReminderEmailContext): Pr
         <p>El periodo de prueba de <strong>${ctx.tenantNombre}</strong> (${ctx.planLabel ?? 'plan actual'}) <strong>${timePhrase}</strong>.</p>
         <p>Si deseas seguir usando el sistema sin interrupciones, elige un plan y completa el pago cuando corresponda.</p>
         ${action}
+        ${contactFooterHtml(ctx.contactLine)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
         <p style="color:#888;font-size:12px">Mensaje automático sobre el estado de tu cuenta. Si ya contrataste un plan, puedes ignorar este correo.</p>
       </div>`,
-      text: `Periodo de prueba de ${ctx.tenantNombre}: ${timePhrase}. Contrata un plan en Configuración → Plan. ${ctx.portalUrl ?? ''}`,
+      text: `Periodo de prueba de ${ctx.tenantNombre}: ${timePhrase}. Contrata un plan en Configuración → Plan. ${ctx.portalUrl ?? ''}${contactFooterText(ctx.contactLine)}`,
     });
     return true;
   } catch (e: unknown) {

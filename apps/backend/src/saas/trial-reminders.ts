@@ -4,6 +4,7 @@ import { Tenant } from '../entities/Tenant.entity';
 import { Usuario } from '../entities/Usuario.entity';
 import { trialStateFromEndsAt, TrialState } from './trial';
 import { sendTrialReminderEmail } from '../notifications/email.service';
+import { resolveTenantEmailBranding } from '../notifications/tenant-email-branding';
 import { resolvePlanLimits } from './plan-limits';
 
 function hasPaidStripeSubscription(billingStatus: string | null | undefined): boolean {
@@ -85,13 +86,15 @@ export async function runTrialReminderJob(): Promise<TrialReminderJobResult> {
     const planLabel = resolvePlanLimits(tenant.planCode).label;
     const appUrl = process.env.FRONTEND_URL?.trim() ?? '';
     const portalUrl = appUrl ? `${appUrl}/configuracion` : undefined;
+    const branding = await resolveTenantEmailBranding(tenant.id);
 
     if (sendWeek && state.daysRemaining != null) {
       const ok = await sendTrialReminderEmail({
-        tenantNombre: tenant.nombre,
+        tenantNombre: branding.displayName,
         adminEmails,
         planLabel,
         portalUrl,
+        contactLine: branding.contactLine,
         daysRemaining: state.daysRemaining,
         variant: 'week',
       });
@@ -103,10 +106,11 @@ export async function runTrialReminderJob(): Promise<TrialReminderJobResult> {
 
     if (sendLastDay && state.daysRemaining != null) {
       const ok = await sendTrialReminderEmail({
-        tenantNombre: tenant.nombre,
+        tenantNombre: branding.displayName,
         adminEmails,
         planLabel,
         portalUrl,
+        contactLine: branding.contactLine,
         daysRemaining: state.daysRemaining,
         variant: 'lastDay',
       });

@@ -38,6 +38,7 @@ import billingRoutes        from './modules/billing/billing.routes';
 import internalRoutes       from './modules/internal/internal.routes';
 import { billingWebhookHandler } from './modules/billing/billing.webhook';
 import { swaggerSpec } from './config/swagger';
+import { uploadsRoot } from './modules/configuracion/logotipo-upload';
 
 const app = express();
 
@@ -177,6 +178,17 @@ if (process.env.NODE_ENV !== 'test') {
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Logotipos por tenant (público; URL acotada por tenantId en path)
+app.use(
+  `${API}/uploads`,
+  express.static(uploadsRoot(), {
+    maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+    setHeaders(res) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    },
+  }),
+);
 
 // ── OpenAPI (Swagger UI) — desactivar en producción salvo SWAGGER_ENABLED=true ─
 if (swaggerEnabled) {

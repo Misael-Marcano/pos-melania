@@ -76,6 +76,34 @@ describe('configuracion — permisos y validación', () => {
     expect(res.status).toBe(403);
   });
 
+  it('POST /configuracion/logotipo como admin → 200 y logotipoUrl', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const res = await request(app)
+      .post('/api/v1/configuracion/logotipo')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .attach('logotipo', png, { filename: 'logo.png', contentType: 'image/png' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.logotipoUrl).toMatch(/^https?:\/\/.+\/uploads\/tenants\/\d+\/logo\.png$/i);
+  });
+
+  it('POST /configuracion/logotipo como cajero → 403', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const res = await request(app)
+      .post('/api/v1/configuracion/logotipo')
+      .set('Authorization', `Bearer ${cajeroToken}`)
+      .attach('logotipo', png, { filename: 'logo.png', contentType: 'image/png' });
+
+    expect(res.status).toBe(403);
+  });
+
   it('GET /configuracion/fiscal-status como admin → 200 con campos esperados', async () => {
     const res = await request(app)
       .get('/api/v1/configuracion/fiscal-status')

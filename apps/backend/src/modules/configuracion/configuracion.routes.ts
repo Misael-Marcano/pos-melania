@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { ConfiguracionController } from './configuracion.controller';
 import { authMiddleware, canAdmin, canConfigRead } from '../../middlewares/auth.middleware';
+import { logotipoUploadMiddleware } from './logotipo-upload';
 
 const router = Router();
 const ctrl   = new ConfiguracionController();
@@ -27,5 +28,21 @@ router.use(authMiddleware);
 router.get('/fiscal-status', canConfigRead, ctrl.fiscalStatus.bind(ctrl));
 router.get('/',            canConfigRead, ctrl.get.bind(ctrl));
 router.put('/',            canAdmin,      ctrl.update.bind(ctrl));
+router.post(
+  '/logotipo',
+  canAdmin,
+  (req: Request, res: Response, next: NextFunction) => {
+    logotipoUploadMiddleware(req, res, (err: unknown) => {
+      if (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Error al subir el logotipo';
+        const status = /tamaño|size|large|permitido|formato/i.test(msg) ? 400 : 500;
+        res.status(status).json({ success: false, message: msg });
+        return;
+      }
+      void ctrl.uploadLogotipo(req, res);
+    });
+  },
+);
 
 export default router;

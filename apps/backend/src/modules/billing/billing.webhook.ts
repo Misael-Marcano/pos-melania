@@ -11,6 +11,7 @@ import {
   sendSubscriptionCanceledEmail,
   sendSubscriptionActivatedEmail,
 } from '../../notifications/email.service';
+import { resolveTenantEmailBranding } from '../../notifications/tenant-email-branding';
 import { getStripe, planCodeFromStripePriceId } from './stripe';
 
 const tenantRepo   = () => AppDataSource.getRepository(Tenant);
@@ -252,12 +253,14 @@ async function sendBillingNotification(ctx: DispatchResult): Promise<void> {
     const planLabel   = resolvePlanLimits(ctx.planCode ?? tenant.planCode).label;
     const appUrl      = process.env.FRONTEND_URL?.trim() ?? '';
     const portalUrl   = appUrl ? `${appUrl}/configuracion` : undefined;
+    const branding    = await resolveTenantEmailBranding(ctx.tenantId);
 
     const emailCtx = {
-      tenantNombre: tenant.nombre,
+      tenantNombre: branding.displayName,
       adminEmails,
       planLabel,
       portalUrl,
+      contactLine: branding.contactLine,
     };
 
     if (ctx.notify === 'activated')      await sendSubscriptionActivatedEmail(emailCtx);

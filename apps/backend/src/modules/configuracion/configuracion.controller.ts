@@ -74,4 +74,28 @@ export class ConfiguracionController {
       return sendFail(res, e);
     }
   }
+
+  async uploadLogotipo(req: AuthRequest, res: Response) {
+    try {
+      if (!req.file) {
+        return sendFail(res, new Error('No se recibió ningún archivo (campo logotipo)'), {
+          defaultStatus: 400,
+        });
+      }
+      const data = await service.saveUploadedLogotipo(req.user!, req.file, req);
+      registrarAudit({
+        tabla: 'configuracion',
+        operacion: 'UPDATE',
+        registroId: data.id,
+        descripcion: 'Subió logotipo de empresa',
+        valorNuevo: { logotipoUrl: data.logotipoUrl },
+        usuarioId: req.user?.id,
+        usuarioNombre: req.user?.nombre,
+        ip: req.ip,
+      });
+      return sendSuccess(res, data, 'Logotipo actualizado');
+    } catch (e: unknown) {
+      return sendFail(res, e);
+    }
+  }
 }

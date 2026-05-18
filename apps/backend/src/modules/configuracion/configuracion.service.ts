@@ -6,6 +6,8 @@ import { Caja } from '../../entities/Caja.entity';
 import { Tenant } from '../../entities/Tenant.entity';
 import { assertTenantForTienda, tenantIdOrThrow } from '../../utils/tenant-access';
 import { UpdateConfiguracionDto } from './dto/configuracion.dto';
+import { publicLogotipoUrl, tenantLogoDir } from './logotipo-upload';
+import { Request } from 'express';
 
 const repo = () => AppDataSource.getRepository(Configuracion);
 const tiendaRepo = () => AppDataSource.getRepository(Tienda);
@@ -84,5 +86,27 @@ export class ConfiguracionService {
       relations: ['tenant', 'tienda', 'caja', 'caja.tienda'],
     });
     return mapConfig(fresh ?? cfg);
+  }
+
+  async saveUploadedLogotipo(
+    user: AuthUser,
+    file: Express.Multer.File,
+    req?: Request,
+  ): Promise<Configuracion> {
+    const cfg = await this.get(user);
+    const tid = tenantIdOrThrow(user);
+    const ext = file.filename.match(/\.[a-z]+$/i)?.[0] ?? '.png';
+    cfg.logotipoUrl = publicLogotipoUrl(tid, ext, req);
+    await repo().save(cfg);
+    const fresh = await repo().findOne({
+      where: { id: cfg.id },
+      relations: ['tenant', 'tienda', 'caja', 'caja.tienda'],
+    });
+    return mapConfig(fresh ?? cfg);
+  }
+
+  /** Ruta en disco del directorio de logo del tenant (tests / diagnóstico). */
+  logoDirForTenant(tenantId: number): string {
+    return tenantLogoDir(tenantId);
   }
 }
