@@ -3,16 +3,38 @@
 import Link from 'next/link';
 import { Clock, AlignJustify, ShoppingCart, BarChart2, RefreshCw, ArrowRight } from 'lucide-react';
 import { uiLabels } from '@/lib/ui-labels';
+import { useAuthStore } from '@/store/auth.store';
+import { useSaasContext } from '@/hooks/useSaasContext';
+import type { Rol, PlanFeatures } from '@pos/shared';
 
-const ACTIONS = [
-  { label: `Cierre de hoy · ${uiLabels.reportes}`,       icon: <Clock size={16} />,        href: '/reportes',     color: 'bg-primary-100 text-primary-600' },
-  { label: 'Resumen de artículos de hoy',                 icon: <AlignJustify size={16} />, href: '/inventario',   color: 'bg-blue-100 text-blue-600' },
-  { label: 'Iniciar una nueva venta',                    icon: <ShoppingCart size={16} />, href: '/ventas',       color: 'bg-emerald-100 text-emerald-600' },
-  { label: `Ventas detalladas · ${uiLabels.reportes}`,    icon: <BarChart2 size={16} />,      href: '/reportes',     color: 'bg-amber-100 text-amber-600' },
-  { label: 'Nueva recepción de proveedor',                icon: <RefreshCw size={16} />,    href: '/proveedores',  color: 'bg-rose-100 text-rose-600' },
+type ActionDef = {
+  label:   string;
+  icon:    React.ReactNode;
+  href:    string;
+  color:   string;
+  roles:   Rol[];
+  feature?: keyof PlanFeatures;
+};
+
+const ACTIONS: ActionDef[] = [
+  { label: `Cierre de hoy · ${uiLabels.reportes}`, icon: <Clock size={16} />,        href: '/reportes',     color: 'bg-primary-100 text-primary-600', roles: ['admin', 'soporte', 'contador', 'plataforma'] },
+  { label: 'Resumen de artículos de hoy',         icon: <AlignJustify size={16} />, href: '/inventario',   color: 'bg-blue-100 text-blue-600',       roles: ['admin', 'soporte', 'plataforma'] },
+  { label: 'Iniciar una nueva venta',             icon: <ShoppingCart size={16} />, href: '/ventas',       color: 'bg-emerald-100 text-emerald-600', roles: ['admin', 'cajero', 'plataforma'] },
+  { label: `Ventas detalladas · ${uiLabels.reportes}`, icon: <BarChart2 size={16} />, href: '/reportes', color: 'bg-amber-100 text-amber-600',     roles: ['admin', 'soporte', 'contador', 'plataforma'] },
+  { label: 'Nueva recepción de proveedor',        icon: <RefreshCw size={16} />,    href: '/compras',      color: 'bg-rose-100 text-rose-600',       roles: ['admin', 'soporte', 'plataforma'], feature: 'compras' },
 ];
 
 export function QuickActions() {
+  const user = useAuthStore((s) => s.user);
+  const { data: saas } = useSaasContext();
+
+  const visible = ACTIONS.filter((a) => {
+    if (!user || !a.roles.includes(user.rol)) return false;
+    if (user.rol === 'plataforma') return true;
+    if (!a.feature) return true;
+    return saas?.limits?.features?.[a.feature] !== false;
+  });
+
   return (
     <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
       <div className="px-5 py-4 bg-navy-50/40">
@@ -20,9 +42,9 @@ export function QuickActions() {
         <p className="text-xs text-navy-400 mt-0.5">Atajos del sistema</p>
       </div>
       <div className="p-2 space-y-0.5">
-        {ACTIONS.map((action, i) => (
+        {visible.map((action) => (
           <Link
-            key={i}
+            key={action.href + action.label}
             href={action.href}
             className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-navy-50/90 transition-colors group"
           >
@@ -33,6 +55,9 @@ export function QuickActions() {
             <ArrowRight size={14} className="text-secondary shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
           </Link>
         ))}
+        {visible.length === 0 && (
+          <p className="text-xs text-navy-400 px-3 py-4 text-center">Sin atajos para tu rol</p>
+        )}
       </div>
     </div>
   );

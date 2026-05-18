@@ -520,4 +520,35 @@ export interface IAuditLog {
   createdAt: string;
 }
 
+// ============================
+// Panel plataforma (GET /tenants/panel)
+// ============================
+export interface TenantPanelUsage {
+  seats:            number;
+  tiendasActivas:   number;
+  articulosActivos: number;
+  ventasMesActual:  number;
+}
+
+export interface TenantPanelLimits {
+  maxUsers:     number | null;
+  maxTiendas:   number | null;
+  maxArticulos: number | null;
+}
+
+export interface TenantPanelRow {
+  id:                   number;
+  nombre:               string;
+  slug:                 string;
+  activo:               boolean;
+  planCode:             string;
+  planLabel:            string;
+  billingStatus:        string | null;
+  stripeCustomerId:     string | null;
+  stripeSubscriptionId: string | null;
+  usage:                TenantPanelUsage;
+  limits:               TenantPanelLimits;
+  createdAt:            string;
+}
+
 export * from '../validation/configuracion';

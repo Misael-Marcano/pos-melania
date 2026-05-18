@@ -62,7 +62,7 @@ Las **Fases 1–5** siguientes tienen `[x]` donde la capacidad está **implement
 ## Fase 6 — Operación SaaS
 
 - [x] **Email notifications** — `notifications/email.service.ts` (nodemailer, opt-in `NOTIFICATIONS_EMAIL_ENABLED=true`); templates `payment_failed`, `subscription_canceled`, `subscription_activated`; trial reminders + cron `POST /api/v1/internal/cron/trial-reminders` (`CRON_SECRET`); hooks en `billing.webhook.ts` incl. `invoice.payment_failed` y `past_due` vía `subscription.updated`.
-- [x] **Panel admin plataforma** — `GET /api/v1/tenants/panel` + UI `/plataforma` (KPIs, tabla, barras de uso, chips billing, búsqueda y filtros). *Mejoras UX por feedback = trabajo iterativo, no bloque de código base.*
+- [x] **Panel admin plataforma** — `GET /api/v1/tenants/panel` + UI `/plataforma` (KPIs, tabla, barras de uso, chips billing, búsqueda y filtros). *Mejoras iterativas → **Fase 9**.*
 - [x] **CI pipeline** — `.github/workflows/ci.yml` (typecheck, unit, build frontend, `verify-plan-limits-landing.mjs`); integración en push a `main`; E2E disparo manual `e2e-manual.yml` + `docs/operacion/E2E-STAGING.md`.
 - [x] **Docker Compose producción**: `docker-compose.production.yml` — sin credenciales hardcodeadas, healthchecks en todos los servicios, Redis con AOF, recursos limitados.
 - [x] **Seed de nuevo tenant** — `apps/backend/src/seeds/new-tenant.seed.ts` (+ `TRIAL_DAYS` opcional).
@@ -178,6 +178,93 @@ Backlog derivado de la revisión de `/configuracion` (2026-05). Código: `apps/b
 
 ---
 
+## Fase 9 — Módulo Panel (dashboard tenant + panel plataforma)
+
+Backlog derivado de la revisión de **`/panel`** (dashboard operativo del tenant) y **`/plataforma`** (panel multi-org, rol `plataforma`) — 2026-05.
+
+**Código principal**
+
+| Superficie | Frontend | Backend |
+|------------|----------|---------|
+| Dashboard tenant | `apps/frontend/src/app/(dashboard)/panel/page.tsx`, `components/dashboard/*` | `GET /reportes/resumen-dia`, `GET /reportes/ventas-por-dia`, inventario stock bajo, clientes con saldo |
+| Panel plataforma | `apps/frontend/src/app/(dashboard)/plataforma/page.tsx`, `services/tenants.service.ts` | `GET /api/v1/tenants/panel` — `tenants.service.ts` `listWithUsage()` |
+| Selector org (plataforma) | `apps/frontend/src/app/select-organizacion/page.tsx` | `GET /api/v1/tenants` |
+
+Orden sugerido: **P0 plataforma (rendimiento)** → **P1 UX tenant** → **P1 UX plataforma** → **P2 valor**.
+
+### Estado actual (breve)
+
+**`/panel` (tenant)**
+
+- [x] Banner de saludo, KPIs del día con navegador de fecha (`StatsCards`), gráfico de ventas 7/30 días (`SalesChart`), acciones rápidas, widgets stock bajo y cuentas por cobrar.
+- [x] Landmark `<main>` y `aria-labelledby` en la página.
+- Datos repartidos en **4+ peticiones** sin endpoint agregado; **stock bajo** se consulta dos veces (`StatsCards` + `StockBajoWidget`).
+- Sin estados de error/reintento unificados (`QueryError`); moneda del gráfico fija **«RDS»** en tooltip (no usa `simboloMoneda` de configuración).
+- Acciones rápidas **estáticas** (mismas para admin/cajero/soporte); enlace «recepción proveedor» apunta a `/proveedores` en lugar de `/compras`.
+- Sin filtro por **sucursal** cuando el tenant tiene varias tiendas; sin widget de **caja abierta** ni comparativa vs día anterior.
+
+**`/plataforma` (SaaS)**
+
+- [x] KPIs globales (total, activas, mora, canceladas), búsqueda por nombre/slug, filtros facturación y plan, tabla con barras de uso (usuarios, sucursales, artículos), chip billing, botón **Operar** (impersonación vía `platformTenantId` + `/panel`).
+- [x] Guard `canPlataforma`; test integración `tenants-tenant-isolation` (admin tenant → 403 en `/tenants` y `/panel`).
+- Carga con `useState` + `useEffect` (sin React Query): sin caché, reintento ni invalidación al volver de «Operar».
+- Backend: **N+1** — por cada tenant, 3 `COUNT` en paralelo (`countSeats`, `countTiendas`, `countArticulos`); no expone `ventasMesActual` (ya existe `countVentasMesActualForTenant` en `tenant-usage.ts`).
+- KPIs superiores **no** reaccionan a filtros de tabla; tabla sin ordenación, paginación ni vista móvil (cards); chips billing en inglés (`active`, `past_due`).
+
+### P0 — Rendimiento y contrato API (plataforma)
+
+- [x] **Agregar uso en una sola pasada SQL** — `fetchTenantPanelUsageMaps()` en `tenant-panel-usage-batch.ts` (4 agregaciones `GROUP BY tenantId` en lugar de N×4 COUNT).
+- [x] **Incluir `ventasMesActual`** en `TenantSummary` / `TenantPanelRow` y columna «Ventas (mes)» en `/plataforma`.
+- [x] **DTO / validación de respuesta** — `dto/tenant-panel.dto.ts` (Zod) + tipos `TenantPanelRow` en `@pos/shared`.
+
+### P1 — UX y robustez (dashboard `/panel`)
+
+- [x] **React Query + `QueryError`** en `StatsCards`, `SalesChart` y `StockBajoWidget` (reintentar).
+- [x] **Deduplicar stock bajo** — una sola `useStockBajo()` en `panel/page.tsx` compartida con `StatsCards` y `StockBajoWidget`.
+- [x] **Moneda** — tooltip del gráfico con `simboloMoneda` vía `useDashboardCurrency` / configuración.
+- [x] **Acciones rápidas por rol** — filtro por `rol` y `feature` del plan; recepción → `/compras`.
+- [ ] **Filtro sucursal** en panel (selector global) para KPIs y gráfico cuando `tiendasActivas > 1`.
+- [x] **Widget caja abierta** — `CajaAbiertaWidget` + enlace a `/ventas/cierres-caja`.
+- [x] **Comparativa día anterior** — variación % en tarjeta de transacciones (`useResumenDia` día previo).
+
+### P1 — UX y robustez (panel `/plataforma`)
+
+- [x] **Migrar a React Query** — `hooks/useTenantsPanel.ts` (`staleTime` 60s, `QueryError` + reintentar).
+- [x] **KPIs filtrados** — KPI «Mostrando» y contadores sobre `filtered`.
+- [x] **Ordenación de columnas** — `tenant-panel-sort.ts` + cabeceras clicables (nombre, plan, billing, seats, ventas).
+- [ ] **Paginación o virtualización** — umbral p. ej. 50 filas; búsqueda server-side opcional si la lista crece.
+- [x] **Estados vacíos** — mensaje distinto con filtros activos vs sin tenants.
+- [x] **Chips billing en español** — «Activo», «Prueba», «En mora», «Cancelado», etc. en `/plataforma` (tooltip trial pendiente).
+- [x] **Indicador org activa** — badge en `Header` + «Salir de organización» en `UserMenu` cuando `platformTenantId` está fijado.
+- [x] **Tabla responsive** — cards móviles en `<md` con mismas métricas y CTA Operar.
+
+### P2 — Valor ampliado
+
+- [ ] **Endpoint agregado `GET /panel/resumen`** (opcional) — un round-trip: resumen día + sparkline + contadores stock/deuda (tenant-scoped).
+- [ ] **Plataforma: export CSV** de la vista filtrada (nombre, plan, billing, uso).
+- [ ] **Plataforma: filtros extra** — `activo`/`inactivo`, trial por vencer (`trialEndsAt`), orden por % uso seats.
+- [ ] **Plataforma: enlace operativo** — abrir Stripe Customer en nueva pestaña si hay `stripeCustomerId` (solo rol plataforma).
+- [ ] **E2E Playwright** — smoke: admin ve `/panel` con KPIs; usuario `plataforma` ve `/plataforma` y filtra; opcional flujo Operar → `/panel` con banner de org.
+- [ ] **Test integración** — forma de `GET /tenants/panel` (campos obligatorios, límites numéricos ≥ uso).
+
+### Recomendaciones (buenas prácticas)
+
+| Área | Recomendación |
+|------|----------------|
+| Arquitectura | Mantener `/panel` como composición de widgets; evitar página monolítica >300 líneas (extraer hooks `usePanelResumen`, `useTenantsPanel`). |
+| Datos | Preferir agregaciones en backend antes que muchos COUNT por fila; cache corto (30–60 s) en panel plataforma si la lista es estable. |
+| Seguridad | No exponer en panel plataforma secretos Stripe; `stripeCustomerId` truncado está bien; acciones destructivas (baja tenant) fuera de este módulo o con confirmación fuerte. |
+| Plataforma vs tenant | Usuario `plataforma` en `/panel` opera en contexto de `X-Tenant-Id` / `platformTenantId`; documentar en `MULTI-TENANT.md` el flujo Operar. |
+| a11y | Tabla con `scope="col"`, botón Operar con `aria-label` que incluya nombre de org; KPIs como lista o regiones con `aria-live` opcional al filtrar. |
+
+### Notas de implementación
+
+- Primer PR recomendado: **P0 agregación SQL** en `listWithUsage` + **React Query en plataforma** (impacto inmediato en soporte con muchas orgs).
+- Segundo PR: **dedupe stock bajo** + **QueryError** en dashboard tenant (calidad diaria del usuario admin/cajero).
+- Referencia billing: [`docs/arquitectura/BILLING-SAAS.md`](arquitectura/BILLING-SAAS.md) · multi-tenant: [`docs/arquitectura/MULTI-TENANT.md`](arquitectura/MULTI-TENANT.md).
+
+---
+
 ## Visión futura (multi‑negocio / otros puntos de venta)
 
 Las viñetas siguientes son el **mapa estratégico** del POS genérico; la **implementación base** de las fases A–D del documento enlazado está en el repositorio. Sigue abierta la **evolución por país** (nuevo `FiscalProvider`) y las **decisiones de despliegue** de §2 en [`docs/PLAN-EVOLUCION-POS-GENERICO.md`](PLAN-EVOLUCION-POS-GENERICO.md).
@@ -236,6 +323,9 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Plan reportes:** backlog Fase 7 en este documento (revisión módulo `/reportes`, prioridades P0–P3).
 - [x] **Reportes Fase 7 (P0 + parte P1):** filtro anuladas, Zod, pagos mixtos, filtro sucursal, pestaña Auditoría, tests `reportes-query.test.ts`.
 - [x] **Configuración Fase 8 (P0 + P1):** Zod/whitelist backend, pestañas UI, completitud, validación cliente, tests `configuracion.dto.test.ts` — ver sección Fase 8.
+- [x] **Panel Fase 9:** backlog documentado (revisión `/panel` + `/plataforma`).
+- [x] **Panel Fase 9 P0 + parte P1 plataforma:** agregación SQL `tenant-panel-usage-batch`, Zod/`TenantPanelRow`, React Query, KPIs filtrados, ventas del mes, chips ES — ver sección Fase 9.
+- [x] **Panel Fase 9 P1 dashboard + plataforma:** `/panel` (QueryError, stock único, moneda, acciones por rol, caja abierta, comparativa); `/plataforma` (ordenación, cards móvil, badge org).
 
 ## Notas
 

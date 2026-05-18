@@ -10,6 +10,9 @@ import {
   useState,
 } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { useQueryClient } from '@tanstack/react-query';
+import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Portal } from '@/components/ui/Portal';
 import { Rol } from '@pos/shared';
@@ -26,8 +29,12 @@ import {
 const ROLES_MENU_EXTRAS: readonly Rol[] = ['admin', 'soporte', 'plataforma'];
 
 export function UserMenu() {
+  const router = useRouter();
+  const qc = useQueryClient();
   const user   = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const platformTenantId = useAuthStore((s) => s.platformTenantId);
+  const clearPlatformTenantId = useAuthStore((s) => s.clearPlatformTenantId);
   const pathname = usePathname();
 
   const [open, setOpen] = useState(false);
@@ -189,6 +196,22 @@ export function UserMenu() {
                 <Building2 size={17} className="shrink-0 text-navy-400" aria-hidden />
                 Panel instancia
               </Link>
+            ) : null}
+            {user.rol === 'plataforma' && platformTenantId != null ? (
+              <button
+                type="button"
+                role="menuitem"
+                className={itemClass}
+                onClick={() => {
+                  setOpen(false);
+                  clearPlatformTenantId();
+                  void qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
+                  router.push('/plataforma');
+                }}
+              >
+                <Building2 size={17} className="shrink-0 text-navy-400" aria-hidden />
+                Salir de organización
+              </button>
             ) : null}
             <div className="my-1 h-px bg-navy-100" role="separator" aria-hidden />
             <button

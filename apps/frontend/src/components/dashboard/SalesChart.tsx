@@ -1,27 +1,32 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import apiClient from '@/services/api.client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format, subDays } from 'date-fns';
+import { useVentasPorDia } from '@/hooks/useReportes';
+import { useDashboardCurrency } from '@/hooks/useDashboardCurrency';
+import { QueryError } from '@/components/reportes/reportes-shared';
 
 export function SalesChart() {
   const [view, setView] = useState<'mes' | 'semana'>('mes');
+  const { symbol } = useDashboardCurrency();
 
-  const { data = [] } = useQuery({
-    queryKey: ['sales-chart', view],
-    queryFn: async () => {
-      const days  = view === 'mes' ? 30 : 7;
-      const desde = format(subDays(new Date(), days), 'yyyy-MM-dd');
-      const hasta = format(new Date(), 'yyyy-MM-dd');
-      const res   = await apiClient.get('/reportes/ventas-por-dia', { params: { desde, hasta } });
-      return (res.data.data ?? []).map((d: { dia: string; totalMonto: number }) => ({
-        dia:   format(new Date(d.dia), 'dd'),
-        total: Number(d.totalMonto),
-      }));
-    },
-  });
+  const range = useMemo(() => {
+    const days  = view === 'mes' ? 30 : 7;
+    return {
+      desde: format(subDays(new Date(), days), 'yyyy-MM-dd'),
+      hasta: format(new Date(), 'yyyy-MM-dd'),
+    };
+  }, [view]);
+
+  const { data: raw = [], isLoading, isError, error, refetch } = useVentasPorDia(range.desde, range.hasta);
+
+  const data = raw.map((d: { dia: string; totalMonto: number }) => ({
+    dia:   format(new Date(d.dia + 'T12:00:00'), 'dd'),
+    total: Number(d.totalMonto),
+  }));
+
+  const errorMsg = error instanceof Error ? error.message : 'No se pudo cargar el gráfico';
 
   return (
     <div className="bg-white rounded-[12px] shadow-card p-5 transition-shadow hover:shadow-card-hover">
@@ -48,20 +53,26 @@ export function SalesChart() {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E8EBEA" vertical={false} />
-          <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} width={40} />
-          <Tooltip
-            cursor={{ fill: '#F5F3FF' }}
-            contentStyle={{ border: 'none', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12 }}
-            formatter={(val: number) => [`RDS ${val.toLocaleString()}`, 'Ventas']}
-            labelFormatter={(l) => `Día ${l}`}
-          />
-          <Bar dataKey="total" fill="#3D4E3D" radius={[5, 5, 0, 0]} maxBarSize={36} />
-        </BarChart>
-      </ResponsiveContainer>
+      {isError ? (
+        <QueryError message={errorMsg} onRetry={() => void refetch()} />
+      ) : (
+        <div className={isLoading ? 'opacity-50' : ''}>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E8EBEA" vertical={false} />
+              <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip
+                cursor={{ fill: '#F5F3FF' }}
+                contentStyle={{ border: 'none', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12 }}
+                formatter={(val: number) => [`${symbol} ${val.toLocaleString('es-DO')}`, 'Ventas']}
+                labelFormatter={(l) => `Día ${l}`}
+              />
+              <Bar dataKey="total" fill="#3D4E3D" radius={[5, 5, 0, 0]} maxBarSize={36} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

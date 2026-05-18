@@ -21,6 +21,7 @@ interface AuthStore {
   logout: () => Promise<void>;
   loadFromStorage: () => void;
   setPlatformTenantId: (id: number) => void;
+  clearPlatformTenantId: () => void;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -52,6 +53,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setPlatformTenantId: (id: number) => {
     localStorage.setItem(PLATFORM_TENANT_KEY, String(id));
     set({ platformTenantId: id });
+  },
+
+  clearPlatformTenantId: () => {
+    localStorage.removeItem(PLATFORM_TENANT_KEY);
+    set({ platformTenantId: null });
   },
 
   login: async (email, password, tenantSlug) => {

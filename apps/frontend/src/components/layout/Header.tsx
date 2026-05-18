@@ -3,6 +3,10 @@
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { useSaasContext } from '@/hooks/useSaasContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
+import { useRouter } from 'next/navigation';
+import { Building2, X } from 'lucide-react';
 import { uiLabels, recetasPageTitle, reportesPageTitle } from '@/lib/ui-labels';
 import { SaasPlanBadge } from '@/components/layout/SaasPlanBadge';
 import { ChevronRight, Menu } from 'lucide-react';
@@ -49,8 +53,18 @@ interface Props {
 
 export function Header({ onToggleSidebar, sidebarOpen = false }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
+  const qc = useQueryClient();
   const title = titleForPath(pathname);
+  const user = useAuthStore((s) => s.user);
+  const platformTenantId = useAuthStore((s) => s.platformTenantId);
+  const clearPlatformTenantId = useAuthStore((s) => s.clearPlatformTenantId);
   const { data: saasCtx, isSuccess: saasOk } = useSaasContext();
+
+  const operatingOrg =
+    user?.rol === 'plataforma' && platformTenantId != null && saasOk
+      ? saasCtx?.tenant?.nombre
+      : null;
 
   return (
     <header className="h-16 bg-white/85 backdrop-blur-md border-b border-navy-200/40 flex items-center justify-between px-4 lg:px-6 shrink-0">
@@ -76,7 +90,25 @@ export function Header({ onToggleSidebar, sidebarOpen = false }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {operatingOrg ? (
+          <div className="hidden sm:flex items-center gap-1.5 max-w-[200px] px-2.5 py-1 rounded-lg bg-primary-50 border border-primary-100 text-xs text-primary-800">
+            <Building2 size={13} className="shrink-0" aria-hidden />
+            <span className="truncate font-medium" title={operatingOrg}>{operatingOrg}</span>
+            <button
+              type="button"
+              onClick={() => {
+                clearPlatformTenantId();
+                void qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
+                router.push('/plataforma');
+              }}
+              className="p-0.5 rounded hover:bg-primary-100 text-primary-600"
+              aria-label="Salir de la organización"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ) : null}
         {saasOk && saasCtx?.limits && saasCtx.usage ? (
           <SaasPlanBadge limits={saasCtx.limits} usage={saasCtx.usage} />
         ) : null}
