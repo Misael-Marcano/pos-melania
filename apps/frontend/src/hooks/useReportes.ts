@@ -99,3 +99,15 @@ export function useVentasPorCaja(desde: string, hasta: string, tiendaId?: number
     enabled:  !!(desde && hasta),
   });
 }
+
+export function useConciliacionCaja(
+  desde: string,
+  hasta: string,
+  tiendaId?: number | null,
+) {
+  return useQuery({
+    queryKey: ['reportes', 'conciliacion-caja', desde, hasta, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.conciliacionCajaLista(desde, hasta, tiendaId),
+    enabled:  !!(desde && hasta),
+  });
+}

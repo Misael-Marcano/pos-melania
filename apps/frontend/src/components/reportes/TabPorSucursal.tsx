@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useResumenPorSucursal } from '@/hooks/useReportes';
+import { useConciliacionCaja, useResumenPorSucursal } from '@/hooks/useReportes';
 import { useTiendas } from '@/hooks/useTiendas';
 import { useAuthStore } from '@/store/auth.store';
 import { Select } from '@/components/ui/Select';
@@ -10,6 +10,7 @@ import { BarChart3, Calendar, Store } from 'lucide-react';
 import {
   downloadCSV, BarChartSimple, StatCard, LoadingCard, QueryError,
 } from '@/components/reportes/reportes-shared';
+import { ConciliacionCajaTable } from '@/components/reportes/ConciliacionCajaTable';
 
 // ── Tab: Por sucursal ─────────────────────────────────────────────────────────
 
@@ -27,11 +28,9 @@ export function TabPorSucursal({ desde, hasta }: { desde: string; hasta: string 
     if (!isAdmin && user?.tiendaId) setTiendaId(user.tiendaId);
   }, [isAdmin, user?.tiendaId]);
 
-  const { data, isLoading, isError, error } = useResumenPorSucursal(
-    tiendaId === '' ? null : Number(tiendaId),
-    desde,
-    hasta
-  );
+  const tid = tiendaId === '' ? null : Number(tiendaId);
+  const { data, isLoading, isError, error } = useResumenPorSucursal(tid, desde, hasta);
+  const { data: conciliaciones = [], isLoading: loadingConc } = useConciliacionCaja(desde, hasta, tid);
 
   return (
     <div className="space-y-5">
@@ -130,6 +129,8 @@ export function TabPorSucursal({ desde, hasta }: { desde: string; hasta: string 
               </div>
             </div>
           </div>
+
+          <ConciliacionCajaTable items={conciliaciones} loading={loadingConc} />
 
           <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
             <div className="px-5 py-4 border-b border-navy-100/40 font-semibold text-navy-800">

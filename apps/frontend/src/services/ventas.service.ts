@@ -164,14 +164,46 @@ export const ventasService = {
     return data.data;
   },
 
-  historialCajas: async (page = 1, limit = 20): Promise<{
+  historialCajas: async (
+    page = 1,
+    limit = 20,
+    filters: HistorialCajasFilters = {},
+  ): Promise<{
     data: ICajaApertura[];
     total: number; page: number; limit: number;
   }> => {
-    const { data } = await apiClient.get('/ventas/caja/historial', { params: { page, limit } });
+    const { data } = await apiClient.get('/ventas/caja/historial', {
+      params: { page, limit, ...filters },
+    });
     return data;
   },
 };
+
+export type HistorialCajasEstado = 'abierta' | 'cerrada' | 'todas';
+
+export interface HistorialCajasFilters {
+  desde?:              string;
+  hasta?:              string;
+  tiendaId?:           number;
+  cajaId?:             number;
+  estado?:             HistorialCajasEstado;
+  incluirIntegracion?: boolean;
+}
+
+export interface ConciliacionCajaResumen {
+  montoApertura: number;
+  montoCierre: number | null;
+  totalEfectivo: number;
+  totalGastos: number;
+  totalVentas: number;
+  cantidadVentas: number;
+  cerrada: boolean;
+  efectivoEsperado: number;
+  diferencia: number | null;
+  diferenciaVsApertura: number | null;
+  cuadra: boolean | null;
+  alerta: string | null;
+}
 
 export interface ICajaApertura {
   id: number;
@@ -180,6 +212,10 @@ export interface ICajaApertura {
   montoCierre?: number;
   fechaApertura: string;
   fechaCierre?: string;
+  abierta?: boolean;
+  datosInconsistentes?: boolean;
+  totalVentas?: number;
+  conciliacion?: ConciliacionCajaResumen | null;
   notas?: string;
   usuario?: { id: number; nombre: string };
   tienda?: { id: number; nombre: string };

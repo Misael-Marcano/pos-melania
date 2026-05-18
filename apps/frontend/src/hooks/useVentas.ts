@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ventasService, CreateVentaPayload, UpdateVentaPayload, FullUpdateVentaPayload } from '@/services/ventas.service';
+import {
+  ventasService,
+  CreateVentaPayload,
+  UpdateVentaPayload,
+  FullUpdateVentaPayload,
+  HistorialCajasFilters,
+} from '@/services/ventas.service';
 export type { ICajaApertura } from '@/services/ventas.service';
 
 export const VENTAS_KEY = 'ventas';
@@ -128,10 +134,14 @@ export function useCerrarCaja() {
 }
 
 // ── Historial de cierres ──────────────────────────────────────────────────────
-export function useHistorialCajas(page = 1, limit = 20) {
+export function useHistorialCajas(
+  page = 1,
+  limit = 20,
+  filters: HistorialCajasFilters = {},
+) {
   return useQuery({
-    queryKey: [CAJA_KEY, 'historial', page, limit],
-    queryFn:  () => ventasService.historialCajas(page, limit),
+    queryKey: [CAJA_KEY, 'historial', page, limit, filters],
+    queryFn:  () => ventasService.historialCajas(page, limit, filters),
     placeholderData: (prev) => prev,
   });
 }

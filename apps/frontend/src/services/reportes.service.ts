@@ -110,6 +110,27 @@ export interface VentaPorCaja {
   totalMonto: number;
 }
 
+export interface ConciliacionCajaItem {
+  aperturaId: number;
+  cajaNombre: string;
+  tiendaNombre: string | null;
+  fechaApertura: string;
+  fechaCierre: string | null;
+  nota: string;
+  montoApertura: number;
+  montoCierre: number | null;
+  totalEfectivo: number;
+  totalGastos: number;
+  totalVentas: number;
+  cantidadVentas: number;
+  cerrada: boolean;
+  efectivoEsperado: number;
+  diferencia: number | null;
+  diferenciaVsApertura: number | null;
+  cuadra: boolean | null;
+  alerta: string | null;
+}
+
 export interface CompararPeriodos {
   referencia: string;
   nota: string;
@@ -212,6 +233,18 @@ export const reportesService = {
 
   resumenPorSucursal: async (tiendaId: number, desde: string, hasta: string): Promise<ResumenPorSucursal> => {
     const { data } = await apiClient.get(`/reportes/por-sucursal/${tiendaId}`, { params: { desde, hasta } });
+    return data.data;
+  },
+
+  conciliacionCajaLista: async (
+    desde: string,
+    hasta: string,
+    tiendaId?: number | null,
+    limit = 30,
+  ): Promise<ConciliacionCajaItem[]> => {
+    const { data } = await apiClient.get('/reportes/conciliacion-caja', {
+      params: rangoParams(desde, hasta, tiendaId, { limit }),
+    });
     return data.data;
   },
 
