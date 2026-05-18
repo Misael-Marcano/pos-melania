@@ -10,6 +10,27 @@ export const ITBIS_RD_SUGGESTED_PCT = 18;
 export const ITBIS_RATE_MIN = 0;
 export const ITBIS_RATE_MAX = 100;
 
+/** Zonas IANA admitidas en configuración (deben tener mapeo SQL Server en reportes). */
+export const REPORTES_TIMEZONE_VALUES = [
+  'America/Santo_Domingo',
+  'America/New_York',
+  'America/Puerto_Rico',
+  'America/Bogota',
+  'America/Mexico_City',
+  'America/Chicago',
+  'UTC',
+] as const;
+
+export type ReportesTimezone = (typeof REPORTES_TIMEZONE_VALUES)[number];
+
+export const DEFAULT_REPORTES_TZ: ReportesTimezone = 'America/Santo_Domingo';
+
+export function isValidReportesTimezone(value: string | null | undefined): boolean {
+  const t = (value ?? '').trim();
+  if (t === '') return true;
+  return (REPORTES_TIMEZONE_VALUES as readonly string[]).includes(t);
+}
+
 /** Solo dígitos del RNC/cédula tributaria RD (9 o 11 dígitos). */
 export function normalizeRnc(value: string | null | undefined): string {
   return String(value ?? '').replace(/\D/g, '');

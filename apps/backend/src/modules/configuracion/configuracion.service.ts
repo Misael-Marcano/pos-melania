@@ -1,4 +1,4 @@
-import { AuthUser } from '@pos/shared';
+import { AuthUser, DEFAULT_REPORTES_TZ } from '@pos/shared';
 import { AppDataSource } from '../../config/database';
 import { Configuracion } from '../../entities/Configuracion.entity';
 import { Tienda } from '../../entities/Tienda.entity';
@@ -33,6 +33,7 @@ export class ConfiguracionService {
         tasaImpuesto1: 18,
         preciosIncluyenImpuesto: true,
         comprobanteDefecto: '02',
+        zonaHoraria: DEFAULT_REPORTES_TZ,
         tenant: { id: tid } as Tenant,
       });
       cfg = await repo().save(cfg);

@@ -259,6 +259,8 @@ export interface IConfiguracion {
     comprobanteDefecto: string;
     /** Prioridad sobre `FISCAL_JURISDICTION` del servidor; vacío en UI = usar solo `.env` */
     fiscalJurisdiccion?: string | null;
+    /** Zona IANA para agregaciones diarias en reportes */
+    zonaHoraria?: string;
     nombreCaja: string;
     /** Sucursal por defecto para apertura de caja y gastos */
     tiendaId?: number | null;

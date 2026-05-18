@@ -65,6 +65,10 @@ export class Configuracion {
   @Column({ type: 'varchar', length: 16, nullable: true })
   fiscalJurisdiccion?: string;
 
+  /** Zona IANA para cortes diarios en reportes (prioridad sobre `REPORTES_TIMEZONE` del servidor). */
+  @Column({ length: 64, default: 'America/Santo_Domingo' })
+  zonaHoraria: string;
+
   @Column({ length: 100, default: 'CAJA 1' })
   nombreCaja: string;
 

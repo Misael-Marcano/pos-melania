@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
   COMPROBANTE_DEFECTO_VALUES,
+  DEFAULT_REPORTES_TZ,
   FISCAL_JURISDICTION_VALUES,
   isValidItbisRate,
+  isValidReportesTimezone,
   isValidRnc,
   normalizeRnc,
 } from '@pos/shared';
@@ -82,6 +84,18 @@ export const updateConfiguracionSchema = z
       .enum(FISCAL_JURISDICTION_VALUES)
       .nullable()
       .optional(),
+    zonaHoraria: z
+      .string()
+      .max(64)
+      .optional()
+      .nullable()
+      .transform((v) => {
+        const t = (v ?? '').trim();
+        return t === '' ? DEFAULT_REPORTES_TZ : t;
+      })
+      .refine((v) => isValidReportesTimezone(v), {
+        message: 'Zona horaria no soportada para reportes',
+      }),
     nombreCaja: z.string().trim().min(1).max(100),
     tiendaId: tiendaCajaId,
     cajaId: tiendaCajaId,

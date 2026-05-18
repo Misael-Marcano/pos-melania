@@ -224,6 +224,7 @@ export async function listConciliacionCaja(
   tenantId: number,
   tiendaId: number | null,
   limit = 50,
+  tz?: string,
 ): Promise<ConciliacionCajaListItem[]> {
   const tiendaFilter = tiendaId != null ? 'AND ca.tiendaId = @3' : '';
   const params: (string | number)[] = [desde, hasta, tenantId];
@@ -235,7 +236,7 @@ export async function listConciliacionCaja(
      INNER JOIN tiendas t ON t.id = ca.tiendaId AND t.tenantId = @2
      WHERE ca.abierta = 0
        AND ca.fechaCierre IS NOT NULL
-       AND ${sqlFechaDia('ca.fechaCierre')} BETWEEN @0 AND @1
+       AND ${sqlFechaDia('ca.fechaCierre', tz)} BETWEEN @0 AND @1
        ${tiendaFilter}
      ORDER BY ca.fechaCierre DESC`,
     params,

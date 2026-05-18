@@ -22,7 +22,11 @@ import {
   fetchConciliacionCaja,
   listConciliacionCaja,
 } from './conciliacion-caja';
-import { sqlFechaDia, reportesTimezone } from './reportes-timezone';
+import {
+  sqlFechaDia,
+  fetchTenantReportesTimezone,
+  DEFAULT_REPORTES_TZ,
+} from './reportes-timezone';
 import { computeCotizacionConversion } from './reportes-query';
 import { buildVentasResumenPdf } from './reportes-pdf';
 
@@ -30,10 +34,18 @@ type FiscalTaxSplitFn = (total: number) => FiscalTaxSplit;
 
 export class ReportesService {
   private ds = AppDataSource;
+  private reportesTz: string = DEFAULT_REPORTES_TZ;
+  private tzBoundFor: number | null = null;
 
-  /** Fragmento SQL: fecha calendario en zona del negocio (`REPORTES_TIMEZONE`). */
+  private async bindReportesTz(tenantId: number): Promise<void> {
+    if (this.tzBoundFor === tenantId) return;
+    this.reportesTz = await fetchTenantReportesTimezone(this.ds, tenantId);
+    this.tzBoundFor = tenantId;
+  }
+
+  /** Fragmento SQL: fecha calendario en zona del negocio (config tenant o env). */
   private fd(column: string): string {
-    return sqlFechaDia(column);
+    return sqlFechaDia(column, this.reportesTz);
   }
 
   /** ITBIS/base según jurisdicción fiscal del tenant (`FiscalProvider` + `tasaImpuesto1`). */
@@ -79,6 +91,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     return this.ds.query(
       `SELECT ${this.fd('v.fecha')} AS dia,
               COUNT(*)            AS totalVentas,
@@ -107,7 +120,16 @@ export class ReportesService {
     tiendaId: number | null = null,
     limit = 50,
   ) {
-    return listConciliacionCaja(this.ds, desde, hasta, tenantId, tiendaId, limit);
+    await this.bindReportesTz(tenantId);
+    return listConciliacionCaja(
+      this.ds,
+      desde,
+      hasta,
+      tenantId,
+      tiendaId,
+      limit,
+      this.reportesTz,
+    );
   }
 
   async cierreCaja(aperturaId: number, tenantId: number) {
@@ -139,6 +161,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     const baseJoin = `
        FROM ventas v
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
@@ -177,6 +200,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     return this.ds.query(
       `SELECT TOP (@2) a.nombre,
               SUM(vd.cantidad)         AS unidadesVendidas,
@@ -294,6 +318,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     const actualBounds = mesMtdBounds(referencia);
     const anteriorBounds = mesAnteriorMtdBounds(referencia);
 
@@ -339,6 +364,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     const resumen = await this.gananciasInputs(desde, hasta, tenantId, tiendaId);
     const ventasPorMetodo = await this.ventasPorMetodoEnRango(desde, hasta, tenantId, tiendaId);
 
@@ -856,6 +882,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     return this.ds.query(
       `SELECT TOP (@2)
               c.id,
@@ -880,6 +907,7 @@ export class ReportesService {
   }
 
   async resumenPorSucursal(tiendaId: number, desde: string, hasta: string, tenantId: number) {
+    await this.bindReportesTz(tenantId);
     const [tienda] = await this.ds.query(
       `SELECT id, nombre FROM tiendas WHERE id = @0 AND tenantId = @1`,
       [tiendaId, tenantId],
@@ -957,6 +985,7 @@ export class ReportesService {
     tiendaId: number | null,
     tenantId: number,
   ) {
+    await this.bindReportesTz(tenantId);
     if (tiendaId != null) {
       return this.ds.query(
         `SELECT u.id AS usuarioId, u.nombre AS usuarioNombre,
@@ -996,6 +1025,7 @@ export class ReportesService {
     tiendaId: number | null,
     tenantId: number,
   ) {
+    await this.bindReportesTz(tenantId);
     if (tiendaId != null) {
       return this.ds.query(
         `SELECT ISNULL(t.nombre, '') AS tiendaNombre,
@@ -1034,6 +1064,7 @@ export class ReportesService {
   }
 
   async operacionesComerciales(desde: string, hasta: string, tenantId: number) {
+    await this.bindReportesTz(tenantId);
     const [ventasAgg] = await this.ds.query(
       `SELECT COUNT(*) AS transacciones, ISNULL(SUM(v.total),0) AS monto
        FROM ventas v
@@ -1090,7 +1121,7 @@ export class ReportesService {
     return {
       desde,
       hasta,
-      timezone: reportesTimezone(),
+      timezone: this.reportesTz,
       ventas: {
         transacciones: Number(ventasAgg?.transacciones ?? 0),
         monto: montoVentas,
@@ -1119,6 +1150,7 @@ export class ReportesService {
     tenantId: number,
     tiendaId: number | null = null,
   ) {
+    await this.bindReportesTz(tenantId);
     const [cfg] = await this.ds
       .query(`SELECT TOP 1 nombreCompania FROM configuracion WHERE tenantId = @0`, [tenantId])
       .catch(() => [{}]);
@@ -1137,7 +1169,7 @@ export class ReportesService {
       nombreCompania: cfg?.nombreCompania ?? null,
       desde,
       hasta,
-      timezone: reportesTimezone(),
+      timezone: this.reportesTz,
       ventasPorDia,
       totales: {
         transacciones,

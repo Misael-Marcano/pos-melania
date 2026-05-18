@@ -10,6 +10,7 @@ const basePayload = {
   tasaImpuesto2: 0,
   comprobanteDefecto: '02' as const,
   nombreCaja: 'CAJA 1',
+  zonaHoraria: 'America/Santo_Domingo',
 };
 
 describe('updateConfiguracionSchema', () => {
@@ -46,5 +47,11 @@ describe('updateConfiguracionSchema', () => {
     expect(() =>
       updateConfiguracionSchema.parse({ ...basePayload, nombreCompania: '   ' }),
     ).toThrow(/nombre/);
+  });
+
+  it('rechaza zona horaria no admitida', () => {
+    expect(() =>
+      updateConfiguracionSchema.parse({ ...basePayload, zonaHoraria: 'Europe/Madrid' }),
+    ).toThrow(/Zona horaria/);
   });
 });
