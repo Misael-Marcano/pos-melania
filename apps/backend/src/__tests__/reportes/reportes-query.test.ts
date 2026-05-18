@@ -194,6 +194,12 @@ describe('sqlFechaDia', () => {
     expect(sqlFechaDia('v.fecha', DEFAULT_REPORTES_TZ)).toContain('Eastern Standard Time');
     expect(sqlFechaDia('v.fecha', DEFAULT_REPORTES_TZ)).toContain('v.fecha');
   });
+
+  it('castea a datetime2 antes de AT TIME ZONE (columnas DATE)', () => {
+    const sql = sqlFechaDia('fecha', DEFAULT_REPORTES_TZ);
+    expect(sql).toMatch(/CAST\(fecha AS datetime2\) AT TIME ZONE/);
+    expect(sql).toMatch(/AS DATE\)$/);
+  });
 });
 
 describe('reportesStockAlertaSchema', () => {

@@ -17,5 +17,6 @@ export function sqlFechaDia(column: string, tz = reportesTimezone()): string {
   if (!sqlTz) {
     throw new Error(`Zona horaria no soportada en reportes: ${tz}`);
   }
-  return `CAST((${column} AT TIME ZONE '${sqlTz}') AS DATE)`;
+  // AT TIME ZONE exige datetime2/datetime/datetimeoffset; gastos.fecha es DATE.
+  return `CAST((CAST(${column} AS datetime2) AT TIME ZONE '${sqlTz}') AS DATE)`;
 }
