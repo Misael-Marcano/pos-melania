@@ -70,6 +70,63 @@ Las **Fases 1–5** siguientes tienen `[x]` donde la capacidad está **implement
 
 ---
 
+## Fase 7 — Módulo de reportes (robustez)
+
+Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código principal: `apps/backend/src/modules/reportes/`, `apps/frontend/src/app/(dashboard)/reportes/page.tsx`, `apps/frontend/src/services/reportes.service.ts`. Orden sugerido de implementación: **P0 → P1 → P2 → P3**.
+
+### Base ya en el repositorio
+
+- [x] Pestañas Ventas, P&L, Inventario, Clientes, Por sucursal, DGII (606/607) + presets de fechas y export CSV en cliente.
+- [x] Etiquetas configurables — `NEXT_PUBLIC_LABEL_REPORTES` / tabs en `apps/frontend/src/lib/ui-labels.ts`.
+- [x] Aislamiento multi-tenant en API — `reportes-tenant-isolation.integration.test.ts`.
+- [x] Rate limit `/api/v1/reportes` (90/min) — `apps/backend/src/app.ts`.
+- [x] Índice `ventas(cajaAperturaId, fecha)` — migración `1700000000022-VentasIndexCajaFecha.ts`.
+- [x] Accesibilidad: landmark `<main>` en `reportes/page.tsx`.
+- [x] Endpoints API de auditoría (sin UI aún): `GET /reportes/ventas-por-usuario`, `GET /reportes/ventas-por-caja`, `GET /reportes/cierre-caja/:id` — `reportes.routes.ts`.
+
+### P0 — Integridad de datos (prioridad inmediata)
+
+- [x] **Filtro único de ventas activas** — `VENTA_ACTIVA_SQL` en `reportes-query.ts`; aplicado en todas las agregaciones de ventas.
+- [x] **`topProductos`** — excluye ventas anuladas vía el mismo filtro en el JOIN con `ventas`.
+- [x] **Validación de query** — `dto/reportes.dto.ts` (Zod): rango fechas, máx. 366 días, `periodo` DGII; tests en `reportes-query.test.ts`.
+- [x] **Pagos mixtos en reportes** — `aggregateVentasPorMetodo()` en P&L y resumen por sucursal.
+
+### P1 — Producto y operación
+
+- [x] **Filtro de sucursal global** — selector en `DateFilter`; `tiendaId` en API (`ventasPorDia`, `ganancias`, tops, etc.).
+- [x] **UI auditoría** — pestaña Auditoría: ventas por cajero y por caja (`useVentasPorUsuario` / `useVentasPorCaja`).
+- [x] **Inventario valorizado** — paginación server-side (`page`, `limit`, `q`); totales/categorías globales; export `/inventario-valorizado/export` (hasta 15 000 filas).
+- [x] **Errores de red en UI** — `QueryError` + reintentar en Ventas, P&L, Clientes y Auditoría (sucursal/DGII ya lo tenían).
+- [ ] **Refactor frontend** — dividir `reportes/page.tsx` en `components/reportes/Tab*.tsx` + hooks dedicados (iniciado: `reportes-shared.tsx`, `DateFilter.tsx`).
+
+### P2 — Fiscal y pruebas
+
+- [x] **DGII 606/607 — vista previa** — `GET /dgii-607/preview` y `/dgii-606/preview`; UI con líneas, totales, ITBIS estimado y alertas.
+- [ ] **DGII alineado a fiscal** — delegar formato/ITBIS a `FiscalProvider` cuando aplique; no solo `total / 1.18` fijo; checklist `docs/operacion/FISCAL-DGII-CHECKLIST.md`.
+- [ ] **Tests unitarios reportes** — P&L (márgenes, devoluciones), generación 607/606; parcial: `dgiiPeriodoBounds`, schemas inventario/DGII en `reportes-query.test.ts`.
+- [x] **Documentar supuestos P&L en UI** — nota informativa en pestaña P&L (`reportes/page.tsx`).
+
+### P3 — Valor ampliado (cuando P0–P2 estén estables)
+
+- [ ] Comparar períodos (mes actual vs anterior) en ventas y P&L.
+- [ ] Reporte stock bajo / sin movimiento (umbrales configurables).
+- [ ] Cartera y crédito (antigüedad de saldos, más allá del top clientes).
+- [ ] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`).
+- [ ] Reportes de promociones, cotizaciones (conversión) y compras vs ventas.
+- [ ] Export PDF además de CSV.
+- [ ] Envío programado por email (enterprise).
+- [ ] Caché o vistas materializadas para rangos largos (año completo).
+- [ ] Rol **contador** (solo lectura reportes; hoy `canAdminOrSoporte` en `reportes.routes.ts`).
+- [ ] Zona horaria explícita en agregaciones por día (`CAST(fecha AS DATE)` vs TZ del negocio).
+
+### Notas de implementación (Fase 7)
+
+- Primer PR recomendado: **P0 filtro anuladas** + **P1 filtro sucursal** + **P1 UI ventas por usuario/caja** (corrige números y desbloquea auditoría sin tocar fiscal).
+- Tras cambios en queries, ampliar `reportes-tenant-isolation.integration.test.ts` si se añaden params nuevos.
+- Referencia operativa fiscal: [`docs/operacion/FISCAL-DGII-CHECKLIST.md`](operacion/FISCAL-DGII-CHECKLIST.md) (ítem conciliación reportes vs caja).
+
+---
+
 ## Visión futura (multi‑negocio / otros puntos de venta)
 
 Las viñetas siguientes son el **mapa estratégico** del POS genérico; la **implementación base** de las fases A–D del documento enlazado está en el repositorio. Sigue abierta la **evolución por país** (nuevo `FiscalProvider`) y las **decisiones de despliegue** de §2 en [`docs/PLAN-EVOLUCION-POS-GENERICO.md`](PLAN-EVOLUCION-POS-GENERICO.md).
@@ -125,9 +182,12 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Integración backend en verde:** `apps/backend/src/saas/tenant-usage.ts` (ventas sin columna `anulada`); propagación **403** desde `AppError` vía `sendFail`/controladores; `findOne` con `where` en suites de integración; caja apertura con `tienda`; teardown de `configuracion` y FK; cotización — Zod `clienteId`.
 - [x] **PLAN-MEJORAS (docs):** leyenda `[x]`/`[ ]`, bloque *Sincronización código ↔ docs* (2026-05), Fases 1–6 y *Visión futura* reordenadas; único `[ ]` explícito: revisión fiscal en campo (operación, no código).
 - [x] **Tests integración — aislamiento tenant:** `clientes-`, `gastos-`, `empleados-`, `kits-`, `proveedores-`, `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts` (404/403 según módulo); **2026-05-12:** `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-`, `saas-`, `billing-`, `tenants-tenant-isolation.integration.test.ts`; inventario en `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md`.
+- [x] **Plan reportes:** backlog Fase 7 en este documento (revisión módulo `/reportes`, prioridades P0–P3).
+- [x] **Reportes Fase 7 (P0 + parte P1):** filtro anuladas, Zod, pagos mixtos, filtro sucursal, pestaña Auditoría, tests `reportes-query.test.ts`.
 
 ## Notas
 
 - **Integración DB**: paso a paso (Docker, variables, PowerShell): `docs/operacion/INTEGRATION-TESTS-LOCAL.md`. Resumen: Docker Compose (`sqlserver`, `redis`), `.env` en `apps/backend` (`DB_HOST=localhost`, `DB_PASS` alineada al `SA_PASSWORD` del compose), migraciones + `npm run seed` antes de `npm run test:integration` (incluye flujo caja: abrir → `resumenCaja` → cerrar → `resumenCaja`).
 - La auditoría de **caja**, **PDF de cierre**, **catálogo de cajas** y **configuración** ya está implementada en el backend.
 - **Rate limit** en login y API global ya existía; se añadieron límites específicos a reportes y PDF de cierre.
+- **Reportes (Fase 7):** marcar `[x]` al cerrar cada ítem; el orden P0 → P1 → P2 → P3 evita rehacer consultas SQL.
