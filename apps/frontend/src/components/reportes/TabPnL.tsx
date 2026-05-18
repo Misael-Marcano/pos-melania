@@ -6,6 +6,7 @@ import { DollarSign, Download } from 'lucide-react';
 import {
   downloadCSV, BarChartSimple, StatCard, LoadingCard, QueryError,
 } from '@/components/reportes/reportes-shared';
+import { PeriodCompareBanner } from '@/components/reportes/PeriodCompareBanner';
 
 // ── Tab: P&L ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ export function TabPnL({ desde, hasta, tiendaId }: { desde: string; hasta: strin
 
   return (
     <div className="space-y-4">
+      <PeriodCompareBanner referencia={hasta} tiendaId={tiendaId} mode="pnl" />
       <p className="text-xs text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
         El costo usa el costo actual del artículo; las devoluciones por fecha de aprobación.
         Los pagos mixtos se desglosan según el detalle registrado en cada venta.

@@ -10,6 +10,7 @@ import {
 import {
   downloadCSV, BarChartSimple, StatCard, LoadingCard, QueryError,
 } from '@/components/reportes/reportes-shared';
+import { PeriodCompareBanner } from '@/components/reportes/PeriodCompareBanner';
 
 // ── Tab: Ventas ───────────────────────────────────────────────────────────────
 
@@ -43,8 +44,11 @@ export function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: st
     );
   };
 
+  const referencia = hasta || hoy;
+
   return (
     <div className="space-y-5">
+      <PeriodCompareBanner referencia={referencia} tiendaId={tiendaId} mode="ventas" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Ventas totales" value={formatCurrency(totalMonto)}
           icon={<TrendingUp size={18} className="text-primary-600" />} color="bg-primary-100" />
@@ -156,4 +160,5 @@ export function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: st
     </div>
   );
 }
+
 

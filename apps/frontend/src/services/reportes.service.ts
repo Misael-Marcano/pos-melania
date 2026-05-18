@@ -110,6 +110,27 @@ export interface VentaPorCaja {
   totalMonto: number;
 }
 
+export interface CompararPeriodos {
+  referencia: string;
+  nota: string;
+  actual: {
+    desde: string;
+    hasta: string;
+    etiqueta: string;
+    ventas: { totalVentas: number; totalMonto: number; ticketPromedio: number };
+    pnl: { ingresos: number; utilidadBruta: number; utilidadNeta: number; margenNeto: number; gastos: number };
+  };
+  anterior: CompararPeriodos['actual'];
+  variacion: {
+    totalMontoPct: number | null;
+    transaccionesPct: number | null;
+    ticketPromedioPct: number | null;
+    ingresosPct: number | null;
+    utilidadNetaPct: number | null;
+    margenNetoPts: number;
+  };
+}
+
 function rangoParams(desde: string, hasta: string, tiendaId?: number | null, extra?: Record<string, unknown>) {
   const params: Record<string, string | number> = { desde, hasta, ...extra as Record<string, string | number> };
   if (tiendaId != null) params.tiendaId = tiendaId;
@@ -138,6 +159,13 @@ export const reportesService = {
 
   ganancias: async (desde: string, hasta: string, tiendaId?: number | null): Promise<PnL> => {
     const { data } = await apiClient.get('/reportes/ganancias', { params: rangoParams(desde, hasta, tiendaId) });
+    return data.data;
+  },
+
+  compararPeriodos: async (referencia: string, tiendaId?: number | null): Promise<CompararPeriodos> => {
+    const params: Record<string, string | number> = { referencia };
+    if (tiendaId != null) params.tiendaId = tiendaId;
+    const { data } = await apiClient.get('/reportes/comparar-periodos', { params });
     return data.data;
   },
 

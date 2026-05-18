@@ -37,6 +37,14 @@ export function useGanancias(desde: string, hasta: string, tiendaId?: number | n
   });
 }
 
+export function useCompararPeriodos(referencia: string, tiendaId?: number | null) {
+  return useQuery({
+    queryKey: ['reportes', 'comparar-periodos', referencia, tiendaKey(tiendaId)],
+    queryFn:  () => reportesService.compararPeriodos(referencia, tiendaId),
+    enabled:  !!referencia,
+  });
+}
+
 export function useInventarioValorizado(page = 1, limit = 25, q = '') {
   return useQuery({
     queryKey: ['reportes', 'inventario-valorizado', page, limit, q],
