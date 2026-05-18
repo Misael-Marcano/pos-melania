@@ -180,6 +180,31 @@ export interface ConciliacionCajaItem {
   alerta: string | null;
 }
 
+export interface OperacionesComerciales {
+  desde: string;
+  hasta: string;
+  timezone: string;
+  ventas: { transacciones: number; monto: number };
+  cotizaciones: {
+    porEstado: { estado: string; cantidad: number; monto: number }[];
+    conversion: {
+      aceptadas: number;
+      rechazadas: number;
+      vencidas: number;
+      enviadas: number;
+      borrador: number;
+      tasaCierre: number | null;
+    };
+  };
+  promociones: {
+    activas: number;
+    usosTotales: number;
+    top: { codigo: string; nombre: string; usosActuales: number; tipo: string; valor: number }[];
+  };
+  compras: { ordenesRecibidas: number; monto: number };
+  ratioComprasVentas: number | null;
+}
+
 export interface CompararPeriodos {
   referencia: string;
   nota: string;
@@ -230,6 +255,26 @@ export const reportesService = {
   ganancias: async (desde: string, hasta: string, tiendaId?: number | null): Promise<PnL> => {
     const { data } = await apiClient.get('/reportes/ganancias', { params: rangoParams(desde, hasta, tiendaId) });
     return data.data;
+  },
+
+  operacionesComerciales: async (desde: string, hasta: string): Promise<OperacionesComerciales> => {
+    const { data } = await apiClient.get('/reportes/operaciones-comerciales', {
+      params: { desde, hasta },
+    });
+    return data.data;
+  },
+
+  ventasResumenPdf: async (desde: string, hasta: string, tiendaId?: number | null): Promise<void> => {
+    const response = await apiClient.get('/reportes/ventas-resumen/pdf', {
+      params: rangoParams(desde, hasta, tiendaId),
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ventas-resumen-${desde}_${hasta}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
   },
 
   compararPeriodos: async (referencia: string, tiendaId?: number | null): Promise<CompararPeriodos> => {

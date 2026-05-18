@@ -1,12 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import {
   useVentasPorDia, useTopProductos, useResumenDia,
 } from '@/hooks/useReportes';
+import { reportesService } from '@/services/reportes.service';
 import { formatCurrency } from '@/lib/utils';
 import {
-  BarChart3, TrendingUp, ShoppingBag, Calendar, ArrowUpRight, Download,
+  BarChart3, TrendingUp, ShoppingBag, Calendar, ArrowUpRight, Download, FileDown,
 } from 'lucide-react';
+import { toast } from '@/store/toast.store';
 import {
   downloadCSV, BarChartSimple, StatCard, LoadingCard, QueryError,
 } from '@/components/reportes/reportes-shared';
@@ -15,6 +18,7 @@ import { PeriodCompareBanner } from '@/components/reportes/PeriodCompareBanner';
 // ── Tab: Ventas ───────────────────────────────────────────────────────────────
 
 export function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
+  const [pdfLoading, setPdfLoading] = useState(false);
   const hoy = new Date().toISOString().split('T')[0];
   const { data: ventasDia = [], isLoading: lv, isError: ev, error: errV, refetch: rv } = useVentasPorDia(desde, hasta, tiendaId);
   const { data: topProductos = [], isLoading: lt, isError: et, error: errT, refetch: rt } = useTopProductos(desde, hasta, 10, tiendaId);
@@ -45,6 +49,17 @@ export function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: st
   };
 
   const referencia = hasta || hoy;
+
+  const exportarPdf = async () => {
+    setPdfLoading(true);
+    try {
+      await reportesService.ventasResumenPdf(desde, hasta, tiendaId);
+    } catch {
+      toast.error('No se pudo generar el PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -119,10 +134,16 @@ export function TabVentas({ desde, hasta, tiendaId }: { desde: string; hasta: st
         <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
           <div className="px-5 py-3 border-b border-navy-100/40 flex items-center justify-between">
             <span className="font-semibold text-navy-800 text-sm">Detalle por día</span>
-            <button onClick={exportarVentas}
-              className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium transition-colors border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg">
-              <Download size={12} /> Exportar CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={exportarPdf} disabled={pdfLoading || ventasDia.length === 0}
+                className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium transition-colors border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg disabled:opacity-50">
+                <FileDown size={12} /> {pdfLoading ? 'PDF…' : 'PDF'}
+              </button>
+              <button type="button" onClick={exportarVentas}
+                className="flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium transition-colors border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg">
+                <Download size={12} /> CSV
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">

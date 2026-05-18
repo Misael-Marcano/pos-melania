@@ -38,6 +38,7 @@ export const reportesTabs = {
   sucursal: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_SUCURSAL ?? 'Por sucursal',
   auditoria: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_AUDITORIA ?? 'Auditoría',
   dgii: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_DGII ?? 'DGII',
+  operaciones: process.env.NEXT_PUBLIC_LABEL_REPORTES_TAB_OPERACIONES ?? 'Operaciones',
 } as const;
 
 /** Título de la página de listas de producción */

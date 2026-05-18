@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { ReportesService } from './reportes.service';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendSuccess, sendFail, sendError } from '../../utils/response';
-import { assertTiendaSucursalParam, isAdmin } from '../../utils/tienda-access';
+import { assertTiendaSucursalParam, canFilterAllTiendasInReportes } from '../../utils/tienda-access';
 import { tenantIdOrThrow } from '../../utils/tenant-access';
 import { AppError } from '../../middlewares/error.middleware';
 import {
@@ -20,7 +20,7 @@ const service = new ReportesService();
 /** Filtro de sucursal: admin puede omitir (todas) o pasar `tiendaId`; el resto queda fijado a su tienda. */
 function tiendaIdParamForReportes(req: AuthRequest, queryTienda?: string | null): number | null {
   const u = req.user!;
-  if (isAdmin(u)) {
+  if (canFilterAllTiendasInReportes(u)) {
     if (queryTienda != null && queryTienda !== '') {
       const id = Number(queryTienda);
       if (!Number.isFinite(id) || id <= 0) throw new AppError('tiendaId inválido', 400);
@@ -243,6 +243,38 @@ export class ReportesController {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="607-${periodo}.txt"`);
       return res.end(txt);
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
+  async operacionesComerciales(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesRangoFechasSchema.parse(req.query);
+      return sendSuccess(
+        res,
+        await service.operacionesComerciales(q.desde, q.hasta, tenantIdOrThrow(req.user)),
+      );
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
+  async ventasResumenPdf(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesRangoFechasSchema.parse(req.query);
+      const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
+      const buf = await service.ventasResumenPdf(
+        q.desde, q.hasta, tenantIdOrThrow(req.user), tid,
+      );
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="ventas-resumen-${q.desde}_${q.hasta}.pdf"`,
+      );
+      return res.end(buf);
     } catch (e: unknown) {
       if (e instanceof ZodError) return zodFail(res, e);
       return sendFail(res, e);

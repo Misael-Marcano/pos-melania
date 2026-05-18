@@ -151,7 +151,11 @@ const pdfCierreLimiter = rateLimit({
 });
 app.use((req, res, next) => {
   const pathOnly = req.originalUrl.split('?')[0];
-  if (req.method === 'GET' && /\/api\/v1\/ventas\/caja\/\d+\/pdf$/.test(pathOnly)) {
+  if (
+    req.method === 'GET'
+    && (/\/api\/v1\/ventas\/caja\/\d+\/pdf$/.test(pathOnly)
+      || /\/api\/v1\/reportes\/ventas-resumen\/pdf$/.test(pathOnly))
+  ) {
     return pdfCierreLimiter(req, res, next);
   }
   next();

@@ -5,7 +5,7 @@ import { useTiendas } from '@/hooks/useTiendas';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { reportesPageTitle, reportesTabs, uiLabels } from '@/lib/ui-labels';
 import {
-  BarChart3, DollarSign, Package, Users, Store, FileText, ClipboardList,
+  BarChart3, DollarSign, Package, Users, Store, FileText, ClipboardList, Layers,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { DateFilter } from '@/components/reportes/DateFilter';
@@ -17,8 +17,9 @@ import { TabClientes } from '@/components/reportes/TabClientes';
 import { TabAuditoria } from '@/components/reportes/TabAuditoria';
 import { TabPorSucursal } from '@/components/reportes/TabPorSucursal';
 import { TabDGII } from '@/components/reportes/TabDGII';
+import { TabOperaciones } from '@/components/reportes/TabOperaciones';
 
-type Tab = 'ventas' | 'pnl' | 'inventario' | 'clientes' | 'auditoria' | 'sucursal' | 'dgii';
+type Tab = 'ventas' | 'pnl' | 'inventario' | 'clientes' | 'auditoria' | 'operaciones' | 'sucursal' | 'dgii';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'ventas',     label: reportesTabs.ventas,      icon: <BarChart3  size={15} /> },
@@ -26,6 +27,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'inventario', label: reportesTabs.inventario,  icon: <Package    size={15} /> },
   { id: 'clientes',   label: reportesTabs.clientes,    icon: <Users      size={15} /> },
   { id: 'auditoria',  label: reportesTabs.auditoria,   icon: <ClipboardList size={15} /> },
+  { id: 'operaciones', label: reportesTabs.operaciones, icon: <Layers   size={15} /> },
   { id: 'sucursal',   label: reportesTabs.sucursal,    icon: <Store      size={15} /> },
   { id: 'dgii',       label: reportesTabs.dgii,        icon: <FileText   size={15} /> },
 ];
@@ -33,7 +35,8 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function ReportesPage() {
   const defaults = getDefaultDates();
   const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'admin';
+  const canFilterTiendas =
+    user?.rol === 'admin' || user?.rol === 'contador' || user?.rol === 'plataforma';
   const { data: tiendas = [] } = useTiendas();
   const [tab,   setTab]   = useState<Tab>('ventas');
   const [desde, setDesde] = useState(defaults.desde);
@@ -41,8 +44,8 @@ export default function ReportesPage() {
   const [tiendaFiltro, setTiendaFiltro] = useState<number | ''>('');
 
   useEffect(() => {
-    if (!isAdmin && user?.tiendaId) setTiendaFiltro(user.tiendaId);
-  }, [isAdmin, user?.tiendaId]);
+    if (!canFilterTiendas && user?.tiendaId) setTiendaFiltro(user.tiendaId);
+  }, [canFilterTiendas, user?.tiendaId]);
 
   const tiendaIdParam = tiendaFiltro === '' ? null : Number(tiendaFiltro);
 
@@ -73,7 +76,7 @@ export default function ReportesPage() {
         <DateFilter
           desde={desde} hasta={hasta} setDesde={setDesde} setHasta={setHasta}
           tiendaId={tiendaFiltro} setTiendaId={setTiendaFiltro}
-          tiendas={tiendas} isAdmin={isAdmin} userTiendaId={user?.tiendaId}
+          tiendas={tiendas} isAdmin={canFilterTiendas} userTiendaId={user?.tiendaId}
         />
       )}
 
@@ -82,6 +85,7 @@ export default function ReportesPage() {
       {tab === 'inventario' && <TabInventario />}
       {tab === 'clientes'   && <TabClientes   desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
       {tab === 'auditoria'  && <TabAuditoria  desde={desde} hasta={hasta} tiendaId={tiendaIdParam} />}
+      {tab === 'operaciones' && <TabOperaciones desde={desde} hasta={hasta} />}
       {tab === 'sucursal'   && <TabPorSucursal desde={desde} hasta={hasta} />}
       {tab === 'dgii'       && <TabDGII />}
     </main>

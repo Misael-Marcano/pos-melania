@@ -194,6 +194,32 @@ export function aggregateCarteraBuckets(
   }));
 }
 
+export interface CotizacionEstadoFila {
+  estado: string;
+  cantidad: number;
+}
+
+/** Tasa de aceptación sobre cotizaciones cerradas (aceptada / aceptada+rechazada+vencida). */
+export function computeCotizacionConversion(porEstado: CotizacionEstadoFila[]): {
+  aceptadas: number;
+  rechazadas: number;
+  vencidas: number;
+  enviadas: number;
+  borrador: number;
+  tasaCierre: number | null;
+} {
+  const n = (e: string) =>
+    Number(porEstado.find((x) => x.estado === e)?.cantidad ?? 0);
+  const aceptadas = n('ACEPTADA');
+  const rechazadas = n('RECHAZADA');
+  const vencidas = n('VENCIDA');
+  const enviadas = n('ENVIADA');
+  const borrador = n('BORRADOR');
+  const cerradas = aceptadas + rechazadas + vencidas;
+  const tasaCierre = cerradas > 0 ? Number(((aceptadas / cerradas) * 100).toFixed(1)) : null;
+  return { aceptadas, rechazadas, vencidas, enviadas, borrador, tasaCierre };
+}
+
 export function computeGananciasResumen(input: GananciasInputs) {
   const ingresos = Number(input.ingresos);
   const costoVentas = Number(input.costoVentas);

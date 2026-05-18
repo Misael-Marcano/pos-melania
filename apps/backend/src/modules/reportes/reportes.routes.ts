@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ReportesController } from './reportes.controller';
-import { authMiddleware, canAdminOrSoporte } from '../../middlewares/auth.middleware';
+import { authMiddleware, canReportes } from '../../middlewares/auth.middleware';
 
 const router = Router();
 const ctrl   = new ReportesController();
@@ -95,7 +95,7 @@ const ctrl   = new ReportesController();
  *       200: { description: Datos }
  */
 
-router.use(authMiddleware, canAdminOrSoporte);
+router.use(authMiddleware, canReportes);
 
 router.get('/ventas-por-dia',        ctrl.ventasPorDia.bind(ctrl));
 router.get('/ventas-por-usuario',    ctrl.ventasPorUsuario.bind(ctrl));
@@ -108,6 +108,8 @@ router.get('/resumen-dia',           ctrl.resumenDia.bind(ctrl));
 router.get('/top-productos',         ctrl.topProductos.bind(ctrl));
 router.get('/ganancias',             ctrl.ganancias.bind(ctrl));
 router.get('/comparar-periodos',     ctrl.compararPeriodos.bind(ctrl));
+router.get('/operaciones-comerciales', ctrl.operacionesComerciales.bind(ctrl));
+router.get('/ventas-resumen/pdf',    ctrl.ventasResumenPdf.bind(ctrl));
 router.get('/inventario-valorizado',        ctrl.inventarioValorizado.bind(ctrl));
 router.get('/inventario-valorizado/export', ctrl.inventarioValorizadoExport.bind(ctrl));
 router.get('/inventario-alertas',           ctrl.inventarioAlertas.bind(ctrl));

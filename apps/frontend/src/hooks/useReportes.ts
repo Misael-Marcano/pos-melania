@@ -37,6 +37,14 @@ export function useGanancias(desde: string, hasta: string, tiendaId?: number | n
   });
 }
 
+export function useOperacionesComerciales(desde: string, hasta: string) {
+  return useQuery({
+    queryKey: ['reportes', 'operaciones-comerciales', desde, hasta],
+    queryFn:  () => reportesService.operacionesComerciales(desde, hasta),
+    enabled:  !!(desde && hasta),
+  });
+}
+
 export function useCompararPeriodos(referencia: string, tiendaId?: number | null) {
   return useQuery({
     queryKey: ['reportes', 'comparar-periodos', referencia, tiendaKey(tiendaId)],
