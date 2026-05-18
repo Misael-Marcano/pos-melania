@@ -136,7 +136,7 @@ Backlog derivado de la revisión de `/configuracion` (2026-05). Código: `apps/b
 - API `GET/PUT /api/v1/configuracion`: lectura todos los roles (`canAll`), escritura solo **admin**; aislamiento por `tenantId` + validación de `tiendaId`/`cajaId` del mismo tenant.
 - Sin DTO previo: `Object.assign` aceptaba campos arbitrarios del body (riesgo `tenant`, metadatos).
 - UI monolítica (~700 líneas), sin validación de RNC/ITBIS en cliente ni servidor, sin indicador de completitud ni aviso de cambios sin guardar.
-- `tasaImpuesto1` en BD alimenta reportes DGII y `FiscalProvider`; zona horaria de reportes sigue en `REPORTES_TIMEZONE` (env), no en configuración por tenant.
+- `tasaImpuesto1` en BD alimenta reportes DGII y `FiscalProvider`; `zonaHoraria` en BD tiene prioridad sobre `REPORTES_TIMEZONE` (env) en agregaciones diarias.
 
 ### P0 — Integridad y seguridad
 
@@ -155,16 +155,16 @@ Backlog derivado de la revisión de `/configuracion` (2026-05). Código: `apps/b
 - [x] **Error de carga** — `QueryError` + reintentar.
 - [x] **Ayuda contextual** — RNC/recibos/DGII, `tasaImpuesto1` alineada a reportes, jurisdicción fiscal.
 - [x] **POS separado de NCF** — sucursal/caja en pestaña POS; fiscal en pestaña propia.
-- [ ] **Rol contador / solo lectura** en configuración (hoy sidebar oculta la ruta a no-admin). *Diferido.*
+- [x] **Rol contador / solo lectura** en configuración — GET + `canConfigRead`; PUT 403; UI en solo lectura y enlace en sidebar.
 
 ### P2 — Valor ampliado
 
-- [ ] **`zonaHoraria` en BD** por tenant (sustituir o complementar `REPORTES_TIMEZONE` del servidor).
-- [ ] **Indicador de conexión fiscal** — prueba de `FiscalProvider` / series NCF desde configuración.
+- [x] **`zonaHoraria` en BD** por tenant — migración `1700000000036`, DTO/UI, `resolveReportesTimezone` / `fetchTenantReportesTimezone` en reportes.
+- [x] **Indicador fiscal** — `GET /configuracion/fiscal-status` (`ok`, `jurisdiccion`, `rncConfigured`, `tasaItbis`) sin API externa; banner en pestaña Fiscal.
 - [ ] **Subida de logotipo** (storage) en lugar de solo URL.
 - [ ] **Notificaciones** — email trial/facturación enlazadas a datos de empresa en config.
 - [ ] **E2E Playwright** — flujo guardar configuración como admin.
-- [ ] **Ampliar test integración** — `PUT` con RNC inválido → 400; no-admin → 403.
+- [x] **Ampliar test integración** — `configuracion-access.integration.test.ts`: RNC inválido → 400; cajero PUT → 403; fiscal-status → 200.
 
 ### Recomendaciones (buenas prácticas)
 
