@@ -102,8 +102,8 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 ### P2 — Fiscal y pruebas
 
 - [x] **DGII 606/607 — vista previa** — `GET /dgii-607/preview` y `/dgii-606/preview`; UI con líneas, totales, ITBIS estimado y alertas.
-- [ ] **DGII alineado a fiscal** — delegar formato/ITBIS a `FiscalProvider` cuando aplique; no solo `total / 1.18` fijo; checklist `docs/operacion/FISCAL-DGII-CHECKLIST.md`.
-- [ ] **Tests unitarios reportes** — P&L (márgenes, devoluciones), generación 607/606; parcial: `dgiiPeriodoBounds`, schemas inventario/DGII en `reportes-query.test.ts`.
+- [x] **DGII alineado a fiscal** — `FiscalProvider.splitItbisIncluido` + `fiscal-itbis.ts`; reportes 606/607 y previews usan jurisdicción/`tasaImpuesto1` (18% RD por defecto); checklist `docs/operacion/FISCAL-DGII-CHECKLIST.md`.
+- [x] **Tests unitarios reportes** — `computeGananciasResumen` (márgenes, devoluciones), `fiscal-itbis` / provider ITBIS; `dgiiPeriodoBounds`, schemas en `reportes-query.test.ts`.
 - [x] **Documentar supuestos P&L en UI** — nota informativa en pestaña P&L (`reportes/page.tsx`).
 
 ### P3 — Valor ampliado (cuando P0–P2 estén estables)

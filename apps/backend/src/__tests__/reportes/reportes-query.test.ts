@@ -1,4 +1,8 @@
-import { aggregateVentasPorMetodo, dgiiPeriodoBounds } from '../../modules/reportes/reportes-query';
+import {
+  aggregateVentasPorMetodo,
+  dgiiPeriodoBounds,
+  computeGananciasResumen,
+} from '../../modules/reportes/reportes-query';
 import {
   reportesRangoFechasSchema,
   inventarioValorizadoQuerySchema,
@@ -78,5 +82,32 @@ describe('inventarioValorizadoQuerySchema', () => {
 describe('reportesPeriodoDgiiSchema', () => {
   it('acepta YYYYMM válido', () => {
     expect(reportesPeriodoDgiiSchema.safeParse({ periodo: '202601' }).success).toBe(true);
+  });
+});
+
+describe('computeGananciasResumen', () => {
+  it('calcula utilidad y márgenes con devoluciones', () => {
+    const r = computeGananciasResumen({
+      ingresos: 10000,
+      costoVentas: 4000,
+      gastos: 1500,
+      devoluciones: 500,
+    });
+    expect(r.utilidadBruta).toBe(5500);
+    expect(r.utilidadNeta).toBe(4000);
+    expect(r.margenBruto).toBe(55);
+    expect(r.margenNeto).toBe(40);
+  });
+
+  it('márgenes en cero sin ingresos', () => {
+    const r = computeGananciasResumen({
+      ingresos: 0,
+      costoVentas: 0,
+      gastos: 100,
+      devoluciones: 0,
+    });
+    expect(r.margenBruto).toBe(0);
+    expect(r.margenNeto).toBe(0);
+    expect(r.utilidadNeta).toBe(-100);
   });
 });
