@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Devoluciones',   href: '/devoluciones',      icon: <RotateCcw size={17} />,       roles: ['admin','soporte','plataforma'] },
   { label: 'Cotizaciones',   href: '/cotizaciones',      icon: <ScrollText size={17} />,     roles: ['admin','cajero','soporte','plataforma'],    feature: 'cotizaciones' },
   { label: 'Promociones',    href: '/promociones',       icon: <Tag size={17} />,            roles: ['admin','soporte','plataforma'],             feature: 'promociones' },
-  { label: 'Reportes',       href: '/reportes',          icon: <BarChart2 size={17} />,       roles: ['admin','soporte','plataforma'] },
+  { label: 'Reportes',       href: '/reportes',          icon: <BarChart2 size={17} />,       roles: ['admin','soporte','contador','plataforma'] },
   {
     label: 'Ventas',
     href:  '/ventas',

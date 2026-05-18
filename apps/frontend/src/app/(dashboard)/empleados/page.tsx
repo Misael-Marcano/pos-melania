@@ -16,6 +16,7 @@ const ROL_BADGE: Record<string, string> = {
   admin:       'badge-red',
   cajero:      'badge-green',
   soporte:     'badge-blue',
+  contador:    'badge-purple',
   plataforma:  'badge-orange',
 };
 
@@ -23,6 +24,7 @@ const ROL_LABEL: Record<string, string> = {
   admin:       'Administrador',
   cajero:      'Cajero',
   soporte:     'Soporte',
+  contador:    'Contador',
   plataforma:  'Plataforma',
 };
 
@@ -30,7 +32,7 @@ interface FormState {
   nombre:    string;
   correo:    string;
   telefono:  string;
-  rol:       'admin' | 'cajero' | 'soporte' | 'plataforma';
+  rol:       'admin' | 'cajero' | 'soporte' | 'contador' | 'plataforma';
   password:  string;
   tiendaId:  number | '';
 }
@@ -140,11 +142,11 @@ function EmpleadoModal({
 
           <div>
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Rol del sistema</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['cajero', 'soporte', 'admin'] as const).map((r) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(['cajero', 'soporte', 'contador', 'admin'] as const).map((r) => (
                 <button key={r} type="button" onClick={() => {
                   set('rol', r);
-                  if (r === 'admin') set('tiendaId', '');
+                  if (r === 'admin' || r === 'contador') set('tiendaId', '');
                 }}
                   className={`py-2 rounded-lg border text-sm font-medium transition-all ${
                     form.rol === r
@@ -160,20 +162,21 @@ function EmpleadoModal({
               {form.rol === 'plataforma' && 'Operador de plataforma (multi-organización)'}
               {form.rol === 'cajero' && 'Puede hacer ventas y gestionar inventario'}
               {form.rol === 'soporte' && 'Acceso de solo lectura y reportes'}
+              {form.rol === 'contador' && 'Solo lectura en reportes (todas las sucursales)'}
             </p>
           </div>
 
           <div>
             <label className="text-sm font-medium text-navy-700 mb-1.5 flex items-center gap-1.5">
               <Store size={14} className="text-navy-400" />
-              Sucursal {form.rol !== 'admin' && form.rol !== 'plataforma' ? '*' : '(solo no administradores)'}
+              Sucursal {form.rol !== 'admin' && form.rol !== 'contador' && form.rol !== 'plataforma' ? '*' : '(solo no administradores)'}
             </label>
             <Select
               value={form.tiendaId === '' ? '' : String(form.tiendaId)}
               onChange={(e) => set('tiendaId', e.target.value === '' ? '' : Number(e.target.value))}
-              disabled={form.rol === 'admin' || form.rol === 'plataforma'}
+              disabled={form.rol === 'admin' || form.rol === 'contador' || form.rol === 'plataforma'}
             >
-              <option value="">{(form.rol === 'admin' || form.rol === 'plataforma') ? '— No aplica (ve todas las sucursales) —' : 'Seleccionar…'}</option>
+              <option value="">{(form.rol === 'admin' || form.rol === 'contador' || form.rol === 'plataforma') ? '— No aplica (ve todas las sucursales) —' : 'Seleccionar…'}</option>
               {tiendas.filter((t) => t.activo).map((t) => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}

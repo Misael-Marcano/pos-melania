@@ -80,6 +80,8 @@ export const roleGuard = (...roles: Rol[]) => {
 /** Incluye `plataforma`: mismo alcance operativo que admin al usar X-Tenant-Id. */
 export const canAdmin    = roleGuard('admin', 'plataforma');
 export const canAdminOrSoporte = roleGuard('admin', 'soporte', 'plataforma');
+/** Reportes y exportaciones de solo lectura (incluye rol contador externo). */
+export const canReportes   = roleGuard('admin', 'soporte', 'contador', 'plataforma');
 export const canAll      = roleGuard('admin', 'cajero', 'soporte', 'plataforma');
 export const canSell     = roleGuard('admin', 'cajero', 'plataforma');
 export const canPlataforma = roleGuard('plataforma');

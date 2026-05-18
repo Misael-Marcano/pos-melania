@@ -5,7 +5,7 @@ export interface CreateEmpleadoPayload {
   nombre:    string;
   correo:    string;
   telefono?: string;
-  rol:       'admin' | 'cajero' | 'soporte';
+  rol:       'admin' | 'cajero' | 'soporte' | 'contador';
   password:  string;
   foto?:     string;
   tiendaId?: number | null;
@@ -15,7 +15,7 @@ export interface UpdateEmpleadoPayload {
   nombre?:    string;
   correo?:    string;
   telefono?:  string;
-  rol?:       'admin' | 'cajero' | 'soporte';
+  rol?:       'admin' | 'cajero' | 'soporte' | 'contador';
   password?:  string;
   tiendaId?:  number | null;
 }

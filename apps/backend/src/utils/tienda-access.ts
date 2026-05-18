@@ -6,6 +6,11 @@ export function isAdmin(user: AuthUser): boolean {
   return user.rol === 'admin' || user.rol === 'plataforma';
 }
 
+/** Puede elegir sucursal o ver todas en reportes (admin, plataforma, contador). */
+export function canFilterAllTiendasInReportes(user: AuthUser): boolean {
+  return isAdmin(user) || user.rol === 'contador';
+}
+
 /**
  * Para usuarios no administrador: devuelve su sucursal o error.
  * Para admin devuelve `null` (sin filtro por sucursal).

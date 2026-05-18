@@ -1,7 +1,7 @@
 // ============================
 // Roles del sistema
 // ============================
-export type Rol = 'admin' | 'cajero' | 'soporte' | 'plataforma';
+export type Rol = 'admin' | 'cajero' | 'soporte' | 'contador' | 'plataforma';
 
 // ============================
 // Respuesta genérica de la API
