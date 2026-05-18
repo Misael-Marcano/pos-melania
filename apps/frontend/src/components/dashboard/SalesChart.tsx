@@ -7,7 +7,11 @@ import { useVentasPorDia } from '@/hooks/useReportes';
 import { useDashboardCurrency } from '@/hooks/useDashboardCurrency';
 import { QueryError } from '@/components/reportes/reportes-shared';
 
-export function SalesChart() {
+interface Props {
+  tiendaId?: number | null;
+}
+
+export function SalesChart({ tiendaId = null }: Props) {
   const [view, setView] = useState<'mes' | 'semana'>('mes');
   const { symbol } = useDashboardCurrency();
 
@@ -19,7 +23,11 @@ export function SalesChart() {
     };
   }, [view]);
 
-  const { data: raw = [], isLoading, isError, error, refetch } = useVentasPorDia(range.desde, range.hasta);
+  const { data: raw = [], isLoading, isError, error, refetch } = useVentasPorDia(
+    range.desde,
+    range.hasta,
+    tiendaId,
+  );
 
   const data = raw.map((d: { dia: string; totalMonto: number }) => ({
     dia:   format(new Date(d.dia + 'T12:00:00'), 'dd'),

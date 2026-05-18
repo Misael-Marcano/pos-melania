@@ -49,17 +49,18 @@ function pctChange(actual: number, prev: number): string | null {
 
 interface Props {
   stockCount: number;
+  tiendaId?: number | null;
 }
 
-export function StatsCards({ stockCount }: Props) {
+export function StatsCards({ stockCount, tiendaId = null }: Props) {
   const todayStr = new Date().toISOString().split('T')[0];
   const [fecha, setFecha] = useState(todayStr);
   const isHoy = fecha === todayStr;
   const fechaAnterior = stepDate(fecha, -1);
 
   const { symbol } = useDashboardCurrency();
-  const { data: resumen, isError, error, refetch, isLoading } = useResumenDia(fecha);
-  const { data: resumenPrev } = useResumenDia(fechaAnterior);
+  const { data: resumen, isError, error, refetch, isLoading } = useResumenDia(fecha, tiendaId);
+  const { data: resumenPrev } = useResumenDia(fechaAnterior, tiendaId);
 
   const transacciones = Number(resumen?.totalTransacciones ?? 0);
   const totalVentas   = Number(resumen?.totalVentas        ?? 0);

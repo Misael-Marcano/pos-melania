@@ -16,11 +16,26 @@ import {
   type SortDir,
 } from '@/lib/tenant-panel-sort';
 import {
+  filterTenantPanelRows,
+  trialDaysRemaining,
+  TENANT_PANEL_PAGE_SIZE,
+  type ActivoFilter,
+  type TrialFilter,
+} from '@/lib/tenant-panel-filters';
+import { exportTenantPanelCsv } from '@/lib/export-tenant-panel-csv';
+import {
   Building2, Users2, Store, Package, CreditCard, ShoppingCart,
   CheckCircle2, AlertTriangle, XCircle, Clock, Search, ArrowUpDown,
+  Download, ChevronLeft, ChevronRight, ExternalLink,
 } from 'lucide-react';
 
-function BillingChip({ status }: { status: string | null }) {
+function BillingChip({
+  status,
+  trialEndsAt,
+}: {
+  status: string | null;
+  trialEndsAt?: string | null;
+}) {
   if (!status) {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-navy-100 text-navy-500 border border-navy-200">
@@ -37,11 +52,26 @@ function BillingChip({ status }: { status: string | null }) {
     incomplete_expired: { color: 'bg-rose-50 text-rose-800 border-rose-200',          icon: <XCircle size={11} />,      label: 'Expirado' },
   };
   const cfg = map[status] ?? { color: 'bg-navy-100 text-navy-600 border-navy-200', icon: null, label: status };
+  const trialDays = trialDaysRemaining(trialEndsAt);
+  const trialTitle =
+    trialDays != null && trialDays >= 0
+      ? `Trial termina en ${trialDays} día${trialDays === 1 ? '' : 's'}`
+      : undefined;
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${cfg.color}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${cfg.color}`}
+      title={trialTitle}
+    >
       {cfg.icon} {cfg.label}
+      {trialDays != null && trialDays >= 0 && trialDays <= 7 ? (
+        <span className="text-[10px] opacity-80">({trialDays}d)</span>
+      ) : null}
     </span>
   );
+}
+
+function stripeCustomerUrl(customerId: string): string {
+  return `https://dashboard.stripe.com/customers/${customerId}`;
 }
 
 function UsageBar({ value, max }: { value: number; max: number | null }) {
@@ -65,34 +95,6 @@ function UsageBarInner({
       )}
     </div>
   );
-}
-
-function filterTenants(
-  tenants: TenantPanelRow[],
-  query: string,
-  billingFilter: 'all' | 'past_due' | 'none' | 'active_ok',
-  planFilter: string,
-): TenantPanelRow[] {
-  let list = tenants;
-  const q = query.trim().toLowerCase();
-  if (q) {
-    list = list.filter(
-      (t) => t.nombre.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q),
-    );
-  }
-  if (billingFilter === 'past_due') {
-    list = list.filter((t) => t.billingStatus === 'past_due');
-  } else if (billingFilter === 'none') {
-    list = list.filter((t) => !t.billingStatus);
-  } else if (billingFilter === 'active_ok') {
-    list = list.filter(
-      (t) => t.billingStatus === 'active' || t.billingStatus === 'trialing',
-    );
-  }
-  if (planFilter !== 'all') {
-    list = list.filter((t) => t.planCode === planFilter);
-  }
-  return list;
 }
 
 type SortableCol = { label: string; key?: TenantPanelSortKey };
@@ -120,6 +122,9 @@ export default function PlataformaPage() {
     'all' | 'past_due' | 'none' | 'active_ok'
   >('all');
   const [planFilter, setPlanFilter] = useState<string>('all');
+  const [activoFilter, setActivoFilter] = useState<ActivoFilter>('all');
+  const [trialFilter, setTrialFilter] = useState<TrialFilter>('all');
+  const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<TenantPanelSortKey>('nombre');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -132,14 +137,32 @@ export default function PlataformaPage() {
   }, [loaded, user, router]);
 
   const filtered = useMemo(
-    () => filterTenants(tenants, query, billingFilter, planFilter),
-    [tenants, query, billingFilter, planFilter],
+    () => filterTenantPanelRows(tenants, {
+      query,
+      billingFilter,
+      planFilter,
+      activoFilter,
+      trialFilter,
+    }),
+    [tenants, query, billingFilter, planFilter, activoFilter, trialFilter],
   );
 
   const sorted = useMemo(
     () => sortTenantPanelRows(filtered, sortKey, sortDir),
     [filtered, sortKey, sortDir],
   );
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / TENANT_PANEL_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+
+  const paginated = useMemo(() => {
+    const start = (safePage - 1) * TENANT_PANEL_PAGE_SIZE;
+    return sorted.slice(start, start + TENANT_PANEL_PAGE_SIZE);
+  }, [sorted, safePage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, billingFilter, planFilter, activoFilter, trialFilter, sortKey, sortDir]);
 
   const toggleSort = (key: TenantPanelSortKey) => {
     if (sortKey === key) {
@@ -164,7 +187,12 @@ export default function PlataformaPage() {
   };
 
   const errorMsg = error instanceof Error ? error.message : 'No se pudo cargar el panel';
-  const hasFilters = query.trim() !== '' || billingFilter !== 'all' || planFilter !== 'all';
+  const hasFilters =
+    query.trim() !== ''
+    || billingFilter !== 'all'
+    || planFilter !== 'all'
+    || activoFilter !== 'all'
+    || trialFilter !== 'all';
   const emptyMessage = hasFilters
     ? 'Ninguna organización coincide con los filtros'
     : 'No hay organizaciones registradas';
@@ -232,6 +260,35 @@ export default function PlataformaPage() {
             <option value="standard">Standard</option>
             <option value="enterprise">Enterprise</option>
           </Select>
+          <Select
+            wrapperClassName="min-w-[130px] shrink-0"
+            value={activoFilter}
+            onChange={(e) => setActivoFilter(e.target.value as ActivoFilter)}
+            className="py-2.5 text-sm"
+            aria-label="Filtrar por estado"
+          >
+            <option value="all">Todas — estado</option>
+            <option value="activo">Activas</option>
+            <option value="inactivo">Inactivas</option>
+          </Select>
+          <Select
+            wrapperClassName="min-w-[150px] shrink-0"
+            value={trialFilter}
+            onChange={(e) => setTrialFilter(e.target.value as TrialFilter)}
+            className="py-2.5 text-sm"
+            aria-label="Filtrar por trial"
+          >
+            <option value="all">Trial — todos</option>
+            <option value="trial_soon">Trial por vencer (7d)</option>
+          </Select>
+          <button
+            type="button"
+            onClick={() => exportTenantPanelCsv(sorted)}
+            disabled={sorted.length === 0}
+            className="btn-outline text-sm py-2.5 px-3 inline-flex items-center gap-1.5 disabled:opacity-40"
+          >
+            <Download size={14} /> Exportar CSV
+          </button>
         </div>
       </div>
 
@@ -247,10 +304,10 @@ export default function PlataformaPage() {
 
       {!isLoading && !isError && (
         <>
-          <TenantPanelMobileList sorted={sorted} emptyMessage={emptyMessage} operate={operate} />
+          <TenantPanelMobileList rows={paginated} emptyMessage={emptyMessage} operate={operate} />
           <div className="hidden md:block bg-white rounded-[12px] shadow-card overflow-hidden">
             <TenantPanelTable
-              rows={sorted}
+              rows={paginated}
               emptyMessage={emptyMessage}
               operate={operate}
               sortKey={sortKey}
@@ -258,6 +315,33 @@ export default function PlataformaPage() {
               onSort={toggleSort}
             />
           </div>
+          {sorted.length > TENANT_PANEL_PAGE_SIZE && (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-navy-600">
+              <p>
+                Página {safePage} de {totalPages} · {sorted.length} organizaciones
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="btn-outline py-1.5 px-2.5 disabled:opacity-40"
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="btn-outline py-1.5 px-2.5 disabled:opacity-40"
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </main>
@@ -341,12 +425,23 @@ function TenantPanelTable({
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-col gap-1">
-                  <BillingChip status={t.billingStatus} />
-                  {t.stripeCustomerId && (
-                    <span className="text-[10px] font-mono text-navy-400 truncate max-w-[120px]" title={t.stripeCustomerId}>
-                      {t.stripeCustomerId.slice(0, 14)}…
-                    </span>
-                  )}
+                        <BillingChip status={t.billingStatus} trialEndsAt={t.trialEndsAt} />
+                        {t.stripeCustomerId && (
+                          <span className="flex items-center gap-1">
+                            <span className="text-[10px] font-mono text-navy-400 truncate max-w-[100px]" title={t.stripeCustomerId}>
+                              {t.stripeCustomerId.slice(0, 14)}…
+                            </span>
+                            <a
+                              href={stripeCustomerUrl(t.stripeCustomerId)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-600 hover:text-primary-700"
+                              aria-label={`Abrir cliente Stripe de ${t.nombre}`}
+                            >
+                              <ExternalLink size={11} />
+                            </a>
+                          </span>
+                        )}
                 </div>
               </td>
               <td className="px-4 py-3 min-w-[88px]">
@@ -408,20 +503,20 @@ function TenantSalesCell({ t }: { t: TenantPanelRow }) {
 }
 
 function TenantPanelMobileList({
-  sorted,
+  rows,
   emptyMessage,
   operate,
 }: {
-  sorted: TenantPanelRow[];
+  rows: TenantPanelRow[];
   emptyMessage: string;
   operate: (id: number) => void;
 }) {
   return (
     <div className="md:hidden space-y-3">
-      {sorted.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-navy-400 text-center py-8">{emptyMessage}</p>
       ) : (
-        sorted.map((t) => (
+        rows.map((t) => (
           <TenantPanelMobileCard key={t.id} t={t} onOperate={() => operate(t.id)} />
         ))
       )}
@@ -447,7 +542,17 @@ function TenantPanelMobileCard({
           {t.planLabel}
         </span>
       </div>
-      <BillingChip status={t.billingStatus} />
+      <BillingChip status={t.billingStatus} trialEndsAt={t.trialEndsAt} />
+      {t.stripeCustomerId ? (
+        <a
+          href={stripeCustomerUrl(t.stripeCustomerId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary-600 inline-flex items-center gap-1"
+        >
+          Stripe <ExternalLink size={11} />
+        </a>
+      ) : null}
       <div className="grid grid-cols-2 gap-2 text-xs text-navy-600">
         <MobileUsageMetric label="Usuarios" value={t.usage.seats} max={t.limits.maxUsers} />
         <MobileUsageMetric label="Sucursales" value={t.usage.tiendasActivas} max={t.limits.maxTiendas} />

@@ -23,6 +23,7 @@ export const tenantPanelRowSchema = z.object({
   billingStatus:        z.string().nullable(),
   stripeCustomerId:     z.string().nullable(),
   stripeSubscriptionId: z.string().nullable(),
+  trialEndsAt:          z.coerce.date().nullable().optional(),
   usage:                tenantPanelUsageSchema,
   limits:               tenantPanelLimitsSchema,
   createdAt:            z.coerce.date(),

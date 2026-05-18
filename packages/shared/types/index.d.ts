@@ -466,6 +466,7 @@ export interface TenantPanelRow {
     billingStatus: string | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
+    trialEndsAt?: string | null;
     usage: TenantPanelUsage;
     limits: TenantPanelLimits;
     createdAt: string;

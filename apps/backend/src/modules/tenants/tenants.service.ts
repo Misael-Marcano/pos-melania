@@ -39,8 +39,9 @@ export class TenantsService {
         planLabel:            limits.label,
         billingStatus:        t.billingStatus ?? null,
         stripeCustomerId:     t.stripeCustomerId ?? null,
-        stripeSubscriptionId: t.stripeSubscriptionId ?? null,
-        usage:                pickUsage(usageMaps, t.id),
+          stripeSubscriptionId: t.stripeSubscriptionId ?? null,
+          trialEndsAt:          t.trialEndsAt ?? null,
+          usage:                pickUsage(usageMaps, t.id),
         limits: {
           maxUsers:     limits.maxUsers,
           maxTiendas:   limits.maxTiendas,

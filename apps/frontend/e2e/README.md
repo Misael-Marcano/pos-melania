@@ -52,6 +52,10 @@ Si faltan `E2E_EMAIL` / `E2E_PASSWORD`, el test se **omite** (skip) para no fall
 
 `configuracion.spec.ts`: login, navega a `/configuracion`, cambia el nombre de empresa y guarda; verifica el toast «Configuración guardada». Requiere las mismas credenciales admin y API en marcha.
 
+### Panel (admin tenant)
+
+`panel.spec.ts`: login como admin, llega a `/panel` (o pasa por `/select-organizacion`), verifica `#panel-heading` y texto «Stock bajo». Mismas variables `E2E_EMAIL` / `E2E_PASSWORD`.
+
 ## CI / staging
 
 Disparo manual con GitHub Actions y URL de frontend en staging: ver [E2E-STAGING.md](../../../docs/operacion/E2E-STAGING.md) (secretos `E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`).

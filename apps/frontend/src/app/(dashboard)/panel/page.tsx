@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuthStore }         from '@/store/auth.store';
 import { useStockBajo }         from '@/hooks/useInventario';
+import { PanelTiendaFilter, type PanelTiendaFilterValue } from '@/components/dashboard/PanelTiendaFilter';
 import { StatsCards }           from '@/components/dashboard/StatsCards';
 import { SalesChart }           from '@/components/dashboard/SalesChart';
 import { QuickActions }         from '@/components/dashboard/QuickActions';
@@ -48,6 +50,7 @@ function GreetingBanner() {
 }
 
 export default function PanelPage() {
+  const [tiendaId, setTiendaId] = useState<PanelTiendaFilterValue>(null);
   const stockQuery = useStockBajo();
   const stockCount = stockQuery.data?.length ?? 0;
   const stockErrorMsg = stockQuery.error instanceof Error
@@ -58,11 +61,12 @@ export default function PanelPage() {
     <main aria-labelledby="panel-heading" className="space-y-8">
       <GreetingBanner />
       <CajaAbiertaWidget />
-      <StatsCards stockCount={stockCount} />
+      <PanelTiendaFilter value={tiendaId} onChange={setTiendaId} />
+      <StatsCards stockCount={stockCount} tiendaId={tiendaId} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <SalesChart />
+          <SalesChart tiendaId={tiendaId} />
         </div>
         <div>
           <QuickActions />
