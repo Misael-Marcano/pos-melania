@@ -141,6 +141,59 @@ export type GananciasInputs = {
 };
 
 /** Utilidades y márgenes del reporte P&L (sin I/O). */
+/** Tramos de antigüedad para cartera (días desde la venta a crédito más antigua). */
+export const CARTERA_BUCKETS = [
+  { id: '0_30',    etiqueta: '0–30 días',      minDias: 0,  maxDias: 30 },
+  { id: '31_60',   etiqueta: '31–60 días',     minDias: 31, maxDias: 60 },
+  { id: '61_90',   etiqueta: '61–90 días',     minDias: 61, maxDias: 90 },
+  { id: '90_plus', etiqueta: 'Más de 90 días', minDias: 91, maxDias: null as number | null },
+] as const;
+
+export type CarteraBucketId = (typeof CARTERA_BUCKETS)[number]['id'];
+
+/** Asigna un saldo a un tramo según días de antigüedad (null → sin venta crédito registrada). */
+export function carteraBucketId(diasAntiguedad: number | null): CarteraBucketId {
+  if (diasAntiguedad == null || diasAntiguedad < 0) return '90_plus';
+  if (diasAntiguedad <= 30) return '0_30';
+  if (diasAntiguedad <= 60) return '31_60';
+  if (diasAntiguedad <= 90) return '61_90';
+  return '90_plus';
+}
+
+export interface CarteraClienteFila {
+  saldo: number;
+  diasAntiguedad: number | null;
+}
+
+export interface CarteraBucketResumen {
+  id: CarteraBucketId;
+  etiqueta: string;
+  clientes: number;
+  total: number;
+}
+
+/** Totales por tramo a partir de filas de clientes con saldo. */
+export function aggregateCarteraBuckets(
+  clientes: CarteraClienteFila[],
+): CarteraBucketResumen[] {
+  const map = new Map<CarteraBucketId, { clientes: number; total: number }>();
+  for (const b of CARTERA_BUCKETS) {
+    map.set(b.id, { clientes: 0, total: 0 });
+  }
+  for (const c of clientes) {
+    const id = carteraBucketId(c.diasAntiguedad);
+    const row = map.get(id)!;
+    row.clientes += 1;
+    row.total += Number(c.saldo);
+  }
+  return CARTERA_BUCKETS.map((b) => ({
+    id: b.id,
+    etiqueta: b.etiqueta,
+    clientes: map.get(b.id)!.clientes,
+    total: map.get(b.id)!.total,
+  }));
+}
+
 export function computeGananciasResumen(input: GananciasInputs) {
   const ingresos = Number(input.ingresos);
   const costoVentas = Number(input.costoVentas);

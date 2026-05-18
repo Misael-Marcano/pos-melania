@@ -110,6 +110,8 @@ router.get('/ganancias',             ctrl.ganancias.bind(ctrl));
 router.get('/comparar-periodos',     ctrl.compararPeriodos.bind(ctrl));
 router.get('/inventario-valorizado',        ctrl.inventarioValorizado.bind(ctrl));
 router.get('/inventario-valorizado/export', ctrl.inventarioValorizadoExport.bind(ctrl));
+router.get('/inventario-alertas',           ctrl.inventarioAlertas.bind(ctrl));
+router.get('/cartera',                      ctrl.cartera.bind(ctrl));
 router.get('/top-clientes',                 ctrl.topClientes.bind(ctrl));
 router.get('/dgii-607/preview',             ctrl.dgii607Preview.bind(ctrl));
 router.get('/dgii-606/preview',             ctrl.dgii606Preview.bind(ctrl));

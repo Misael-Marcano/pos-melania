@@ -81,3 +81,11 @@ export const inventarioValorizadoQuerySchema = z.object({
 export type ReportesRangoFechasQuery = z.infer<typeof reportesRangoFechasSchema>;
 export type ReportesResumenDiaQuery = z.infer<typeof reportesResumenDiaSchema>;
 export type InventarioValorizadoQuery = z.infer<typeof inventarioValorizadoQuerySchema>;
+
+export const reportesStockAlertaSchema = z.object({
+  umbral: z.coerce.number().int().min(0).max(10_000).default(5),
+  diasSinMovimiento: z.coerce.number().int().min(1).max(730).default(90),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+});
+
+export type ReportesStockAlertaQuery = z.infer<typeof reportesStockAlertaSchema>;

@@ -5,12 +5,15 @@ import {
   mesMtdBounds,
   mesAnteriorMtdBounds,
   pctVariacion,
+  carteraBucketId,
+  aggregateCarteraBuckets,
 } from '../../modules/reportes/reportes-query';
 import {
   reportesRangoFechasSchema,
   inventarioValorizadoQuerySchema,
   reportesPeriodoDgiiSchema,
   reportesCompararPeriodosSchema,
+  reportesStockAlertaSchema,
 } from '../../modules/reportes/dto/reportes.dto';
 
 describe('aggregateVentasPorMetodo', () => {
@@ -144,5 +147,39 @@ describe('computeGananciasResumen', () => {
     expect(r.margenBruto).toBe(0);
     expect(r.margenNeto).toBe(0);
     expect(r.utilidadNeta).toBe(-100);
+  });
+});
+
+describe('carteraBucketId / aggregateCarteraBuckets', () => {
+  it('asigna tramos por días', () => {
+    expect(carteraBucketId(10)).toBe('0_30');
+    expect(carteraBucketId(45)).toBe('31_60');
+    expect(carteraBucketId(75)).toBe('61_90');
+    expect(carteraBucketId(120)).toBe('90_plus');
+    expect(carteraBucketId(null)).toBe('90_plus');
+  });
+
+  it('agrega totales por bucket', () => {
+    const buckets = aggregateCarteraBuckets([
+      { saldo: 100, diasAntiguedad: 5 },
+      { saldo: 200, diasAntiguedad: 40 },
+      { saldo: 50, diasAntiguedad: 100 },
+    ]);
+    expect(buckets.find((b) => b.id === '0_30')?.total).toBe(100);
+    expect(buckets.find((b) => b.id === '31_60')?.total).toBe(200);
+    expect(buckets.find((b) => b.id === '90_plus')?.total).toBe(50);
+  });
+});
+
+describe('reportesStockAlertaSchema', () => {
+  it('defaults umbral 5 y 90 días sin movimiento', () => {
+    const r = reportesStockAlertaSchema.parse({});
+    expect(r.umbral).toBe(5);
+    expect(r.diasSinMovimiento).toBe(90);
+    expect(r.limit).toBe(100);
+  });
+
+  it('rechaza umbral negativo', () => {
+    expect(reportesStockAlertaSchema.safeParse({ umbral: -1 }).success).toBe(false);
   });
 });

@@ -100,6 +100,26 @@ describe('reportes — aislamiento por tenant', () => {
     expect(res.body.data.articulos.length).toBe(0);
   });
 
+  it('GET /reportes/inventario-alertas — org nueva sin artículos', async () => {
+    const res = await request(app)
+      .get('/api/v1/reportes/inventario-alertas')
+      .set('Authorization', `Bearer ${otherTenantToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data?.resumen?.totalBajo).toBe(0);
+    expect(Array.isArray(res.body.data?.stockBajo)).toBe(true);
+  });
+
+  it('GET /reportes/cartera — org nueva sin saldos', async () => {
+    const res = await request(app)
+      .get('/api/v1/reportes/cartera')
+      .set('Authorization', `Bearer ${otherTenantToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Number(res.body.data?.resumen?.clientesConSaldo)).toBe(0);
+    expect(Array.isArray(res.body.data?.buckets)).toBe(true);
+  });
+
   it('GET /reportes/conciliacion-caja/:id — sesión de otra org no accesible', async () => {
     if (anyAperturaId == null) return;
     const res = await request(app)

@@ -12,6 +12,7 @@ import {
   reportesPeriodoDgiiSchema,
   reportesCompararPeriodosSchema,
   inventarioValorizadoQuerySchema,
+  reportesStockAlertaSchema,
 } from './dto/reportes.dto';
 
 const service = new ReportesService();
@@ -143,6 +144,22 @@ export class ReportesController {
     try {
       const q = (req.query.q as string | undefined) ?? '';
       return sendSuccess(res, await service.inventarioValorizadoExport(tenantIdOrThrow(req.user), q));
+    } catch (e: unknown) { return sendFail(res, e); }
+  }
+
+  async inventarioAlertas(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesStockAlertaSchema.parse(req.query);
+      return sendSuccess(res, await service.inventarioAlertas(tenantIdOrThrow(req.user), q));
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
+  async cartera(req: AuthRequest, res: Response) {
+    try {
+      return sendSuccess(res, await service.cartera(tenantIdOrThrow(req.user)));
     } catch (e: unknown) { return sendFail(res, e); }
   }
 

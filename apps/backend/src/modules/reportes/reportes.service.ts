@@ -12,7 +12,11 @@ import {
   mesAnteriorMtdBounds,
   mesEtiqueta,
   pctVariacion,
+  aggregateCarteraBuckets,
+  carteraBucketId,
+  CARTERA_BUCKETS,
 } from './reportes-query';
+import type { ReportesStockAlertaQuery } from './dto/reportes.dto';
 import type { InventarioValorizadoQuery } from './dto/reportes.dto';
 import {
   fetchConciliacionCaja,
@@ -458,6 +462,153 @@ export class ReportesService {
       [tenantId, ...params],
     );
     return articulos;
+  }
+
+  /** Stock bajo (≤ umbral) y artículos activos sin movimiento en N días. */
+  async inventarioAlertas(tenantId: number, query: ReportesStockAlertaQuery) {
+    const { umbral, diasSinMovimiento, limit } = query;
+
+    const [counts] = await this.ds.query(
+      `SELECT
+         SUM(CASE WHEN ISNULL(a.cantidad, 0) = 0 THEN 1 ELSE 0 END) AS sinStock,
+         SUM(CASE WHEN ISNULL(a.cantidad, 0) > 0 AND ISNULL(a.cantidad, 0) <= @1 THEN 1 ELSE 0 END) AS bajoUmbral,
+         COUNT(*) AS totalBajo
+       FROM articulos a
+       WHERE a.activo = 1 AND a.tenantId = @0
+         AND a.cantidad IS NOT NULL
+         AND ISNULL(a.cantidad, 0) <= @1`,
+      [tenantId, umbral],
+    );
+
+    const stockBajo = await this.ds.query(
+      `SELECT TOP (@2) a.id,
+              a.nombre,
+              a.codigoBarras,
+              a.cantidad,
+              a.costo,
+              a.precioVenta,
+              c.nombre AS categoria
+       FROM articulos a
+       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
+       WHERE a.activo = 1 AND a.tenantId = @0
+         AND a.cantidad IS NOT NULL
+         AND ISNULL(a.cantidad, 0) <= @1
+       ORDER BY a.cantidad ASC, a.nombre ASC`,
+      [tenantId, umbral, limit],
+    );
+
+    const sinMovimiento = await this.ds.query(
+      `SELECT TOP (@2) a.id,
+              a.nombre,
+              a.codigoBarras,
+              a.cantidad,
+              c.nombre AS categoria,
+              ult.ultimoMovimiento
+       FROM articulos a
+       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
+       OUTER APPLY (
+         SELECT MAX(m.createdAt) AS ultimoMovimiento
+         FROM movimientos_inventario m
+         WHERE m.articuloId = a.id
+       ) ult
+       WHERE a.activo = 1 AND a.tenantId = @0
+         AND ISNULL(a.cantidad, 0) > 0
+         AND (
+           ult.ultimoMovimiento IS NULL
+           OR ult.ultimoMovimiento < DATEADD(day, -@1, GETDATE())
+         )
+       ORDER BY ult.ultimoMovimiento ASC, a.nombre ASC`,
+      [tenantId, diasSinMovimiento, limit],
+    );
+
+    return {
+      umbral,
+      diasSinMovimiento,
+      resumen: {
+        sinStock:     Number(counts?.sinStock ?? 0),
+        bajoUmbral:   Number(counts?.bajoUmbral ?? 0),
+        totalBajo:    Number(counts?.totalBajo ?? 0),
+        sinMovimiento: sinMovimiento.length,
+      },
+      stockBajo,
+      sinMovimiento,
+    };
+  }
+
+  /** Cartera: clientes con saldo pendiente y antigüedad por venta a crédito más antigua. */
+  async cartera(tenantId: number) {
+    const filas = await this.ds.query(
+      `SELECT c.id,
+              c.nombre,
+              c.compania,
+              c.saldo,
+              c.limiteCredito,
+              MIN(v.fecha) AS fechaDeudaMasAntigua
+       FROM clientes c
+       LEFT JOIN ventas v ON v.clienteId = c.id
+         AND v.metodoPago = 'CREDITO'
+         AND ${VENTA_ACTIVA_SQL}
+       WHERE c.tenantId = @0
+         AND ISNULL(c.saldo, 0) > 0
+       GROUP BY c.id, c.nombre, c.compania, c.saldo, c.limiteCredito
+       ORDER BY c.saldo DESC`,
+      [tenantId],
+    );
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    type CarteraClienteRow = {
+      id: number;
+      nombre: string;
+      compania: string | null;
+      saldo: number;
+      limiteCredito: number | null;
+      fechaDeudaMasAntigua: string | null;
+      diasAntiguedad: number | null;
+      bucketId: ReturnType<typeof carteraBucketId>;
+      bucketEtiqueta: string;
+    };
+
+    const clientes: CarteraClienteRow[] = (filas as Record<string, unknown>[]).map((row) => {
+      const saldo = Number(row.saldo);
+      const rawFecha = row.fechaDeudaMasAntigua as Date | string | null;
+      let diasAntiguedad: number | null = null;
+      if (rawFecha) {
+        const f = new Date(rawFecha);
+        f.setHours(0, 0, 0, 0);
+        diasAntiguedad = Math.max(0, Math.round((hoy.getTime() - f.getTime()) / 86_400_000));
+      }
+      const bucketId = carteraBucketId(diasAntiguedad);
+      const bucket = CARTERA_BUCKETS.find((b) => b.id === bucketId)!;
+      return {
+        id:                 Number(row.id),
+        nombre:             String(row.nombre),
+        compania:           row.compania != null ? String(row.compania) : null,
+        saldo,
+        limiteCredito:      row.limiteCredito != null ? Number(row.limiteCredito) : null,
+        fechaDeudaMasAntigua: rawFecha
+          ? (rawFecha instanceof Date ? rawFecha.toISOString() : String(rawFecha))
+          : null,
+        diasAntiguedad,
+        bucketId,
+        bucketEtiqueta: bucket.etiqueta,
+      };
+    });
+
+    const totalCartera = clientes.reduce((s: number, c: CarteraClienteRow) => s + c.saldo, 0);
+    const buckets = aggregateCarteraBuckets(
+      clientes.map((c: CarteraClienteRow) => ({ saldo: c.saldo, diasAntiguedad: c.diasAntiguedad })),
+    );
+
+    return {
+      resumen: {
+        totalCartera,
+        clientesConSaldo: clientes.length,
+      },
+      buckets,
+      clientes,
+    };
   }
 
   async dgii607Preview(periodo: string, tenantId: number) {
