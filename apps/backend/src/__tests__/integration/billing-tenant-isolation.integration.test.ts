@@ -2,7 +2,7 @@
  * Aislamiento multi-tenant en billing: GET /billing/status usa el tenant del JWT
  * (bloque `data.tenant`). Con BILLING_PROVIDER=none (default Jest) no hay bloque
  * tenant en la respuesta; se fuerza stripe sin llamar a la API de Stripe.
- * POST checkout/portal exigen cliente Stripe real o mock: ver inventario (N/A integracion tenant).
+ * POST checkout/portal: ver `billing-checkout-mock.integration.test.ts` (mock Stripe in-process).
  *
  * Ejecutar: `npm run test:integration` desde `apps/backend`
  */

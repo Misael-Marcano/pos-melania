@@ -59,7 +59,7 @@ export default function ReportesPage() {
         breadcrumb={[uiLabels.breadcrumbRoot, uiLabels.reportes]}
       />
 
-      <div className="flex gap-1.5 flex-wrap bg-white rounded-[12px] shadow-card p-2">
+      <div className="surface-panel flex gap-1.5 flex-wrap p-2">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

@@ -18,10 +18,10 @@ type ActionDef = {
 
 const ACTIONS: ActionDef[] = [
   { label: `Cierre de hoy · ${uiLabels.reportes}`, icon: <Clock size={16} />,        href: '/reportes',     color: 'bg-primary-100 text-primary-600', roles: ['admin', 'soporte', 'contador', 'plataforma'] },
-  { label: 'Resumen de artículos de hoy',         icon: <AlignJustify size={16} />, href: '/inventario',   color: 'bg-blue-100 text-blue-600',       roles: ['admin', 'soporte', 'plataforma'] },
-  { label: 'Iniciar una nueva venta',             icon: <ShoppingCart size={16} />, href: '/ventas',       color: 'bg-emerald-100 text-emerald-600', roles: ['admin', 'cajero', 'plataforma'] },
-  { label: `Ventas detalladas · ${uiLabels.reportes}`, icon: <BarChart2 size={16} />, href: '/reportes', color: 'bg-amber-100 text-amber-600',     roles: ['admin', 'soporte', 'contador', 'plataforma'] },
-  { label: 'Nueva recepción de proveedor',        icon: <RefreshCw size={16} />,    href: '/compras',      color: 'bg-rose-100 text-rose-600',       roles: ['admin', 'soporte', 'plataforma'], feature: 'compras' },
+  { label: 'Resumen de artículos de hoy',         icon: <AlignJustify size={16} />, href: '/inventario',   color: 'bg-primary-100 text-primary-600', roles: ['admin', 'soporte', 'plataforma'] },
+  { label: 'Iniciar una nueva venta',             icon: <ShoppingCart size={16} />, href: '/ventas',       color: 'bg-primary-100 text-primary-700', roles: ['admin', 'cajero', 'plataforma'] },
+  { label: `Ventas detalladas · ${uiLabels.reportes}`, icon: <BarChart2 size={16} />, href: '/reportes', color: 'bg-secondary-container text-secondary', roles: ['admin', 'soporte', 'contador', 'plataforma'] },
+  { label: 'Nueva recepción de proveedor',        icon: <RefreshCw size={16} />,    href: '/compras',      color: 'bg-primary-50 text-primary-600',  roles: ['admin', 'soporte', 'plataforma'], feature: 'compras' },
 ];
 
 export function QuickActions() {
@@ -36,8 +36,8 @@ export function QuickActions() {
   });
 
   return (
-    <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
-      <div className="px-5 py-4 bg-navy-50/40">
+    <div className="card overflow-hidden p-0">
+      <div className="px-5 py-4 border-b border-navy-100/60 bg-white/40">
         <h3 className="font-bold text-navy-800 font-display text-base">Acciones rápidas</h3>
         <p className="text-xs text-navy-400 mt-0.5">Atajos del sistema</p>
       </div>

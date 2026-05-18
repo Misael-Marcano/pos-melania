@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
 import { useTenantsPanel } from '@/hooks/useTenantsPanel';
-import type { TenantPanelRow } from '@/services/tenants.service';
+import { tenantsService, type TenantPanelRow } from '@/services/tenants.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Select } from '@/components/ui/Select';
 import { QueryError } from '@/components/reportes/reportes-shared';
@@ -181,6 +181,7 @@ export default function PlataformaPage() {
   }), [filtered]);
 
   const operate = (id: number) => {
+    void tenantsService.recordOperate(id).catch(() => undefined);
     setPtid(id);
     void qc.invalidateQueries({ queryKey: [SAAS_CONTEXT_KEY] });
     router.push('/panel');

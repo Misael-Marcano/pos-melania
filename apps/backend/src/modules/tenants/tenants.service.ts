@@ -1,5 +1,6 @@
 import { AppDataSource } from '../../config/database';
 import { Tenant } from '../../entities/Tenant.entity';
+import { AppError } from '../../middlewares/error.middleware';
 import { resolvePlanLimits } from '../../saas/plan-limits';
 import { fetchTenantPanelUsageMaps, pickUsage } from '../../saas/tenant-panel-usage-batch';
 import { parseTenantPanelList, type TenantPanelRowDto } from './dto/tenant-panel.dto';
@@ -52,5 +53,15 @@ export class TenantsService {
     });
 
     return parseTenantPanelList(rows);
+  }
+
+  /** Registra que soporte plataforma entró a operar en una organización (auditoría). */
+  async getForOperate(tenantId: number): Promise<Pick<Tenant, 'id' | 'nombre' | 'slug' | 'activo'>> {
+    const tenant = await repo().findOne({
+      where: { id: tenantId },
+      select: ['id', 'nombre', 'slug', 'activo'],
+    });
+    if (!tenant) throw new AppError('Organización no encontrada', 404);
+    return tenant;
   }
 }

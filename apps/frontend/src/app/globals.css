@@ -10,6 +10,7 @@
     --sidebar-width: 240px;
     --surface: #F7FAF9;
     --surface-low: #F1F4F3;
+    --atmosphere: #E8EDEB;
   }
 
   * {
@@ -17,7 +18,7 @@
   }
 
   body {
-    @apply bg-navy-100 text-navy-800 antialiased;
+    @apply bg-[var(--atmosphere)] text-navy-800 antialiased;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -64,11 +65,17 @@
 
   /* ── Cards ────────────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-[12px] shadow-card p-5;
+    @apply bg-white/85 backdrop-blur-sm rounded-[14px] shadow-card
+           border border-white/80 p-5;
   }
 
   .card-hover {
     @apply card hover:shadow-card-hover transition-shadow duration-200;
+  }
+
+  .surface-panel {
+    @apply bg-white/70 backdrop-blur-md rounded-[14px] shadow-card
+           border border-white/80;
   }
 
   /* ── Tables ───────────────────────────────────────────────── */

@@ -42,7 +42,7 @@
 | `/recetas` | `recetas.service` | **OK** | `tenantIdOrThrow` en CRUD. |
 | `/tenants` | `tenants.service` | **BY_DESIGN** | Solo rol **`plataforma`**: lista todas las organizaciones (`/` y `/panel`). No es fuga de datos entre tenants de cliente; es panel de instancia. |
 | `/saas` | `saas.service` | **OK** | `contextForUser`: org del usuario; `plataforma` + `X-Tenant-Id` elige otra org activa. |
-| `/billing` | `billing.service` | **OK** | `tenantIdOrThrow` para checkout/portal/status sobre fila `tenants`. POST checkout/portal: aislamiento en servicio, pero prueba de integracion dedicada a tenant sin mock Stripe = **N/A** (ver tabla de tests). |
+| `/billing` | `billing.service` | **OK** | `tenantIdOrThrow` para checkout/portal/status sobre fila `tenants`. POST checkout/portal: `billing-checkout-mock.integration.test.ts` (mock inyectable, `X-Tenant-Id` ajeno → 403). |
 
 ### Webhook Stripe
 
@@ -77,11 +77,10 @@
 | Auditoría — GET / sin filas ajenas | `auditoria-tenant-isolation.integration.test.ts` |
 | SaaS — GET /context acotado; `X-Tenant-Id` ajeno → 403 | `saas-tenant-isolation.integration.test.ts` |
 | Billing — GET /status acotado (forzar `BILLING_PROVIDER=stripe` en test, sin llamar Stripe); `X-Tenant-Id` ajeno → 403 | `billing-tenant-isolation.integration.test.ts` |
+| Billing — POST checkout/portal con mock Stripe; `X-Tenant-Id` ajeno en checkout → 403 | `billing-checkout-mock.integration.test.ts` |
 | Tenants — `GET /` y `GET /panel` con JWT **sin** rol `plataforma` → 403 (panel no es listado cross-tenant para clientes) | `tenants-tenant-isolation.integration.test.ts` |
 | Plan / features | `enforce-plan.integration.test.ts`, `enforce-features.integration.test.ts` |
 | Billing / portal | `billing-portal.integration.test.ts` |
-
-**N/A integracion (tenant) en billing POST:** `create-checkout-session` / `create-portal-session` llaman al SDK de Stripe tras `tenantIdOrThrow`; no hay mock compartido en el repo. La cobertura de aislamiento aqui es GET `/billing/status` + cabecera `X-Tenant-Id` (middleware) y `billing-portal` para flujos portal con claves opcionales.
 
 Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo tenant + JWT).
 
@@ -99,7 +98,7 @@ Helper compartido: `__tests__/integration/helpers/other-tenant-auth.ts` (segundo
 
 ## Cierre (cobertura integración)
 
-A **2026-05-12**, las superficies HTTP `/api/v1` con datos de negocio por organización quedan cubiertas por la batería `*-tenant-isolation.integration.test.ts` descrita arriba, más `saas`/`billing` (GET y cabecera `X-Tenant-Id`) y la verificación de que el panel **`/tenants`** no es accesible como usuario de tenant normal. Los POST de Stripe (`checkout`/`portal`) siguen documentados como **N/A** en integración hasta contar con mock del SDK compartido en el repo.
+A **2026-05-18**, las superficies HTTP `/api/v1` con datos de negocio por organización quedan cubiertas por la batería `*-tenant-isolation.integration.test.ts` descrita arriba, más `saas`/`billing` (GET, POST checkout/portal con mock en `stripe.ts`, cabecera `X-Tenant-Id`) y la verificación de que el panel **`/tenants`** no es accesible como usuario de tenant normal.
 
 ---
 
@@ -116,4 +115,5 @@ A **2026-05-12**, las superficies HTTP `/api/v1` con datos de negocio por organi
 | 2026-05-12 | Tests `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts`; brecha P1 = comprobantes, tiendas, cajas, auditoría. |
 | 2026-05-12 | Tests `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-tenant-isolation.integration.test.ts`; brecha P1 de tests dedicados cerrada. |
 | 2026-05-12 | Tests `saas-`, `billing-tenant-isolation.integration.test.ts` (superficies GET + `X-Tenant-Id`); POST billing checkout/portal documentados N/A sin mock Stripe. |
+| 2026-05-18 | `billing-checkout-mock.integration.test.ts` — mock inyectable en `stripe.ts`; POST checkout/portal y 403 con `X-Tenant-Id` ajeno. |
 | 2026-05-12 | Test `tenants-tenant-isolation.integration.test.ts` (admin org → 403 en `/tenants` y `/tenants/panel`); párrafo de cierre de cobertura integración. |

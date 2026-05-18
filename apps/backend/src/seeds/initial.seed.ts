@@ -28,6 +28,7 @@ async function seed() {
   const usuarios = [
     { nombre: 'Administrador',      email: 'admin@pos.com',                 password: 'Admin123!',    rol: 'admin'    as const },
     { nombre: 'Cajero Principal',   email: 'cajero@pos.com',                password: 'Cajero123!',   rol: 'cajero'   as const },
+    { nombre: 'Contador externo',   email: 'contador@pos.com',              password: 'Contador123!', rol: 'contador' as const },
     { nombre: 'Soporte Técnico',    email: 'soporte@wilmaxdigital.com',      password: 'Soporte123!',  rol: 'soporte'  as const },
     { nombre: 'Plataforma',         email: 'plataforma@pos.com',             password: 'Plataforma123!', rol: 'plataforma' as const },
   ];
@@ -95,7 +96,8 @@ async function seed() {
   console.log('\n🎉 Seed completado');
   console.log('\n📋 Credenciales:');
   console.log('   Admin   → admin@pos.com         / Admin123!');
-  console.log('   Cajero  → cajero@pos.com         / Cajero123!');
+  console.log('   Cajero   → cajero@pos.com        / Cajero123!');
+  console.log('   Contador → contador@pos.com      / Contador123!');
   console.log('   Soporte → soporte@wilmaxdigital.com / Soporte123!');
 
   await AppDataSource.destroy();

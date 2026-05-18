@@ -8,8 +8,25 @@ function secretKey(): string | null {
 
 let client: Stripe | null = null;
 
+/** Solo tests de integración: inyecta cliente mock sin llamar a la API de Stripe. */
+let testClientOverride: Stripe | null | undefined;
+
+export function setStripeClientForTests(mock: Stripe | null): void {
+  if (process.env.NODE_ENV !== 'test') return;
+  testClientOverride = mock;
+}
+
+export function resetStripeClientForTests(): void {
+  if (process.env.NODE_ENV !== 'test') return;
+  testClientOverride = undefined;
+  client = null;
+}
+
 /** Cliente Stripe singleton; null si no hay clave válida o BILLING_PROVIDER=none. */
 export function getStripe(): Stripe | null {
+  if (process.env.NODE_ENV === 'test' && testClientOverride !== undefined) {
+    return testClientOverride;
+  }
   if (process.env.BILLING_PROVIDER === 'none') return null;
   const key = secretKey();
   if (!key) return null;

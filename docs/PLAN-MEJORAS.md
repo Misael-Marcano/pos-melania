@@ -241,7 +241,7 @@ Orden sugerido: **P0 plataforma (rendimiento)** → **P1 UX tenant** → **P1 UX
 - [x] **Plataforma: filtros extra** — activo/inactivo, trial por vencer (7d), `trialEndsAt` en API + tooltip en chip.
 - [x] **Plataforma: enlace Stripe** — icono a `dashboard.stripe.com/customers/…` si hay `stripeCustomerId`.
 - [x] **E2E Playwright** — `e2e/panel.spec.ts` (admin + `#panel-heading` + stock bajo); `e2e/plataforma.spec.ts` (rol plataforma, filtros, Operar → `/panel`).
-- [x] **Test integración** — `tenants-panel.integration.test.ts` (forma `GET /tenants/panel`, `ventasMesActual`, límites ≥ uso).
+- [x] **Test integración** — `tenants-panel.integration.test.ts` (forma `GET /tenants/panel`, `ventasMesActual`, límites ≥ uso); `reportes-panel-resumen.integration.test.ts`; `billing-checkout-mock.integration.test.ts` (POST checkout/portal con mock Stripe).
 
 ### Recomendaciones (buenas prácticas)
 
@@ -324,6 +324,8 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Panel Fase 9 P1 dashboard + plataforma:** `/panel` (QueryError, stock único, moneda, acciones por rol, caja abierta, comparativa); `/plataforma` (ordenación, cards móvil, badge org).
 - [x] **Panel Fase 9 cierre pendiente:** filtro sucursal en `/panel`; paginación, CSV, filtros activo/trial, enlace Stripe, E2E panel, integración `tenants/panel`.
 - [x] **Panel Fase 9 P2:** `GET /reportes/panel-resumen` + `usePanelResumen`; flujo Operar en `MULTI-TENANT.md`; fix fechas ISO en gráfico (`formatChartDayLabel`).
+- [x] **Billing Issue 16:** mock Stripe inyectable + `billing-checkout-mock.integration.test.ts`.
+- [x] **Plataforma — auditoría Operar:** `POST /tenants/:id/operate` + `tenants-operate.integration.test.ts`; seed `contador@pos.com`; E2E `configuracion-contador.spec.ts`.
 
 ## Notas
 

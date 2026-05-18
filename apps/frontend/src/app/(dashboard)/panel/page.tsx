@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore }         from '@/store/auth.store';
 import { usePanelResumen }      from '@/hooks/usePanelResumen';
 import { QueryError }           from '@/components/reportes/reportes-shared';
@@ -52,9 +53,15 @@ function GreetingBanner() {
 }
 
 export default function PanelPage() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const todayStr = new Date().toISOString().split('T')[0];
   const [tiendaId, setTiendaId] = useState<PanelTiendaFilterValue>(null);
   const [fecha, setFecha] = useState(todayStr);
+
+  useEffect(() => {
+    if (user?.rol === 'contador') router.replace('/reportes');
+  }, [user?.rol, router]);
 
   const { data: panel, isLoading, isError, error, refetch } = usePanelResumen(fecha, tiendaId);
   const errorMsg = error instanceof Error ? error.message : 'No se pudo cargar el panel';

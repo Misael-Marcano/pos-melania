@@ -38,11 +38,11 @@ Este documento complementa `docs/PLAN-EVOLUCION-POS-GENERICO.md` (Fase D).
 ## Rol `plataforma` — flujo «Operar»
 
 1. El usuario inicia sesión con rol **`plataforma`** y entra en **`/select-organizacion`** (o **`/plataforma`**).
-2. En **`/plataforma`**, el botón **Operar** fija `platformTenantId` en el store del frontend y navega a **`/panel`**.
+2. En **`/plataforma`**, el botón **Operar** llama a **`POST /api/v1/tenants/:id/operate`** (auditoría en `audit_logs`), fija `platformTenantId` en el store del frontend y navega a **`/panel`**.
 3. Las peticiones API del dashboard envían **`X-Tenant-Id`** con ese id (misma org que el JWT efectivo para datos operativos).
 4. El **Header** muestra badge de la organización activa; **Salir de organización** en el menú de usuario limpia `platformTenantId` y vuelve a **`/plataforma`**.
 
-Rutas solo plataforma sin tenant: `GET /api/v1/tenants`, `GET /api/v1/tenants/panel`. El resto exige cabecera de tenant cuando el rol es `plataforma`.
+Rutas solo plataforma sin tenant: `GET /api/v1/tenants`, `GET /api/v1/tenants/panel`, `POST /api/v1/tenants/:id/operate`. El resto exige cabecera de tenant cuando el rol es `plataforma`.
 
 ## Ver también
 

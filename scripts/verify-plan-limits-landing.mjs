@@ -3,7 +3,7 @@
  *
  * Invoked by `npm run verify:landing-plans` and chained from `npm run verify`.
  *
- * Contract: landing `PLANS` (in `apps/frontend/src/app/page.tsx`) must match limits in
+ * Contract: landing `PLANS` (in `apps/frontend/src/components/landing/landing-plans.ts`) must match limits in
  * `apps/backend/src/saas/plan-limits.ts` (`PLAN_LIMITS`).
  *
  * También se puede ejecutar desde la raíz: `node scripts/verify-plan-limits-landing.mjs`
@@ -33,7 +33,7 @@ function parsePlanBlock(src, code) {
 function extractLandingPlanLimits(pageSrc, code) {
   const re = new RegExp(`code:\\s*'${code}'[\\s\\S]*?limits:\\s*\\[([\\s\\S]*?)\\]`, 'm');
   const m = pageSrc.match(re);
-  if (!m) throw new Error(`No se encontró PLANS[${code}].limits en page.tsx`);
+  if (!m) throw new Error(`No se encontró PLANS[${code}].limits en landing-plans.ts`);
   const inner = m[1];
   const users = inner.match(/(\d+)\s*usuarios/i);
   const tiendas = inner.match(/(\d+)\s*sucursal/i);
@@ -55,7 +55,10 @@ function assertMatch(code, pl, pg) {
 }
 
 const planSrc = fs.readFileSync(path.join(root, 'apps/backend/src/saas/plan-limits.ts'), 'utf8');
-const pageSrc = fs.readFileSync(path.join(root, 'apps/frontend/src/app/page.tsx'), 'utf8');
+const pageSrc = fs.readFileSync(
+  path.join(root, 'apps/frontend/src/components/landing/landing-plans.ts'),
+  'utf8',
+);
 
 for (const code of ['starter', 'standard']) {
   const pl = parsePlanBlock(planSrc, code);

@@ -67,7 +67,7 @@ export function Header({ onToggleSidebar, sidebarOpen = false }: Props) {
       : null;
 
   return (
-    <header className="h-16 bg-white/85 backdrop-blur-md border-b border-navy-200/40 flex items-center justify-between px-4 lg:px-6 shrink-0">
+    <header className="relative z-20 h-16 bg-white/75 backdrop-blur-md border-b border-white/60 shadow-sm flex items-center justify-between px-4 lg:px-6 shrink-0">
       <div className="flex items-center gap-3">
         {/* Hamburger — solo móvil */}
         <button

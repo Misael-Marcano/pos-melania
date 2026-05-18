@@ -237,7 +237,7 @@ export function Sidebar({ open, onClose }: Props) {
   }, [open, handleClose]);
 
   const renderAside = (opts?: { closeButtonRef?: Ref<HTMLButtonElement> }) => (
-    <aside className="w-[240px] h-full bg-navy-700 flex flex-col shadow-sidebar border-r border-white/5">
+    <aside className="w-[240px] h-full bg-gradient-to-b from-[#2f3d2f] via-navy-700 to-[#1f2c1f] flex flex-col shadow-sidebar border-r border-white/10">
       {/* Logo — enlace al panel (atajo habitual). */}
       <div className="flex items-center justify-between gap-2 px-4 py-4 border-b border-white/5">
         <Link

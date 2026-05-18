@@ -21,4 +21,7 @@ export const tenantsService = {
     const { data } = await apiClient.get<{ success: boolean; data: TenantPanelRow[] }>('/tenants/panel');
     return data.data;
   },
+  recordOperate: async (tenantId: number): Promise<void> => {
+    await apiClient.post(`/tenants/${tenantId}/operate`);
+  },
 };

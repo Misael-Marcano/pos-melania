@@ -2,10 +2,50 @@
  * Permisos y validación en configuración.
  * Ejecutar: `npm run test:integration` desde `apps/backend`
  */
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import app from '../../app';
 import { AppDataSource, initDatabaseForTests } from '../../config/database';
 import { redis } from '../../config/redis';
+import { Tenant } from '../../entities/Tenant.entity';
+import { Usuario } from '../../entities/Usuario.entity';
+
+async function ensureContadorToken(): Promise<string> {
+  const login = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'contador@pos.com', password: 'Contador123!' });
+  if (login.status === 200 && login.body?.data?.accessToken) {
+    return String(login.body.data.accessToken);
+  }
+
+  const tenantRow = await AppDataSource.getRepository(Tenant)
+    .createQueryBuilder('t')
+    .select('t.id', 'id')
+    .orderBy('t.id', 'ASC')
+    .getRawOne<{ id: number }>();
+  if (tenantRow?.id == null) throw new Error('Se esperaba al menos un tenant en BD');
+  const tenant = await AppDataSource.getRepository(Tenant).findOneBy({ id: Number(tenantRow.id) });
+  if (!tenant) throw new Error('Tenant no encontrado');
+
+  const hash = await bcrypt.hash('Contador123!', 10);
+  await AppDataSource.getRepository(Usuario).save(
+    AppDataSource.getRepository(Usuario).create({
+      nombre:       'Contador externo',
+      email:        'contador@pos.com',
+      passwordHash: hash,
+      rol:          'contador',
+      tenant,
+    }),
+  );
+
+  const retry = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'contador@pos.com', password: 'Contador123!' });
+  if (retry.status !== 200 || !retry.body?.data?.accessToken) {
+    throw new Error(`Login contador tras alta falló: ${retry.status}`);
+  }
+  return String(retry.body.data.accessToken);
+}
 
 const basePayload = {
   nombreCompania: 'Mi Negocio SRL',
@@ -23,6 +63,7 @@ const basePayload = {
 describe('configuracion — permisos y validación', () => {
   let adminToken = '';
   let cajeroToken = '';
+  let contadorToken = '';
 
   beforeAll(async () => {
     await initDatabaseForTests();
@@ -43,6 +84,8 @@ describe('configuracion — permisos y validación', () => {
       throw new Error(`Login cajero falló: ${cajeroLogin.status}`);
     }
     cajeroToken = String(cajeroLogin.body.data.accessToken);
+
+    contadorToken = await ensureContadorToken();
   });
 
   afterAll(async () => {
@@ -102,6 +145,25 @@ describe('configuracion — permisos y validación', () => {
       .attach('logotipo', png, { filename: 'logo.png', contentType: 'image/png' });
 
     expect(res.status).toBe(403);
+  });
+
+  it('PUT como contador → 403', async () => {
+    const res = await request(app)
+      .put('/api/v1/configuracion')
+      .set('Authorization', `Bearer ${contadorToken}`)
+      .send(basePayload);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('GET /configuracion como contador → 200', async () => {
+    const res = await request(app)
+      .get('/api/v1/configuracion')
+      .set('Authorization', `Bearer ${contadorToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data?.nombreCompania).toBeTruthy();
   });
 
   it('GET /configuracion/fiscal-status como admin → 200 con campos esperados', async () => {

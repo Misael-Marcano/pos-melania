@@ -55,7 +55,7 @@ Hechos verificables en el repo (orientación para priorizar issues; no sustituye
 - [x] **Ventas (edición completa) — fix backend cascade:** `fullUpdate` (`apps/backend/src/modules/ventas/ventas.service.ts`) ya no deja `venta.detalles` apuntando a filas borradas; nuevo helper `syncFullUpdateVentaDetalleGraph` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) reengancha los `VentaDetalle` recién persistidos al `Venta` antes de `manager.save`, evitando que el cascade de TypeORM emita `UPDATE venta_detalles SET ventaId = NULL` y rompa SQL Server (`Cannot insert the value NULL into column 'ventaId'`).
 - [x] **Ventas (respuestas API / JSON):** `stripVentaDetalleParentRef` (`apps/backend/src/modules/ventas/ventas-full-update-detail-graph.ts`) se aplica en `findById`, `create`, `update` y `fullUpdate` de `apps/backend/src/modules/ventas/ventas.service.ts` (tras `syncFullUpdateVentaDetalleGraph` donde aplica, antes de devolver al controlador) para quitar en memoria `detalles[].venta` y evitar referencia circular `Venta ↔ VentaDetalle` que rompe `JSON.stringify` / `sendSuccess` / `res.json`; cobertura en `apps/backend/src/__tests__/ventas-full-update-detail-graph.test.ts`.
 - [x] **Integración backend (`npm run test:integration`) en verde:** `tenant-usage.ts` sin referencia a columna inexistente `anulada` en ventas; `sendFail`/controladores propagan **403** desde `AppError`; tests de integración con `findOne` y `where` correctos; apertura de caja con `tienda`; teardown de configuración respetando FK; DTO Zod de cotización (`clienteId`).
-- [x] **Aislamiento tenant — clientes, gastos, empleados, kits, proveedores, promociones, cotizaciones, tarjetas-regalo, recetas, comprobantes, tiendas, cajas, auditoría, saas, billing (GET), tenants (403 sin `plataforma`):** `clientes-tenant-isolation.integration.test.ts` (GET ajeno → 404), `gastos-tenant-isolation.integration.test.ts` (GET ajeno → 403), `empleados-tenant-isolation.integration.test.ts` (GET ajeno → 404), `kits-tenant-isolation.integration.test.ts`, `proveedores-tenant-isolation.integration.test.ts`, `promociones-tenant-isolation.integration.test.ts` y `tarjetas-regalo-tenant-isolation.integration.test.ts` (GET ajeno → 403), `cotizaciones-tenant-isolation.integration.test.ts` y `recetas-tenant-isolation.integration.test.ts` (GET ajeno → 404), `comprobantes-` / `tiendas-` (GET / + PUT ajeno), `cajas-` (GET ajeno → 403), `auditoria-` (GET /), `saas-tenant-isolation.integration.test.ts`, `billing-tenant-isolation.integration.test.ts` (POST checkout/portal: N/A sin mock Stripe — inventario), `tenants-tenant-isolation.integration.test.ts` (`GET /tenants`, `/tenants/panel` con admin de org → 403); ver `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md`.
+- [x] **Aislamiento tenant — clientes, gastos, empleados, kits, proveedores, promociones, cotizaciones, tarjetas-regalo, recetas, comprobantes, tiendas, cajas, auditoría, saas, billing (GET), tenants (403 sin `plataforma`):** `clientes-tenant-isolation.integration.test.ts` (GET ajeno → 404), `gastos-tenant-isolation.integration.test.ts` (GET ajeno → 403), `empleados-tenant-isolation.integration.test.ts` (GET ajeno → 404), `kits-tenant-isolation.integration.test.ts`, `proveedores-tenant-isolation.integration.test.ts`, `promociones-tenant-isolation.integration.test.ts` y `tarjetas-regalo-tenant-isolation.integration.test.ts` (GET ajeno → 403), `cotizaciones-tenant-isolation.integration.test.ts` y `recetas-tenant-isolation.integration.test.ts` (GET ajeno → 404), `comprobantes-` / `tiendas-` (GET / + PUT ajeno), `cajas-` (GET ajeno → 403), `auditoria-` (GET /), `saas-tenant-isolation.integration.test.ts`, `billing-tenant-isolation.integration.test.ts`, `billing-checkout-mock.integration.test.ts` (POST checkout/portal con mock Stripe), `tenants-tenant-isolation.integration.test.ts` (`GET /tenants`, `/tenants/panel` con admin de org → 403); ver `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md`.
 
 Lista tipo GitHub para crear issues (copiar título + cuerpo). Etiquetas sugeridas: `saas`, `p0`, `p1`, `security`, `billing`, `ops`, `product`.
 
@@ -298,7 +298,7 @@ Soporte necesita encontrar organizaciones rápido.
 ## Criterios de aceptación
 - [x] Solo rol plataforma (sin cambios; ya aplicaba)
 - [x] Búsqueda por nombre/slug y filtros por estado de facturación y `planCode` en `/plataforma` (filtrado en cliente sobre `GET /tenants/panel`; query params en API opcionales si crece el volumen)
-- [ ] Auditoría extendida de acciones sensibles del panel (p. ej. “impersonar”, mutaciones masivas) — *pendiente humano/producto:* fuera de alcance actual; revisar si se implementa soporte con privilegios elevados.
+- [x] Auditoría mínima al **Operar** en `/plataforma` — `POST /tenants/:id/operate` → `audit_logs` (operación `READ`). Mutaciones masivas / impersonación avanzada: *pendiente producto.*
 ```
 
 ---
@@ -393,8 +393,8 @@ Diferenciación post-MVP según mercado.
 - Caso mínimo: con JWT de org A y `X-Tenant-Id` de org B (rol plataforma) → 403 antes de cualquier llamada simulada a Stripe; opcional: verificar que el mock no recibe IDs de tenant incorrecto.
 
 ## Criterios de aceptación
-- [ ] Test de integración dedicado o ampliación de `billing-tenant-isolation.integration.test.ts` sin llamadas reales a Stripe.
-- [ ] Inventario actualizado (quitar o acotar N/A en POST si aplica).
+- [x] Test de integración dedicado `billing-checkout-mock.integration.test.ts` (mock inyectable en `stripe.ts`, sin API real).
+- [x] Aislamiento POST checkout con `X-Tenant-Id` ajeno → 403; inventario actualizado en comentario de `billing-tenant-isolation`.
 ```
 
 ---

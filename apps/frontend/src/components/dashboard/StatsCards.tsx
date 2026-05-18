@@ -19,7 +19,7 @@ function StatCard({
   alert?:  boolean;
 }) {
   return (
-    <div className="relative bg-white rounded-[12px] shadow-card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 overflow-hidden transition-shadow duration-200 hover:shadow-card-hover">
+    <div className="relative card p-4 sm:p-5 flex items-start gap-3 sm:gap-4 overflow-hidden transition-shadow duration-200 hover:shadow-card-hover">
       <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ring-1 ring-navy-200/30 ${color}`}>
         {icon}
       </div>
@@ -167,8 +167,8 @@ export function StatsCards({
             label={isHoy ? 'Ingresos hoy' : `Ingresos ${labelFecha}`}
             value={formatCurrency(totalVentas, symbol)}
             sub={totalEfectivo > 0 ? `${formatCurrency(totalEfectivo, symbol)} en efectivo` : 'sin ventas aún'}
-            icon={<DollarSign size={20} className="text-emerald-600" />}
-            color="bg-emerald-50"
+            icon={<DollarSign size={20} className="text-primary-600" />}
+            color="bg-primary-50"
           />
           <StatCard
             label={isHoy ? 'Gastos hoy' : `Gastos ${labelFecha}`}
@@ -176,8 +176,8 @@ export function StatsCards({
             sub={totalVentas > 0 && totalGastos > 0
               ? `${((totalGastos / totalVentas) * 100).toFixed(1)}% de ingresos`
               : 'sin gastos registrados'}
-            icon={<TrendingDown size={20} className="text-amber-600" />}
-            color="bg-amber-50"
+            icon={<TrendingDown size={20} className="text-navy-500" />}
+            color="bg-navy-50"
           />
           <StatCard
             label="Stock bajo"

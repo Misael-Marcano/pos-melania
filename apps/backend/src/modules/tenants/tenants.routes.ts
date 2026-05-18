@@ -26,5 +26,6 @@ const ctrl = new TenantsController();
 router.use(authMiddleware, canPlataforma);
 router.get('/',      ctrl.list.bind(ctrl));
 router.get('/panel', ctrl.listWithUsage.bind(ctrl));
+router.post('/:id/operate', ctrl.operate.bind(ctrl));
 
 export default router;
