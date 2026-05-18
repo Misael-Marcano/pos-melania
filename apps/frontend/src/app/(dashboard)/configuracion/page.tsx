@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConfiguracion, useActualizarConfiguracion } from '@/hooks/useConfiguracion';
@@ -11,12 +11,34 @@ import { useCajas } from '@/hooks/useCajas';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  Building2, DollarSign, FileText, Save, Loader2, Image as ImageIcon, Hash, Info,
+  Building2, DollarSign, FileText, Save, Loader2, Image as ImageIcon, Hash,
   BookOpen, Store, Users, ArrowRight, Wallet, Layers, CreditCard,
 } from 'lucide-react';
 import { toast } from '@/store/toast.store';
 import { Select } from '@/components/ui/Select';
 import { formatTiendaCajaLine } from '@/lib/select-display';
+import { SectionCard, Field, Toggle } from '@/components/configuracion/config-ui';
+import { ConfigCompletenessBanner } from '@/components/configuracion/ConfigCompletenessBanner';
+import {
+  completenessForForm,
+  formToPayload,
+  formsEqual,
+  mapConfigToForm,
+  validateConfigForm,
+  type ConfigFormState,
+} from '@/lib/configuracion-form';
+import { QueryError } from '@/components/reportes/reportes-shared';
+import { ITBIS_RD_SUGGESTED_PCT } from '../../../../../../packages/shared/validation/configuracion';
+import clsx from 'clsx';
+
+type ConfigTab = 'empresa' | 'fiscal' | 'pos' | 'sistema';
+
+const TABS: { id: ConfigTab; label: string }[] = [
+  { id: 'empresa', label: 'Empresa' },
+  { id: 'fiscal', label: 'Fiscal e impuestos' },
+  { id: 'pos', label: 'POS / ventas' },
+  { id: 'sistema', label: 'Plan y sistema' },
+];
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '—';
 const APP_ENTORNO =
@@ -26,76 +48,6 @@ const APP_ENTORNO =
       ? 'Desarrollo'
       : process.env.NODE_ENV ?? '—';
 
-function SectionCard({ title, icon, description, children }: {
-  title: string;
-  icon: React.ReactNode;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-[12px] shadow-card">
-      <div className="flex items-start gap-3 px-6 py-5 border-b border-navy-100/40">
-        <span className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 shrink-0 mt-0.5">
-          {icon}
-        </span>
-        <div>
-          <h3 className="font-semibold text-navy-800">{title}</h3>
-          {description && <p className="text-xs text-navy-400 mt-0.5">{description}</p>}
-        </div>
-      </div>
-      <div className="p-6 space-y-5">{children}</div>
-    </div>
-  );
-}
-
-function Field({ label, hint, children, col }: {
-  label: string;
-  hint?: string;
-  col?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={col ? 'col-span-1' : ''}>
-      <label className="block text-sm font-medium text-navy-700 mb-1.5">{label}</label>
-      {children}
-      {hint && (
-        <p className="flex items-start gap-1 text-xs text-navy-400 mt-1.5">
-          <Info size={11} className="mt-0.5 shrink-0" />
-          {hint}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Toggle({ checked, onChange, label, hint }: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  hint?: string;
-}) {
-  return (
-    <div className="flex items-start gap-4 py-1">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative w-11 h-6 rounded-full shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 mt-0.5 ${
-          checked ? 'bg-primary-500' : 'bg-navy-200'
-        }`}
-      >
-        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`} />
-      </button>
-      <div>
-        <span className="text-sm font-medium text-navy-700">{label}</span>
-        {hint && <p className="text-xs text-navy-400 mt-0.5">{hint}</p>}
-      </div>
-    </div>
-  );
-}
 
 function BillingStripePanel() {
   const user = useAuthStore((s) => s.user);
@@ -240,66 +192,47 @@ function BillingStripePanel() {
 
 export default function ConfiguracionPage() {
   const qc = useQueryClient();
-  const { data: cfg, isLoading } = useConfiguracion();
+  const { data: cfg, isLoading, isError, error, refetch } = useConfiguracion();
   const actualizar = useActualizarConfiguracion();
   const { data: saas, isSuccess: saasOk } = useSaasContext();
   const { data: tiendas = [] } = useTiendas();
   const { data: cajasLista = [] } = useCajas();
 
-  const [form, setForm] = useState({
-    nombreCompania:          '',
-    rnc:                     '',
-    direccion:               '',
-    telefono:                '',
-    sitioWeb:                '',
-    logotipoUrl:             '',
-    textoPieRecibo:          '',
-    simboloMoneda:           'RDS',
-    numeroDecimales:         2,
-    tasaImpuesto1Nombre:     '',
-    tasaImpuesto1:           0,
-    tasaImpuesto2Nombre:     '',
-    tasaImpuesto2:           0,
+  const [tab, setTab] = useState<ConfigTab>('empresa');
+  const [form, setForm] = useState<ConfigFormState>(() => mapConfigToForm({
+    id: 0,
+    nombreCompania: '',
+    simboloMoneda: 'RDS',
+    numeroDecimales: 2,
     preciosIncluyenImpuesto: true,
-    comprobanteDefecto:      '02',
-    /** vacío = usar solo FISCAL_JURISDICTION del servidor */
-    fiscalJurisdiccion:      '' as '' | 'DO' | 'NONE',
-    nombreCaja:              'CAJA 1',
-    /** vacío = sin sucursal fija */
-    tiendaId:                '' as number | '',
-    /** Catálogo de cajas — vacío = solo nombre manual */
-    cajaId:                  '' as number | '',
-  });
+    tasaImpuesto1: 18,
+    tasaImpuesto2: 0,
+    comprobanteDefecto: '02',
+    nombreCaja: 'CAJA 1',
+    updatedAt: '',
+  }));
+  const savedBaseline = useRef<ConfigFormState | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const completeness = useMemo(() => completenessForForm(form), [form]);
+  const isDirty = savedBaseline.current != null && !formsEqual(form, savedBaseline.current);
 
   useEffect(() => {
     if (cfg) {
-      setForm({
-        nombreCompania:          cfg.nombreCompania          ?? '',
-        rnc:                     cfg.rnc                     ?? '',
-        direccion:               cfg.direccion               ?? '',
-        telefono:                cfg.telefono                ?? '',
-        sitioWeb:                cfg.sitioWeb                ?? '',
-        logotipoUrl:             (cfg as any).logotipoUrl    ?? '',
-        textoPieRecibo:          (cfg as any).textoPieRecibo ?? '',
-        simboloMoneda:           cfg.simboloMoneda           ?? 'RDS',
-        numeroDecimales:         (cfg as any).numeroDecimales ?? 2,
-        tasaImpuesto1Nombre:     cfg.tasaImpuesto1Nombre     ?? '',
-        tasaImpuesto1:           cfg.tasaImpuesto1           ?? 0,
-        tasaImpuesto2Nombre:     (cfg as any).tasaImpuesto2Nombre ?? '',
-        tasaImpuesto2:           (cfg as any).tasaImpuesto2  ?? 0,
-        preciosIncluyenImpuesto: cfg.preciosIncluyenImpuesto ?? true,
-        comprobanteDefecto:      cfg.comprobanteDefecto      ?? '02',
-        fiscalJurisdiccion:
-          cfg.fiscalJurisdiccion === 'DO' || cfg.fiscalJurisdiccion === 'NONE'
-            ? cfg.fiscalJurisdiccion
-            : '',
-        nombreCaja:              cfg.nombreCaja              ?? 'CAJA 1',
-        tiendaId:                cfg.tiendaId != null ? cfg.tiendaId : '',
-        cajaId:                  cfg.cajaId != null ? cfg.cajaId : '',
-      });
+      const next = mapConfigToForm(cfg);
+      setForm(next);
+      savedBaseline.current = next;
     }
   }, [cfg]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -317,10 +250,10 @@ export default function ConfiguracionPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleGuardar = async () => {
-    if (!form.nombreCompania.trim()) {
-      if (!window.confirm(
-        'El nombre de la empresa está vacío. Los recibos y comprobantes pueden verse incompletos. ¿Deseas guardar de todos modos?'
-      )) return;
+    const validationErr = validateConfigForm(form);
+    if (validationErr) {
+      toast.error(validationErr);
+      return;
     }
 
     if (form.cajaId !== '' && form.tiendaId !== '') {
@@ -342,13 +275,8 @@ export default function ConfiguracionPage() {
     }
 
     try {
-      await actualizar.mutateAsync({
-        ...form,
-        tiendaId: form.tiendaId === '' ? null : form.tiendaId,
-        cajaId:   form.cajaId === '' ? null : form.cajaId,
-        textoPieRecibo: form.textoPieRecibo.trim() || null,
-        fiscalJurisdiccion: form.fiscalJurisdiccion === '' ? null : form.fiscalJurisdiccion,
-      });
+      await actualizar.mutateAsync(formToPayload(form));
+      savedBaseline.current = { ...form };
       toast.success('Configuración guardada');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -368,6 +296,21 @@ export default function ConfiguracionPage() {
     );
   }
 
+  if (isError) {
+    return (
+      <main aria-labelledby="configuracion-heading" className="space-y-6">
+        <h1 id="configuracion-heading" className="sr-only">Configuración</h1>
+        <PageHeader title="Configuración" breadcrumb={['Panel', 'Configuración']} />
+        <QueryError
+          message={error instanceof Error ? error.message : 'No se pudo cargar la configuración'}
+          onRetry={() => void refetch()}
+        />
+      </main>
+    );
+  }
+
+  const show = (t: ConfigTab) => tab === t;
+
   return (
     <>
       <main aria-labelledby="configuracion-heading" className="space-y-6">
@@ -376,7 +319,40 @@ export default function ConfiguracionPage() {
         </h1>
         <PageHeader title="Configuración" breadcrumb={['Panel', 'Configuración']} />
 
-      {saasOk && saas ? (
+        <ConfigCompletenessBanner
+          percent={completeness.percent}
+          items={completeness.items}
+          onGoToTab={setTab}
+        />
+
+        <nav
+          className="flex flex-wrap gap-2 border-b border-navy-100 pb-1"
+          aria-label="Secciones de configuración"
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={clsx(
+                'px-3 py-2 text-sm font-medium rounded-t-lg transition-colors',
+                tab === t.id
+                  ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50/50'
+                  : 'text-navy-500 hover:text-navy-800',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        {isDirty && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Tienes cambios sin guardar.
+          </p>
+        )}
+
+      {show('sistema') && saasOk && saas ? (
         <SectionCard
           title="Plan y uso"
           icon={<Layers size={16} />}
@@ -419,6 +395,7 @@ export default function ConfiguracionPage() {
         </SectionCard>
       ) : null}
 
+      {show('pos') && (
       <SectionCard
         title="Guía rápida — sucursales, cajas y equipo"
         icon={<BookOpen size={16} />}
@@ -463,8 +440,10 @@ export default function ConfiguracionPage() {
           </li>
         </ul>
       </SectionCard>
+      )}
 
-      {/* Información de la empresa */}
+      {show('empresa') && (
+      <>
       <SectionCard
         title="Información de la Empresa"
         icon={<Building2 size={16} />}
@@ -473,14 +452,14 @@ export default function ConfiguracionPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <Field
             label="Nombre de la empresa"
-            hint="Aparece en recibos e impresiones. Si queda vacío, el sistema usará un nombre genérico."
+            hint="Aparece en recibos, comprobantes y reportes DGII."
             col
           >
             <input className="input-field" value={form.nombreCompania}
               onChange={(e) => set('nombreCompania', e.target.value)}
               placeholder="Ej: Mi Negocio EIRL" />
           </Field>
-          <Field label="RNC" hint="Registro Nacional del Contribuyente (DGII)" col>
+          <Field label="RNC" hint="9 u 11 dígitos. Usado en recibos, reportes DGII 606/607 y comprobantes." col>
             <input className="input-field" value={form.rnc}
               onChange={(e) => set('rnc', e.target.value)}
               placeholder="Ej: 132428668" />
@@ -490,10 +469,10 @@ export default function ConfiguracionPage() {
               onChange={(e) => set('telefono', e.target.value)}
               placeholder="Ej: 809-000-0000" />
           </Field>
-          <Field label="Sitio web" col>
+          <Field label="Sitio web" hint="URL completa con https://" col>
             <input className="input-field" value={form.sitioWeb}
               onChange={(e) => set('sitioWeb', e.target.value)}
-              placeholder="Ej: www.minegocio.com" />
+              placeholder="https://www.minegocio.com" />
           </Field>
           <div className="sm:col-span-2">
             <Field label="Dirección">
@@ -540,8 +519,11 @@ export default function ConfiguracionPage() {
           />
         </Field>
       </SectionCard>
+      </>
+      )}
 
-      {/* Moneda e impuestos */}
+      {show('fiscal') && (
+      <>
       <SectionCard
         title="Moneda e Impuestos"
         icon={<DollarSign size={16} />}
@@ -621,7 +603,7 @@ export default function ConfiguracionPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Field
             label="Jurisdicción fiscal (instancia)"
-            hint="Vacío: se usa la variable del servidor (FISCAL_JURISDICTION). DO: NCF/DGII. NONE: no emitir comprobante fiscal desde la API."
+            hint="Vacío: FISCAL_JURISDICTION del servidor. DO: NCF/DGII y reportes 606/607. NONE: sin NCF en API."
           >
             <Select
               value={form.fiscalJurisdiccion}
@@ -645,6 +627,18 @@ export default function ConfiguracionPage() {
               <option value="15">B15 — Gubernamental</option>
             </Select>
           </Field>
+        </div>
+      </SectionCard>
+      </>
+      )}
+
+      {show('pos') && (
+      <SectionCard
+        title="Punto de venta (POS)"
+        icon={<Wallet size={16} />}
+        description="Terminal por defecto para apertura de caja, gastos y sesiones Nexo."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Field label="Sucursal de ventas"
             hint="Se asocia la apertura de caja y los gastos del día a esta tienda. Deja vacío si solo hay una ubicación.">
             <Select
@@ -701,8 +695,9 @@ export default function ConfiguracionPage() {
           </Field>
         </div>
       </SectionCard>
+      )}
 
-      {/* Acerca del sistema */}
+      {show('sistema') && (
       <SectionCard
         title="Acerca del Sistema"
         icon={<Hash size={16} />}
@@ -722,6 +717,7 @@ export default function ConfiguracionPage() {
           ))}
         </div>
       </SectionCard>
+      )}
 
       {/* Guardar */}
       <div className="flex justify-end pb-2">
