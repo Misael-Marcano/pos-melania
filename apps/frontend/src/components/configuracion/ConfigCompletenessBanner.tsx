@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import type { ConfigCompletenessItem } from '../../../../../packages/shared/validation/configuracion';
+import type { ConfigCompletenessItem } from '@pos/shared';
 
 export function ConfigCompletenessBanner({
   percent,

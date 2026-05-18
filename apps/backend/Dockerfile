@@ -12,7 +12,7 @@ RUN npm ci
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
 
-RUN npm run build --workspace=@pos/backend
+RUN npm run build -w @pos/shared && npm run build --workspace=@pos/backend
 
 FROM node:20-alpine AS production
 WORKDIR /app
@@ -25,6 +25,7 @@ COPY apps/backend/package.json ./apps/backend/package.json
 
 RUN npm ci --omit=dev
 
+COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 
 WORKDIR /app/apps/backend

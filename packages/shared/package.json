@@ -2,11 +2,17 @@
   "name": "@pos/shared",
   "version": "1.0.0",
   "description": "Tipos y utilidades compartidas entre apps del monorepo POS.",
-  "main": "types/index.d.ts",
+  "main": "types/index.js",
   "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./types/index.js"
+    }
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "npm run typecheck"
+    "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

@@ -27,7 +27,7 @@
         "./src/*"
       ],
       "@pos/shared": [
-        "../../packages/shared/types/index.d.ts"
+        "../../packages/shared/types/index.ts"
       ]
     }
   },

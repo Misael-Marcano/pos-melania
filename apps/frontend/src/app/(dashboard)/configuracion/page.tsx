@@ -28,7 +28,7 @@ import {
   type ConfigFormState,
 } from '@/lib/configuracion-form';
 import { QueryError } from '@/components/reportes/reportes-shared';
-import { ITBIS_RD_SUGGESTED_PCT } from '../../../../../../packages/shared/validation/configuracion';
+import { ITBIS_RD_SUGGESTED_PCT } from '@pos/shared';
 import clsx from 'clsx';
 
 type ConfigTab = 'empresa' | 'fiscal' | 'pos' | 'sistema';

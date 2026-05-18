@@ -1,4 +1,3 @@
-import { IConfiguracion } from '@pos/shared';
 import {
   configCompletenessItems,
   configCompletenessPercent,
@@ -6,7 +5,8 @@ import {
   isValidItbisRate,
   type ConfigFormCompletenessInput,
   type FiscalJurisdiccionConfig,
-} from '../../../../packages/shared/validation/configuracion';
+  type IConfiguracion,
+} from '@pos/shared';
 
 export type ConfigFormState = {
   nombreCompania: string;

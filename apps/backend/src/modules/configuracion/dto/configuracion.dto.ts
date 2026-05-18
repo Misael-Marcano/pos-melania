@@ -5,7 +5,7 @@ import {
   isValidItbisRate,
   isValidRnc,
   normalizeRnc,
-} from '../../../../../../packages/shared/validation/configuracion';
+} from '@pos/shared';
 
 const optionalUrl = z
   .string()
