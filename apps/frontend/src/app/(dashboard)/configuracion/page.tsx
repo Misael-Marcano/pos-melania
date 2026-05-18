@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useConfiguracion, useActualizarConfiguracion } from '@/hooks/useConfiguracion';
 import { useSaasContext, SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
 import { BILLING_STATUS_KEY, useBillingMutations, useBillingStatus } from '@/hooks/useBilling';
@@ -24,9 +24,11 @@ import {
   formToPayload,
   formsEqual,
   mapConfigToForm,
+  REPORTES_TIMEZONE_VALUES,
   validateConfigForm,
   type ConfigFormState,
 } from '@/lib/configuracion-form';
+import { configuracionService } from '@/services/configuracion.service';
 import { QueryError } from '@/components/reportes/reportes-shared';
 import { ITBIS_RD_SUGGESTED_PCT } from '@pos/shared';
 import clsx from 'clsx';
@@ -192,7 +194,14 @@ function BillingStripePanel() {
 
 export default function ConfiguracionPage() {
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const readOnly = user?.rol === 'contador';
   const { data: cfg, isLoading, isError, error, refetch } = useConfiguracion();
+  const { data: fiscalStatus } = useQuery({
+    queryKey: ['configuracion', 'fiscal-status'],
+    queryFn: configuracionService.fiscalStatus,
+    enabled: !isLoading && !isError,
+  });
   const actualizar = useActualizarConfiguracion();
   const { data: saas, isSuccess: saasOk } = useSaasContext();
   const { data: tiendas = [] } = useTiendas();
@@ -250,6 +259,7 @@ export default function ConfiguracionPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleGuardar = async () => {
+    if (readOnly) return;
     const validationErr = validateConfigForm(form);
     if (validationErr) {
       toast.error(validationErr);
@@ -325,6 +335,13 @@ export default function ConfiguracionPage() {
           onGoToTab={setTab}
         />
 
+        {readOnly && (
+          <p className="text-xs text-navy-600 bg-navy-50 border border-navy-200 rounded-lg px-3 py-2">
+            Vista de solo lectura (rol contador). Para cambiar datos, contacte a un administrador.
+          </p>
+        )}
+
+        <fieldset disabled={readOnly} className="space-y-6 min-w-0 border-0 p-0 m-0">
         <nav
           className="flex flex-wrap gap-2 border-b border-navy-100 pb-1"
           aria-label="Secciones de configuración"
@@ -594,7 +611,43 @@ export default function ConfiguracionPage() {
         </div>
       </SectionCard>
 
-      {/* Comprobantes fiscales */}
+      {fiscalStatus && (
+        <div
+          className={clsx(
+            'rounded-lg border px-3 py-2 text-sm flex flex-wrap items-center gap-2',
+            fiscalStatus.ok
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-amber-50 border-amber-200 text-amber-900',
+          )}
+          role="status"
+        >
+          <span className="font-medium">
+            Estado fiscal: {fiscalStatus.ok ? 'listo' : 'revisar configuración'}
+          </span>
+          <span className="text-xs opacity-80">
+            {fiscalStatus.jurisdiccion} · ITBIS {fiscalStatus.tasaItbis}%
+            {fiscalStatus.rncConfigured ? ' · RNC OK' : ' · RNC pendiente'}
+          </span>
+        </div>
+      )}
+
+      <SectionCard
+        title="Zona horaria (reportes)"
+        icon={<Hash size={16} />}
+        description="Cortes diarios en ventas, P&L y DGII. Si no se define, se usa REPORTES_TIMEZONE del servidor."
+      >
+        <Field label="Zona IANA" hint="Debe coincidir con la operación real del negocio.">
+          <Select
+            value={form.zonaHoraria}
+            onChange={(e) => set('zonaHoraria', e.target.value)}
+          >
+            {REPORTES_TIMEZONE_VALUES.map((tz) => (
+              <option key={tz} value={tz}>{tz}</option>
+            ))}
+          </Select>
+        </Field>
+      </SectionCard>
+
       <SectionCard
         title="Comprobantes Fiscales (NCF)"
         icon={<FileText size={16} />}
@@ -719,7 +772,7 @@ export default function ConfiguracionPage() {
       </SectionCard>
       )}
 
-      {/* Guardar */}
+      {!readOnly && (
       <div className="flex justify-end pb-2">
         <button
           onClick={handleGuardar}
@@ -734,6 +787,8 @@ export default function ConfiguracionPage() {
           {actualizar.isPending ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios'}
         </button>
       </div>
+      )}
+      </fieldset>
       </main>
     </>
   );

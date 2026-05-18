@@ -1,12 +1,16 @@
 import {
   configCompletenessItems,
   configCompletenessPercent,
+  DEFAULT_REPORTES_TZ,
   formatRncHint,
   isValidItbisRate,
+  REPORTES_TIMEZONE_VALUES,
   type ConfigFormCompletenessInput,
   type FiscalJurisdiccionConfig,
   type IConfiguracion,
 } from '@pos/shared';
+
+export { REPORTES_TIMEZONE_VALUES, DEFAULT_REPORTES_TZ };
 
 export type ConfigFormState = {
   nombreCompania: string;
@@ -25,6 +29,7 @@ export type ConfigFormState = {
   preciosIncluyenImpuesto: boolean;
   comprobanteDefecto: string;
   fiscalJurisdiccion: '' | FiscalJurisdiccionConfig;
+  zonaHoraria: string;
   nombreCaja: string;
   tiendaId: number | '';
   cajaId: number | '';
@@ -47,6 +52,7 @@ export const EMPTY_CONFIG_FORM: ConfigFormState = {
   preciosIncluyenImpuesto: true,
   comprobanteDefecto: '02',
   fiscalJurisdiccion: '',
+  zonaHoraria: DEFAULT_REPORTES_TZ,
   nombreCaja: 'CAJA 1',
   tiendaId: '',
   cajaId: '',
@@ -73,6 +79,7 @@ export function mapConfigToForm(cfg: IConfiguracion): ConfigFormState {
       cfg.fiscalJurisdiccion === 'DO' || cfg.fiscalJurisdiccion === 'NONE'
         ? cfg.fiscalJurisdiccion
         : '',
+    zonaHoraria: cfg.zonaHoraria?.trim() || DEFAULT_REPORTES_TZ,
     nombreCaja: cfg.nombreCaja ?? 'CAJA 1',
     tiendaId: cfg.tiendaId != null ? cfg.tiendaId : '',
     cajaId: cfg.cajaId != null ? cfg.cajaId : '',
