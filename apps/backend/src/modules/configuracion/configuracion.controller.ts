@@ -1,10 +1,12 @@
 import { Response } from 'express';
 import { ZodError } from 'zod';
+import { isValidRnc } from '@pos/shared';
 import { ConfiguracionService } from './configuracion.service';
 import { updateConfiguracionSchema } from './dto/configuracion.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendSuccess, sendFail } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
+import { resolveFiscalProvider } from '../../fiscal';
 
 const service = new ConfiguracionService();
 
@@ -19,6 +21,33 @@ export class ConfiguracionController {
   async get(req: AuthRequest, res: Response) {
     try { return sendSuccess(res, await service.get(req.user!)); }
     catch (e: unknown) { return sendFail(res, e); }
+  }
+
+  /** Indicador fiscal sin llamadas externas (DGII). */
+  async fiscalStatus(req: AuthRequest, res: Response) {
+    try {
+      const cfg = await service.get(req.user!);
+      const envJur = (process.env.FISCAL_JURISDICTION ?? 'DO').trim().toUpperCase();
+      const jurisdiccion =
+        cfg.fiscalJurisdiccion != null && String(cfg.fiscalJurisdiccion).trim() !== ''
+          ? String(cfg.fiscalJurisdiccion).trim().toUpperCase()
+          : envJur;
+      const provider = resolveFiscalProvider(cfg.fiscalJurisdiccion);
+      const fiscalDo = jurisdiccion === 'DO' || jurisdiccion === 'RD' || jurisdiccion === 'DGII';
+      const rncConfigured = isValidRnc(cfg.rnc) && Boolean(cfg.rnc?.trim());
+      const tasaItbis = Number(cfg.tasaImpuesto1) || 0;
+      const ok = !fiscalDo || (rncConfigured && tasaItbis > 0 && provider.id !== 'none');
+
+      return sendSuccess(res, {
+        ok,
+        jurisdiccion,
+        providerId: provider.id,
+        rncConfigured,
+        tasaItbis,
+      });
+    } catch (e: unknown) {
+      return sendFail(res, e);
+    }
   }
   async update(req: AuthRequest, res: Response) {
     try {

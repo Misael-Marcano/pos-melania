@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ConfiguracionController } from './configuracion.controller';
-import { authMiddleware, canAdmin, canAll } from '../../middlewares/auth.middleware';
+import { authMiddleware, canAdmin, canConfigRead } from '../../middlewares/auth.middleware';
 
 const router = Router();
 const ctrl   = new ConfiguracionController();
@@ -23,8 +23,9 @@ const ctrl   = new ConfiguracionController();
  */
 
 router.use(authMiddleware);
-/** Lectura: todos los roles (cajero necesita nombre/RNC en recibos y POS). Escritura solo admin. */
-router.get('/', canAll,   ctrl.get.bind(ctrl));
-router.put('/', canAdmin, ctrl.update.bind(ctrl));
+/** Lectura: roles operativos + contador (solo lectura). Escritura solo admin. */
+router.get('/fiscal-status', canConfigRead, ctrl.fiscalStatus.bind(ctrl));
+router.get('/',            canConfigRead, ctrl.get.bind(ctrl));
+router.put('/',            canAdmin,      ctrl.update.bind(ctrl));
 
 export default router;
