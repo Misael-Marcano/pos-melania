@@ -97,7 +97,7 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 - [x] **UI auditoría** — pestaña Auditoría: ventas por cajero y por caja (`useVentasPorUsuario` / `useVentasPorCaja`).
 - [x] **Inventario valorizado** — paginación server-side (`page`, `limit`, `q`); totales/categorías globales; export `/inventario-valorizado/export` (hasta 15 000 filas).
 - [x] **Errores de red en UI** — `QueryError` + reintentar en Ventas, P&L, Clientes y Auditoría (sucursal/DGII ya lo tenían).
-- [ ] **Refactor frontend** — dividir `reportes/page.tsx` en `components/reportes/Tab*.tsx` + hooks dedicados (iniciado: `reportes-shared.tsx`, `DateFilter.tsx`).
+- [x] **Refactor frontend** — `reportes/page.tsx` (~90 líneas) importa `reportes-shared.tsx`, `DateFilter.tsx` y `components/reportes/Tab*.tsx` (Ventas, P&L, Inventario, Clientes, Auditoría, Por sucursal, DGII).
 
 ### P2 — Fiscal y pruebas
 
