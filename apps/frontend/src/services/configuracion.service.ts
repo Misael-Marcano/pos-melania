@@ -24,4 +24,13 @@ export const configuracionService = {
     const { data } = await apiClient.get('/configuracion/fiscal-status');
     return data.data;
   },
+
+  uploadLogotipo: async (file: File): Promise<IConfiguracion> => {
+    const form = new FormData();
+    form.append('logotipo', file);
+    const { data } = await apiClient.post('/configuracion/logotipo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data;
+  },
 };

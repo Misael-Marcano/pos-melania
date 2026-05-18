@@ -222,6 +222,8 @@ export default function ConfiguracionPage() {
   }));
   const savedBaseline = useRef<ConfigFormState | null>(null);
   const [saved, setSaved] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const completeness = useMemo(() => completenessForForm(form), [form]);
   const isDirty = savedBaseline.current != null && !formsEqual(form, savedBaseline.current);
@@ -257,6 +259,35 @@ export default function ConfiguracionPage() {
 
   const set = (key: string, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleLogoUpload = async (file: File | undefined) => {
+    if (!file || readOnly) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Formato no permitido. Use PNG, JPEG o WebP.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('El archivo no puede superar 2 MB.');
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const updated = await configuracionService.uploadLogotipo(file);
+      const url = updated.logotipoUrl ?? '';
+      set('logotipoUrl', url);
+      if (savedBaseline.current) {
+        savedBaseline.current = { ...savedBaseline.current, logotipoUrl: url };
+      }
+      void qc.invalidateQueries({ queryKey: ['configuracion'] });
+      toast.success('Logotipo subido');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error al subir el logotipo');
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
 
   const handleGuardar = async () => {
     if (readOnly) return;
@@ -507,11 +538,44 @@ export default function ConfiguracionPage() {
         icon={<ImageIcon size={16} aria-hidden />}
         description="Personalización visual de facturas y comprobantes impresos"
       >
-        <Field label="URL del logotipo"
-          hint="Enlace público a la imagen (PNG/JPG). Se mostrará en la cabecera de los recibos impresos.">
-          <input className="input-field" value={form.logotipoUrl}
-            onChange={(e) => set('logotipoUrl', e.target.value)}
-            placeholder="https://miempresa.com/logo.png" />
+        <Field label="Logotipo"
+          hint="Sube PNG/JPEG/WebP (máx. 2 MB) o pega una URL pública. Se muestra en recibos impresos.">
+          <div className="space-y-3">
+            {!readOnly && (
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => void handleLogoUpload(e.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary text-sm"
+                  disabled={logoUploading}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {logoUploading ? (
+                    <>
+                      <Loader2 className="animate-spin inline mr-1.5" size={14} />
+                      Subiendo…
+                    </>
+                  ) : (
+                    'Subir archivo'
+                  )}
+                </button>
+                <span className="text-xs text-navy-500">o URL externa:</span>
+              </div>
+            )}
+            <input
+              className="input-field"
+              value={form.logotipoUrl}
+              onChange={(e) => set('logotipoUrl', e.target.value)}
+              placeholder="https://miempresa.com/logo.png"
+              readOnly={readOnly}
+            />
+          </div>
         </Field>
         {form.logotipoUrl && (
           <div className="flex items-center gap-3 p-3 bg-navy-50 rounded-lg border border-navy-100">
