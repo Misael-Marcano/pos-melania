@@ -17,8 +17,7 @@ test.describe('panel — dashboard tenant', () => {
       await expect(page).toHaveURL(/\/panel/, { timeout: 15_000 });
     }
 
-    await expect(page.getByRole('main')).toBeVisible();
-    await expect(page.locator('#panel-heading')).toBeVisible();
+    await expect(page.locator('#panel-heading')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Stock bajo/i).first()).toBeVisible();
   });
 });

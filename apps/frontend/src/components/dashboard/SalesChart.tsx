@@ -6,6 +6,7 @@ import { format, subDays } from 'date-fns';
 import { useVentasPorDia } from '@/hooks/useReportes';
 import { useDashboardCurrency } from '@/hooks/useDashboardCurrency';
 import { QueryError } from '@/components/reportes/reportes-shared';
+import { formatChartDayLabel } from '@/lib/utils';
 
 interface Props {
   tiendaId?: number | null;
@@ -30,7 +31,7 @@ export function SalesChart({ tiendaId = null }: Props) {
   );
 
   const data = raw.map((d: { dia: string; totalMonto: number }) => ({
-    dia:   format(new Date(d.dia + 'T12:00:00'), 'dd'),
+    dia:   formatChartDayLabel(d.dia),
     total: Number(d.totalMonto),
   }));
 

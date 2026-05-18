@@ -58,7 +58,7 @@ export default function PanelPage() {
     : 'No se pudo cargar stock bajo';
 
   return (
-    <main aria-labelledby="panel-heading" className="space-y-8">
+    <section aria-labelledby="panel-heading" className="space-y-8">
       <GreetingBanner />
       <CajaAbiertaWidget />
       <PanelTiendaFilter value={tiendaId} onChange={setTiendaId} />
@@ -83,6 +83,6 @@ export default function PanelPage() {
         />
         <ClientesDeudaWidget />
       </div>
-    </main>
+    </section>
   );
 }
