@@ -13,6 +13,9 @@
 ##   cp .env.example .env.production  # editar con valores reales
 ##   docker compose -f docker-compose.production.yml --env-file .env.production up -d
 ##
+## LAN (un PC, clientes en navegador): docs/operacion/DEPLOY-LAN-UN-PC.md
+##   .\scripts\ops\setup-lan-env.ps1
+##
 
 services:
 
@@ -22,6 +25,8 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     container_name: pos_backend
+    volumes:
+      - uploads_data:/app/apps/backend/uploads
     ports:
       - "${BACKEND_PORT:-4000}:4000"
     environment:
@@ -95,6 +100,15 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_APP_SHORT_NAME: ${NEXT_PUBLIC_APP_SHORT_NAME:-POS}
+        NEXT_PUBLIC_APP_TAGLINE: ${NEXT_PUBLIC_APP_TAGLINE:-}
+        NEXT_PUBLIC_APP_COPYRIGHT_ENTITY: ${NEXT_PUBLIC_APP_COPYRIGHT_ENTITY:-}
+        NEXT_PUBLIC_TENANT_SLUG: ${NEXT_PUBLIC_TENANT_SLUG:-}
+        NEXT_PUBLIC_FEATURE_RECETAS: ${NEXT_PUBLIC_FEATURE_RECETAS:-true}
+        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+        NEXT_PUBLIC_CONTACT_WHATSAPP: ${NEXT_PUBLIC_CONTACT_WHATSAPP:-}
     container_name: pos_frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -120,6 +134,9 @@ services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2019-latest
     container_name: pos_sqlserver
+    # Solo localhost: permite seeds/admin desde el host sin exponer SQL en la LAN
+    ports:
+      - "127.0.0.1:1433:1433"
     environment:
       ACCEPT_EULA: 'Y'
       SA_PASSWORD: ${DB_PASS}
@@ -159,3 +176,5 @@ volumes:
     name: pos_sqlserver_data
   redis_data:
     name: pos_redis_data
+  uploads_data:
+    name: pos_uploads_data
