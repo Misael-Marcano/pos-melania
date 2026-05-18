@@ -10,6 +10,7 @@ import {
   reportesRangoFechasSchema,
   reportesResumenDiaSchema,
   reportesPeriodoDgiiSchema,
+  reportesCompararPeriodosSchema,
   inventarioValorizadoQuerySchema,
 } from './dto/reportes.dto';
 
@@ -83,6 +84,20 @@ export class ReportesController {
       const q = reportesRangoFechasSchema.parse(req.query);
       const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
       return sendSuccess(res, await service.ganancias(q.desde, q.hasta, tenantIdOrThrow(req.user), tid));
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
+  async compararPeriodos(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesCompararPeriodosSchema.parse(req.query);
+      const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
+      return sendSuccess(
+        res,
+        await service.compararPeriodos(q.referencia, tenantIdOrThrow(req.user), tid),
+      );
     } catch (e: unknown) {
       if (e instanceof ZodError) return zodFail(res, e);
       return sendFail(res, e);

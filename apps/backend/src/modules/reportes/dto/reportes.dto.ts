@@ -56,6 +56,22 @@ export const reportesPeriodoDgiiSchema = z.object({
   periodo: z.string().regex(/^\d{6}$/, 'periodo debe ser YYYYMM'),
 });
 
+export const reportesCompararPeriodosSchema = z.object({
+  referencia: z
+    .string()
+    .regex(ISO_DATE, 'referencia debe ser YYYY-MM-DD')
+    .optional()
+    .default(() => new Date().toISOString().split('T')[0]),
+  tiendaId: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((v) => {
+      if (v === undefined || v === '' || v === null) return null;
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }),
+});
+
 export const inventarioValorizadoQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),

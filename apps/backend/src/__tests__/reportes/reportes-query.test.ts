@@ -2,11 +2,15 @@ import {
   aggregateVentasPorMetodo,
   dgiiPeriodoBounds,
   computeGananciasResumen,
+  mesMtdBounds,
+  mesAnteriorMtdBounds,
+  pctVariacion,
 } from '../../modules/reportes/reportes-query';
 import {
   reportesRangoFechasSchema,
   inventarioValorizadoQuerySchema,
   reportesPeriodoDgiiSchema,
+  reportesCompararPeriodosSchema,
 } from '../../modules/reportes/dto/reportes.dto';
 
 describe('aggregateVentasPorMetodo', () => {
@@ -82,6 +86,37 @@ describe('inventarioValorizadoQuerySchema', () => {
 describe('reportesPeriodoDgiiSchema', () => {
   it('acepta YYYYMM válido', () => {
     expect(reportesPeriodoDgiiSchema.safeParse({ periodo: '202601' }).success).toBe(true);
+  });
+});
+
+describe('mesMtdBounds / mesAnteriorMtdBounds', () => {
+  it('MTD del mes de referencia', () => {
+    expect(mesMtdBounds('2026-05-18')).toEqual({ desde: '2026-05-01', hasta: '2026-05-18' });
+  });
+
+  it('MTD mes anterior alineado al mismo día', () => {
+    expect(mesAnteriorMtdBounds('2026-05-18')).toEqual({ desde: '2026-04-01', hasta: '2026-04-18' });
+  });
+
+  it('ajusta fin de mes en mes anterior (mar 31 → feb 28)', () => {
+    expect(mesAnteriorMtdBounds('2026-03-31')).toEqual({ desde: '2026-02-01', hasta: '2026-02-28' });
+  });
+});
+
+describe('pctVariacion', () => {
+  it('calcula porcentaje', () => {
+    expect(pctVariacion(120, 100)).toBe(20);
+  });
+
+  it('null si anterior es 0 y actual > 0', () => {
+    expect(pctVariacion(50, 0)).toBeNull();
+  });
+});
+
+describe('reportesCompararPeriodosSchema', () => {
+  it('default referencia es hoy', () => {
+    const r = reportesCompararPeriodosSchema.parse({});
+    expect(r.referencia).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

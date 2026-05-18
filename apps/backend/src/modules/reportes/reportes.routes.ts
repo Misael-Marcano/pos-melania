@@ -105,6 +105,7 @@ router.get('/cierre-caja/:id',       ctrl.cierreCaja.bind(ctrl));
 router.get('/resumen-dia',           ctrl.resumenDia.bind(ctrl));
 router.get('/top-productos',         ctrl.topProductos.bind(ctrl));
 router.get('/ganancias',             ctrl.ganancias.bind(ctrl));
+router.get('/comparar-periodos',     ctrl.compararPeriodos.bind(ctrl));
 router.get('/inventario-valorizado',        ctrl.inventarioValorizado.bind(ctrl));
 router.get('/inventario-valorizado/export', ctrl.inventarioValorizadoExport.bind(ctrl));
 router.get('/top-clientes',                 ctrl.topClientes.bind(ctrl));

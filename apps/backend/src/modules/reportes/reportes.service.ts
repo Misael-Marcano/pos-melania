@@ -8,6 +8,10 @@ import {
   aggregateVentasPorMetodo,
   dgiiPeriodoBounds,
   computeGananciasResumen,
+  mesMtdBounds,
+  mesAnteriorMtdBounds,
+  mesEtiqueta,
+  pctVariacion,
 } from './reportes-query';
 import type { InventarioValorizadoQuery } from './dto/reportes.dto';
 
@@ -163,11 +167,37 @@ export class ReportesService {
     );
   }
 
-  async ganancias(
+  private async ventasResumenEnRango(
     desde: string,
     hasta: string,
     tenantId: number,
-    tiendaId: number | null = null,
+    tiendaId: number | null,
+  ) {
+    const [row] = await this.ds.query(
+      `SELECT COUNT(*) AS totalVentas, ISNULL(SUM(v.total),0) AS totalMonto
+       FROM ventas v
+       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
+       INNER JOIN tiendas t ON t.id = ca.tiendaId
+       WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
+         AND t.tenantId = @2
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(3)}`,
+      [desde, hasta, tenantId, tiendaId],
+    );
+    const totalVentas = Number(row?.totalVentas ?? 0);
+    const totalMonto = Number(row?.totalMonto ?? 0);
+    return {
+      totalVentas,
+      totalMonto,
+      ticketPromedio: totalVentas > 0 ? Number((totalMonto / totalVentas).toFixed(2)) : 0,
+    };
+  }
+
+  private async gananciasInputs(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null,
   ) {
     const ventaScope = `
        FROM ventas v
@@ -221,6 +251,65 @@ export class ReportesService {
       [desde, hasta, tenantId, tiendaId],
     );
 
+    return computeGananciasResumen({
+      ingresos: Number(ingresos.ingresos),
+      costoVentas: Number(costo.costoVentas),
+      gastos: Number(gastos.gastos),
+      devoluciones: Number(devoluciones.devoluciones),
+    });
+  }
+
+  async compararPeriodos(
+    referencia: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
+    const actualBounds = mesMtdBounds(referencia);
+    const anteriorBounds = mesAnteriorMtdBounds(referencia);
+
+    const [actualVentas, anteriorVentas, actualPnl, anteriorPnl] = await Promise.all([
+      this.ventasResumenEnRango(actualBounds.desde, actualBounds.hasta, tenantId, tiendaId),
+      this.ventasResumenEnRango(anteriorBounds.desde, anteriorBounds.hasta, tenantId, tiendaId),
+      this.gananciasInputs(actualBounds.desde, actualBounds.hasta, tenantId, tiendaId),
+      this.gananciasInputs(anteriorBounds.desde, anteriorBounds.hasta, tenantId, tiendaId),
+    ]);
+
+    const periodo = (bounds: { desde: string; hasta: string }, ventas: typeof actualVentas, pnl: typeof actualPnl) => ({
+      ...bounds,
+      etiqueta: mesEtiqueta(bounds.desde),
+      ventas,
+      pnl: {
+        ingresos: pnl.ingresos,
+        utilidadBruta: pnl.utilidadBruta,
+        utilidadNeta: pnl.utilidadNeta,
+        margenNeto: pnl.margenNeto,
+        gastos: pnl.gastos,
+      },
+    });
+
+    return {
+      referencia,
+      nota: 'Comparación MTD: mismos días del mes actual vs mes anterior.',
+      actual: periodo(actualBounds, actualVentas, actualPnl),
+      anterior: periodo(anteriorBounds, anteriorVentas, anteriorPnl),
+      variacion: {
+        totalMontoPct: pctVariacion(actualVentas.totalMonto, anteriorVentas.totalMonto),
+        transaccionesPct: pctVariacion(actualVentas.totalVentas, anteriorVentas.totalVentas),
+        ticketPromedioPct: pctVariacion(actualVentas.ticketPromedio, anteriorVentas.ticketPromedio),
+        ingresosPct: pctVariacion(actualPnl.ingresos, anteriorPnl.ingresos),
+        utilidadNetaPct: pctVariacion(actualPnl.utilidadNeta, anteriorPnl.utilidadNeta),
+        margenNetoPts: Number((actualPnl.margenNeto - anteriorPnl.margenNeto).toFixed(1)),
+      },
+    };
+  }
+
+  async ganancias(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
+    const resumen = await this.gananciasInputs(desde, hasta, tenantId, tiendaId);
     const ventasPorMetodo = await this.ventasPorMetodoEnRango(desde, hasta, tenantId, tiendaId);
 
     const gastosPorCategoria = await this.ds.query(
@@ -235,13 +324,6 @@ export class ReportesService {
        ORDER BY total DESC`,
       [desde, hasta, tenantId, tiendaId],
     );
-
-    const resumen = computeGananciasResumen({
-      ingresos: Number(ingresos.ingresos),
-      costoVentas: Number(costo.costoVentas),
-      gastos: Number(gastos.gastos),
-      devoluciones: Number(devoluciones.devoluciones),
-    });
 
     return {
       desde,
