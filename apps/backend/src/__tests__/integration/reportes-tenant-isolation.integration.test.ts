@@ -100,6 +100,15 @@ describe('reportes — aislamiento por tenant', () => {
     expect(res.body.data.articulos.length).toBe(0);
   });
 
+  it('GET /reportes/conciliacion-caja/:id — sesión de otra org no accesible', async () => {
+    if (anyAperturaId == null) return;
+    const res = await request(app)
+      .get(`/api/v1/reportes/conciliacion-caja/${anyAperturaId}`)
+      .set('Authorization', `Bearer ${otherTenantToken}`);
+    expect(res.body.success).toBe(false);
+    expect(String(res.body.message ?? '')).toMatch(/Sesión de caja no encontrada|no encontrada/i);
+  });
+
   it('GET /reportes/cierre-caja/:id — sesión de otra org no accesible', async () => {
     if (anyAperturaId == null) {
       console.warn(

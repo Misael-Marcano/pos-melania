@@ -111,7 +111,7 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 - [x] Comparar períodos (mes actual vs anterior) en ventas y P&L — `GET /reportes/comparar-periodos` (MTD alineado); banner en `TabVentas` y `TabPnL`.
 - [ ] Reporte stock bajo / sin movimiento (umbrales configurables).
 - [ ] Cartera y crédito (antigüedad de saldos, más allá del top clientes).
-- [ ] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`).
+- [x] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`) — `GET /reportes/conciliacion-caja` (+ `/:id`); historial enriquecido; UI en cierres y pestaña Por sucursal.
 - [ ] Reportes de promociones, cotizaciones (conversión) y compras vs ventas.
 - [ ] Export PDF además de CSV.
 - [ ] Envío programado por email (enterprise).
