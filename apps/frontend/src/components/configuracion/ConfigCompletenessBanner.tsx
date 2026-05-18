@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import type { ConfigCompletenessItem } from '@pos/shared';
 
 export function ConfigCompletenessBanner({
@@ -14,12 +14,7 @@ export function ConfigCompletenessBanner({
   onGoToTab: (tab: ConfigCompletenessItem['tab']) => void;
 }) {
   if (percent >= 100) {
-    return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start gap-2 text-sm text-emerald-800">
-        <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
-        <p>Configuración esencial completa. Revisa el checklist fiscal antes de producción.</p>
-      </div>
-    );
+    return null;
   }
 
   const pending = items.filter((i) => !i.ok);
