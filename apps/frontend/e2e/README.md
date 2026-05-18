@@ -56,6 +56,17 @@ Si faltan `E2E_EMAIL` / `E2E_PASSWORD`, el test se **omite** (skip) para no fall
 
 `panel.spec.ts`: login como admin, llega a `/panel` (o pasa por `/select-organizacion`), verifica `#panel-heading` y texto «Stock bajo». Mismas variables `E2E_EMAIL` / `E2E_PASSWORD`.
 
+### Plataforma (rol SaaS)
+
+`plataforma.spec.ts`: login con usuario `plataforma`, navega a `/plataforma` (KPIs, búsqueda), filtro sin resultados y flujo **Operar** → `/panel`.
+
+| Variable | Ejemplo (seed) |
+|----------|----------------|
+| `E2E_PLATAFORMA_EMAIL` | `plataforma@pos.com` |
+| `E2E_PLATAFORMA_PASSWORD` | `Plataforma123!` |
+
+Si no defines las variables `E2E_PLATAFORMA_*`, el spec reutiliza `E2E_EMAIL` / `E2E_PASSWORD` (útil solo si ese usuario es rol `plataforma`).
+
 ## CI / staging
 
 Disparo manual con GitHub Actions y URL de frontend en staging: ver [E2E-STAGING.md](../../../docs/operacion/E2E-STAGING.md) (secretos `E2E_EMAIL`, `E2E_PASSWORD`, `PLAYWRIGHT_BASE_URL`).

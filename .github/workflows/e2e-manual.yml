@@ -37,5 +37,7 @@ jobs:
         env:
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_PLATAFORMA_EMAIL: ${{ secrets.E2E_PLATAFORMA_EMAIL }}
+          E2E_PLATAFORMA_PASSWORD: ${{ secrets.E2E_PLATAFORMA_PASSWORD }}
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
         run: npm run test:e2e

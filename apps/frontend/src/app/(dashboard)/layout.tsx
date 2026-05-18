@@ -24,7 +24,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!loaded || !user) return;
-    if (user.rol === 'plataforma' && platformTenantId == null && pathname !== '/select-organizacion') {
+    const needsOrg =
+      user.rol === 'plataforma'
+      && platformTenantId == null
+      && pathname !== '/plataforma';
+    if (needsOrg) {
       router.replace('/select-organizacion');
     }
   }, [loaded, user, platformTenantId, pathname, router]);

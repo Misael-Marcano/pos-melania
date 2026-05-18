@@ -20,6 +20,7 @@ Antes de **Run workflow** en Actions, confirmar que el repositorio tiene configu
 - [ ] `E2E_EMAIL`
 - [ ] `E2E_PASSWORD`
 - [ ] `PLAYWRIGHT_BASE_URL`
+- [ ] (opcional) `E2E_PLATAFORMA_EMAIL` / `E2E_PLATAFORMA_PASSWORD` — para `e2e/plataforma.spec.ts` (seed `plataforma@pos.com`)
 
 En local, usar variables de sesión como en la sección *Ejecución local (Windows PowerShell)*; no versionar credenciales.
 

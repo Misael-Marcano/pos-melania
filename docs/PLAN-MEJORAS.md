@@ -240,7 +240,7 @@ Orden sugerido: **P0 plataforma (rendimiento)** → **P1 UX tenant** → **P1 UX
 - [x] **Plataforma: export CSV** — `exportTenantPanelCsv()` sobre vista filtrada/ordenada.
 - [x] **Plataforma: filtros extra** — activo/inactivo, trial por vencer (7d), `trialEndsAt` en API + tooltip en chip.
 - [x] **Plataforma: enlace Stripe** — icono a `dashboard.stripe.com/customers/…` si hay `stripeCustomerId`.
-- [x] **E2E Playwright** — `e2e/panel.spec.ts` (admin + `#panel-heading` + stock bajo).
+- [x] **E2E Playwright** — `e2e/panel.spec.ts` (admin + `#panel-heading` + stock bajo); `e2e/plataforma.spec.ts` (rol plataforma, filtros, Operar → `/panel`).
 - [x] **Test integración** — `tenants-panel.integration.test.ts` (forma `GET /tenants/panel`, `ventasMesActual`, límites ≥ uso).
 
 ### Recomendaciones (buenas prácticas)

@@ -28,6 +28,7 @@ Hechos verificables en el repo (orientación para priorizar issues; no sustituye
 - [x] Accesibilidad en panel dashboard: landmark `<main>` en `apps/frontend/src/app/(dashboard)/panel/page.tsx`.
 - [x] Ampliación de tests `resolve-fiscal-provider` en `apps/backend/src/__tests__/fiscal/resolve-fiscal-provider.test.ts`.
 - [x] Nota smoke / CI staging en `apps/frontend/e2e/README.md` (enlace a `docs/operacion/E2E-STAGING.md`, `smoke.spec.ts`, secretos E2E).
+- [x] E2E Playwright `e2e/plataforma.spec.ts` — rol `plataforma`, `/plataforma`, búsqueda y Operar → `/panel` (`E2E_PLATAFORMA_*` opcionales).
 - [x] `app-error.test.ts` (`apps/backend/src/__tests__/app-error.test.ts`).
 - [x] Accesibilidad en `plataforma/page.tsx` (`apps/frontend/src/app/(dashboard)/plataforma/page.tsx`): landmark `<main>` y `h1` sr-only.
 - [x] Cobertura extra `AppError` con status **5xx** en `apps/backend/src/__tests__/app-error.test.ts` (sin DB).
