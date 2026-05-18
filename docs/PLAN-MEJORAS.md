@@ -161,9 +161,9 @@ Backlog derivado de la revisión de `/configuracion` (2026-05). Código: `apps/b
 
 - [x] **`zonaHoraria` en BD** por tenant — migración `1700000000036`, DTO/UI, `resolveReportesTimezone` / `fetchTenantReportesTimezone` en reportes.
 - [x] **Indicador fiscal** — `GET /configuracion/fiscal-status` (`ok`, `jurisdiccion`, `rncConfigured`, `tasaItbis`) sin API externa; banner en pestaña Fiscal.
-- [ ] **Subida de logotipo** (storage) en lugar de solo URL.
-- [ ] **Notificaciones** — email trial/facturación enlazadas a datos de empresa en config.
-- [ ] **E2E Playwright** — flujo guardar configuración como admin.
+- [x] **Subida de logotipo** (storage) en lugar de solo URL — `POST /configuracion/logotipo`, `uploads/tenants/{id}/logo.*`, estático `/api/v1/uploads`, UI en pestaña Empresa.
+- [x] **Notificaciones** — email trial/facturación usan `nombreCompania` y contacto (tel/web) desde configuración (`tenant-email-branding.ts`).
+- [x] **E2E Playwright** — `e2e/configuracion.spec.ts` (admin guarda nombre de empresa).
 - [x] **Ampliar test integración** — `configuracion-access.integration.test.ts`: RNC inválido → 400; cajero PUT → 403; fiscal-status → 200.
 
 ### Recomendaciones (buenas prácticas)
