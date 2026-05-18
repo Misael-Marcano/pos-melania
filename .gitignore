@@ -14,3 +14,9 @@ uploads/
 
 # OpenAPI generado (npm run openapi:export en apps/backend); ver docs/operacion/OPENAPI.md
 apps/backend/openapi/
+
+# @pos/shared — salida de `npm run build -w @pos/shared` (fuentes *.ts; types/index.d.ts sí va en git)
+packages/shared/**/*.js
+packages/shared/**/*.js.map
+packages/shared/**/*.d.ts.map
+packages/shared/validation/**/*.d.ts
