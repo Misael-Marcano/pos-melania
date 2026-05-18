@@ -2,12 +2,14 @@ import {
   aggregateVentasPorMetodo,
   dgiiPeriodoBounds,
   computeGananciasResumen,
+  computeCotizacionConversion,
   mesMtdBounds,
   mesAnteriorMtdBounds,
   pctVariacion,
   carteraBucketId,
   aggregateCarteraBuckets,
 } from '../../modules/reportes/reportes-query';
+import { sqlFechaDia, DEFAULT_REPORTES_TZ } from '../../modules/reportes/reportes-timezone';
 import {
   reportesRangoFechasSchema,
   inventarioValorizadoQuerySchema,
@@ -168,6 +170,29 @@ describe('carteraBucketId / aggregateCarteraBuckets', () => {
     expect(buckets.find((b) => b.id === '0_30')?.total).toBe(100);
     expect(buckets.find((b) => b.id === '31_60')?.total).toBe(200);
     expect(buckets.find((b) => b.id === '90_plus')?.total).toBe(50);
+  });
+});
+
+describe('computeCotizacionConversion', () => {
+  it('calcula tasa sobre cerradas', () => {
+    const r = computeCotizacionConversion([
+      { estado: 'ACEPTADA', cantidad: 3 },
+      { estado: 'RECHAZADA', cantidad: 1 },
+      { estado: 'ENVIADA', cantidad: 2 },
+    ]);
+    expect(r.aceptadas).toBe(3);
+    expect(r.tasaCierre).toBe(75);
+  });
+
+  it('tasa null sin cerradas', () => {
+    expect(computeCotizacionConversion([{ estado: 'BORRADOR', cantidad: 2 }]).tasaCierre).toBeNull();
+  });
+});
+
+describe('sqlFechaDia', () => {
+  it('usa Eastern Standard Time para RD por defecto', () => {
+    expect(sqlFechaDia('v.fecha', DEFAULT_REPORTES_TZ)).toContain('Eastern Standard Time');
+    expect(sqlFechaDia('v.fecha', DEFAULT_REPORTES_TZ)).toContain('v.fecha');
   });
 });
 

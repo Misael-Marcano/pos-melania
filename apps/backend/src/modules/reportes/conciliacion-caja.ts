@@ -1,5 +1,6 @@
 import type { DataSource } from 'typeorm';
 import { AppError } from '../../middlewares/error.middleware';
+import { sqlFechaDia } from './reportes-timezone';
 
 /** @0 desde @1 hasta @2 aperturaId @3 tenantId — alineado con VentasService.resumenCaja */
 export const VENTAS_SESION_WHERE = `
@@ -234,7 +235,7 @@ export async function listConciliacionCaja(
      INNER JOIN tiendas t ON t.id = ca.tiendaId AND t.tenantId = @2
      WHERE ca.abierta = 0
        AND ca.fechaCierre IS NOT NULL
-       AND CAST(ca.fechaCierre AS DATE) BETWEEN @0 AND @1
+       AND ${sqlFechaDia('ca.fechaCierre')} BETWEEN @0 AND @1
        ${tiendaFilter}
      ORDER BY ca.fechaCierre DESC`,
     params,
