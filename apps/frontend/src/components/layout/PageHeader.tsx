@@ -8,8 +8,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, breadcrumb, actions }: PageHeaderProps) {
   return (
-    <div className="surface-panel flex items-start justify-between gap-4 px-5 py-4">
-      <div>
+    <div className="surface-panel flex min-w-0 items-start justify-between gap-4 px-5 py-4">
+      <div className="min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-navy-400 mb-1">
           {breadcrumb.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1.5">

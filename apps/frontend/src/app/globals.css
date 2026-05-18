@@ -17,6 +17,11 @@
     @apply box-border;
   }
 
+  html,
+  body {
+    @apply overflow-x-hidden;
+  }
+
   body {
     @apply bg-[var(--atmosphere)] text-navy-800 antialiased;
   }
@@ -138,7 +143,7 @@
   --toastify-z-index: 4000;
   --toastify-toast-top: max(5rem, env(safe-area-inset-top));
   --toastify-toast-right: max(1rem, env(safe-area-inset-right));
-  --toastify-toast-width: min(24rem, calc(100vw - 2rem));
+  --toastify-toast-width: min(24rem, calc(100% - 2rem));
   --toastify-toast-min-height: auto;
   --toastify-toast-bd-radius: 14px;
   --toastify-toast-shadow: none;
@@ -313,7 +318,8 @@
 
 @media only screen and (max-width: 480px) {
   .pos-toast-container.Toastify__toast-container {
-    width: min(calc(100vw - 2rem), 100vw) !important;
+    width: calc(100% - 2rem) !important;
+    max-width: calc(100% - 2rem) !important;
     left: auto !important;
     right: 1rem !important;
   }

@@ -58,9 +58,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
         <OnboardingBanner />
         <TrialBanner />
-        <main className="relative flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
           <AppAtmosphere />
-          <div className="relative z-10 min-h-full">{children}</div>
+          <div className="relative z-10 min-h-full min-w-0 max-w-full">{children}</div>
         </main>
       </div>
     </div>

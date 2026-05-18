@@ -3,7 +3,7 @@ export function AppAtmosphere({ className = '' }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={`pointer-events-none absolute inset-0 ${className}`.trim()}
+      className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`.trim()}
     >
       <div className="absolute -left-32 top-0 h-[28rem] w-[28rem] rounded-full bg-primary-200/50 blur-3xl" />
       <div className="absolute -right-24 bottom-0 h-[32rem] w-[32rem] rounded-full bg-secondary-container/70 blur-3xl" />
