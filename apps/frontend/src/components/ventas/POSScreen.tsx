@@ -25,14 +25,17 @@ import {
   UserPlus, X, Search, Lock, ArrowLeft,
   Banknote, CreditCard, Smartphone, BookOpen,
   CheckCircle, ChevronDown, PauseCircle, PlayCircle, Clock,
-  Gift, Loader2, Bike, Camera, FileText, Tag, AlertTriangle,
+  Gift, Loader2, Bike, Camera, FileText, Tag, AlertTriangle, Keyboard,
 } from 'lucide-react';
 import { tarjetasRegaloService, ITarjetaRegalo } from '@/services/tarjetas-regalo.service';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
 import { useCajas } from '@/hooks/useCajas';
 import { promocionesService } from '@/services/promociones.service';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { usePosKeyboardShortcuts } from '@/hooks/usePosKeyboardShortcuts';
 import { usePosDraftPersistence } from '@/hooks/usePosDraftPersistence';
+import { PosShortcutsHelp } from './PosShortcutsHelp';
+import { POS_BILLETES_RD } from '@/lib/pos-keyboard-shortcuts';
 import {
   POS_DRAFT_SCHEMA_VERSION,
   type PosDraftV1,
@@ -58,8 +61,6 @@ const TIPOS_NCF: { id: TipoNCF; label: string }[] = [
   { id: '14', label: 'B14 — Régimen Especial' },
   { id: '15', label: 'B15 — Gubernamental' },
 ];
-
-const BILLETES = [2000, 1000, 500, 200, 100, 50];
 
 const EMPTY_ARTICULOS: IArticulo[] = [];
 
@@ -206,9 +207,14 @@ export function POSScreen() {
   const [gcLoading, setGcLoading]     = useState(false);
   const [gcError, setGcError]         = useState('');
 
-  const inputRef    = useRef<HTMLInputElement>(null);
+  const inputRef         = useRef<HTMLInputElement>(null);
+  const clienteInputRef  = useRef<HTMLInputElement>(null);
+  const cartRowRefs      = useRef<Map<number, HTMLTableRowElement>>(new Map());
+  const prevItemsLenRef  = useRef(0);
+  const [cartLineFocus, setCartLineFocus] = useState(0);
   const [scanFlash,   setScanFlash]   = useState(false);
   const [showCamera,  setShowCamera]  = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   /** Evita que el efecto de “entrar a pago” pise estado restaurado desde sessionStorage. */
   const skipPaymentHydrationRef = useRef(false);
 
@@ -375,6 +381,25 @@ export function POSScreen() {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode, receipt]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setCartLineFocus(0);
+      prevItemsLenRef.current = 0;
+      return;
+    }
+    if (items.length > prevItemsLenRef.current) {
+      setCartLineFocus(items.length - 1);
+    } else {
+      setCartLineFocus((prev) => Math.min(prev, items.length - 1));
+    }
+    prevItemsLenRef.current = items.length;
+  }, [items.length]);
+
+  useEffect(() => {
+    if (mode !== 'cart' || items.length === 0) return;
+    cartRowRefs.current.get(cartLineFocus)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [cartLineFocus, mode, items.length]);
 
   // ── Lógica compartida: procesar código detectado (scanner físico o cámara) ─
   const handleCodigoDetectado = useCallback(async (codigo: string) => {
@@ -666,6 +691,135 @@ export function POSScreen() {
     toast.success(`Venta "${cart.label}" retomada`);
   };
 
+  const applyMetodoPago = useCallback((m: MetodoPago) => {
+    setMetodoPago(m);
+    setGcData(null);
+    setGcCodigo('');
+    setGcError('');
+    if (m !== 'EFECTIVO') {
+      setEfectivoRecibido('');
+      if (m !== 'TARJETA_REGALO') {
+        setPagos([{ metodo: m, monto: totalFinal }]);
+      }
+    } else {
+      setPagos([{ metodo: 'EFECTIVO', monto: totalFinal }]);
+    }
+  }, [totalFinal]);
+
+  const selectPaymentMethodByIndex = useCallback((index: number) => {
+    const m = METODOS[index]?.id;
+    if (m) applyMetodoPago(m);
+  }, [applyMetodoPago]);
+
+  const handleLimpiarCarrito = useCallback(() => {
+    if (items.length === 0) return;
+    if (!confirm('¿Vaciar el carrito?')) return;
+    clearCart();
+    setClienteNombre('');
+    setClienteObj(null);
+    toast.info('Carrito vacío');
+  }, [items.length, clearCart]);
+
+  const navigateCartLine = useCallback((delta: number) => {
+    if (items.length === 0) return;
+    setCartLineFocus((prev) => Math.max(0, Math.min(items.length - 1, prev + delta)));
+  }, [items.length]);
+
+  const adjustFocusedLineQty = useCallback((delta: number) => {
+    if (items.length === 0) return;
+    const idx = Math.min(cartLineFocus, items.length - 1);
+    const item = items[idx];
+    if (!item) return;
+    if (delta > 0) {
+      updateCantidad(item.articulo.id, item.cantidad + delta);
+    } else if (item.cantidad <= 1) {
+      removeItem(item.articulo.id);
+    } else {
+      updateCantidad(item.articulo.id, item.cantidad - 1);
+    }
+  }, [items, cartLineFocus, updateCantidad, removeItem]);
+
+  const removeFocusedCartLine = useCallback(() => {
+    const item = items[cartLineFocus];
+    if (!item) return;
+    removeItem(item.articulo.id);
+  }, [items, cartLineFocus, removeItem]);
+
+  const applyQuickBill = useCallback((billIndex: number) => {
+    const bill = POS_BILLETES_RD[billIndex];
+    if (bill == null) return;
+    const minMonto = pagoMixto ? (restante > 0.01 ? restante : totalFinal) : totalFinal;
+    if (bill < minMonto) return;
+
+    if (pagoMixto) {
+      if (metodoPago !== 'EFECTIVO') applyMetodoPago('EFECTIVO');
+      handleSetMonto('EFECTIVO', String(bill));
+    } else {
+      applyMetodoPago('EFECTIVO');
+      setEfectivoRecibido(bill);
+      setPagos([{ metodo: 'EFECTIVO', monto: bill }]);
+    }
+  }, [pagoMixto, restante, totalFinal, metodoPago, applyMetodoPago]);
+
+  const billetesRapidos = useMemo(() => {
+    const minMonto = pagoMixto ? (restante > 0.01 ? restante : totalFinal) : totalFinal;
+    return POS_BILLETES_RD.map((monto, index) => ({ monto, tecla: index + 1 }))
+      .filter(({ monto }) => monto >= minMonto);
+  }, [pagoMixto, restante, totalFinal]);
+
+  const posShortcutsEnabled =
+    !!cajaActiva && !receipt && !ventaEditar && !showCamera && !mostrarCierre;
+
+  const cashBillsEnabled =
+    mode === 'payment' && (metodoPago === 'EFECTIVO' || pagoMixto);
+
+  usePosKeyboardShortcuts({
+    enabled: posShortcutsEnabled,
+    mode,
+    hasItems: items.length > 0,
+    pagoMixto,
+    cashBillsEnabled,
+    actions: {
+      focusSearch: () => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      },
+      toggleGrid: () => setShowGrid((v) => !v),
+      focusCliente: () => {
+        if (clienteNombre) return;
+        clienteInputRef.current?.focus();
+        setShowClienteDrop(true);
+      },
+      openCamera: () => setShowCamera(true),
+      pauseSale: handlePausarVenta,
+      togglePaused: () => {
+        if (pausedCarts.length === 0) return;
+        setShowPaused((v) => !v);
+      },
+      goToPayment: () => {
+        if (items.length === 0) return;
+        setMode('payment');
+      },
+      goToCart: () => {
+        if (registrar.isPending) return;
+        setMode('cart');
+      },
+      setExactCash: () => {
+        applyMetodoPago('EFECTIVO');
+        setEfectivoRecibido(totalFinal);
+        setPagos([{ metodo: 'EFECTIVO', monto: totalFinal }]);
+      },
+      confirmSale: handleConfirmar,
+      clearCart: handleLimpiarCarrito,
+      selectPaymentMethod: selectPaymentMethodByIndex,
+      toggleShortcutsHelp: () => setShowShortcutsHelp((v) => !v),
+      navigateLine: navigateCartLine,
+      adjustLineQty: adjustFocusedLineQty,
+      removeFocusedLine: removeFocusedCartLine,
+      applyQuickBill,
+    },
+  });
+
   // ── Guard: caja ───────────────────────────────────────────────────────────
   if (user && !isAdmin && user.tiendaId == null) {
     return (
@@ -843,7 +997,8 @@ export function POSScreen() {
                 onKeyDown={handleInputKey}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 onFocus={() => { if (inputVal.trim().length >= 2) setShowSuggestions(true); }}
-                placeholder="Código de barras o nombre del artículo…"
+                placeholder="Código de barras o nombre del artículo… (F2)"
+                title="Buscar artículo (F2)"
                 className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 transition-colors ${
                   notFound   ? 'border-red-400 bg-red-50' :
                   scanFlash  ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300' :
@@ -887,15 +1042,32 @@ export function POSScreen() {
               )}
             </div>
             <button
+              type="button"
+              onClick={() => setShowShortcutsHelp((v) => !v)}
+              title="Atajos de teclado (?)"
+              className={`flex items-center justify-center p-2 rounded-lg border text-sm transition-colors ${
+                showShortcutsHelp
+                  ? 'bg-primary-50 border-primary-400 text-primary-600'
+                  : 'border-navy-200 text-navy-400 hover:border-navy-300 hover:text-navy-600'
+              }`}
+              aria-label="Atajos de teclado"
+              aria-pressed={showShortcutsHelp}
+            >
+              <Keyboard size={15} />
+            </button>
+            <button
+              type="button"
               onClick={() => setShowCamera(true)}
-              title="Escanear con cámara"
+              title="Escanear con cámara (F5)"
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-navy-500 hover:border-primary-400 hover:text-primary-600 text-sm font-medium transition-colors"
             >
               <Camera size={15} />
               <span className="hidden sm:inline">Cámara</span>
             </button>
             <button
+              type="button"
               onClick={() => setShowGrid((v) => !v)}
+              title="Cuadrícula de productos (F3)"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                 showGrid
                   ? 'bg-primary-50 border-primary-400 text-primary-600'
@@ -937,6 +1109,7 @@ export function POSScreen() {
                   <ShoppingCart size={52} className="text-navy-200 mx-auto mb-3" />
                   <p className="text-navy-400 font-semibold text-lg">Carrito vacío</p>
                   <p className="text-navy-300 text-sm mt-1">Escanea un código o usa la cuadrícula</p>
+                  <p className="text-navy-300 text-xs mt-2">↑↓ línea · +/- cantidad · <kbd className="font-mono text-[10px]">?</kbd> atajos</p>
                 </div>
               </div>
             ) : (
@@ -952,8 +1125,20 @@ export function POSScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.articulo.id} className="hover:bg-white/80 group border-b border-navy-100/40">
+                  {items.map((item, idx) => (
+                    <tr
+                      key={item.articulo.id}
+                      ref={(el) => {
+                        if (el) cartRowRefs.current.set(idx, el);
+                        else cartRowRefs.current.delete(idx);
+                      }}
+                      onClick={() => setCartLineFocus(idx)}
+                      className={`group border-b border-navy-100/40 cursor-pointer transition-colors ${
+                        cartLineFocus === idx
+                          ? 'bg-primary-50 ring-1 ring-inset ring-primary-300'
+                          : 'hover:bg-white/80'
+                      }`}
+                    >
                       <td className="table-cell pl-4">
                         <p className="font-medium text-navy-800 text-sm">{nombreArticuloConUnidad(item.articulo)}</p>
                         {item.articulo.categoria && (
@@ -1130,10 +1315,12 @@ export function POSScreen() {
                       <div className="flex items-center gap-2 border border-navy-200 rounded-xl px-3 py-2.5 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-200 transition-all">
                         <UserPlus size={15} className="text-navy-300 shrink-0" />
                         <input
+                          ref={clienteInputRef}
                           value={clienteSearch}
                           onChange={(e) => { setClienteSearch(e.target.value); setShowClienteDrop(true); }}
                           onFocus={() => setShowClienteDrop(true)}
-                          placeholder="Buscar cliente (opcional)"
+                          placeholder="Buscar cliente (F4)"
+                          title="Buscar cliente (F4)"
                           className="flex-1 text-sm outline-none bg-transparent placeholder-navy-300"
                         />
                       </div>
@@ -1218,25 +1405,33 @@ export function POSScreen() {
               {/* Botones acción */}
               <div className="p-4 border-t border-navy-100/40 space-y-2 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setMode('payment')}
                   disabled={items.length === 0}
+                  title="Ir a cobrar (F8)"
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 disabled:bg-navy-200 disabled:text-navy-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
                 >
                   <ShoppingCart size={16} />
                   {items.length > 0 ? `Cobrar ${formatCurrency(totalFinal)}` : 'Sin artículos'}
+                  {items.length > 0 && (
+                    <kbd className="hidden lg:inline font-mono text-[10px] opacity-70 ml-1">F8</kbd>
+                  )}
                 </button>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={handlePausarVenta}
                     disabled={items.length === 0}
-                    title="Pausar esta venta y atender otra"
+                    title="Pausar esta venta (F6)"
                     className="flex-1 flex items-center justify-center gap-1.5 border border-amber-200 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-30 text-amber-600 py-2 rounded-xl transition-colors text-xs font-medium"
                   >
                     <PauseCircle size={13} /> Pausar
                   </button>
                   <button
-                    onClick={clearCart}
+                    type="button"
+                    onClick={handleLimpiarCarrito}
                     disabled={items.length === 0}
+                    title="Vaciar carrito (Shift+Del)"
                     className="flex-1 flex items-center justify-center gap-1.5 border border-navy-200 hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 text-navy-400 py-2 rounded-xl transition-colors text-xs"
                   >
                     <Trash2 size={13} /> Limpiar
@@ -1270,21 +1465,12 @@ export function POSScreen() {
                   <div>
                     <p className="text-xs font-semibold text-navy-400 uppercase tracking-wide mb-2">Forma de pago</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {METODOS.map((m) => (
+                      {METODOS.map((m, idx) => (
                         <button
                           key={m.id}
-                          onClick={() => {
-                            setMetodoPago(m.id);
-                            setGcData(null); setGcCodigo(''); setGcError('');
-                            if (m.id !== 'EFECTIVO') {
-                              setEfectivoRecibido('');
-                              if (m.id !== 'TARJETA_REGALO') {
-                                setPagos([{ metodo: m.id, monto: totalFinal }]);
-                              }
-                            } else {
-                              setPagos([{ metodo: 'EFECTIVO', monto: totalFinal }]);
-                            }
-                          }}
+                          type="button"
+                          onClick={() => applyMetodoPago(m.id)}
+                          title={`${m.label} (F${idx + 1})`}
                           className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium transition-all ${
                             metodoPago === m.id
                               ? 'bg-gradient-to-br from-primary-600 to-primary-500 text-white border-primary-500 shadow-sm'
@@ -1293,6 +1479,9 @@ export function POSScreen() {
                         >
                           {m.icon}
                           <span className="text-xs">{m.label}</span>
+                          <kbd className={`font-mono text-[9px] ${metodoPago === m.id ? 'opacity-80' : 'text-navy-300'}`}>
+                            F{idx + 1}
+                          </kbd>
                         </button>
                       ))}
                     </div>
@@ -1300,7 +1489,12 @@ export function POSScreen() {
                     {/* Efectivo: cash input */}
                     {metodoPago === 'EFECTIVO' && (
                       <div className="mt-3 space-y-2">
-                        <p className="text-xs font-medium text-navy-600">Efectivo recibido</p>
+                        <p className="text-xs font-medium text-navy-600">
+                          Efectivo recibido
+                          {billetesRapidos.length > 0 && (
+                            <span className="text-navy-400 font-normal"> · teclas 1–6 billete</span>
+                          )}
+                        </p>
                         <input
                           type="number"
                           value={efectivoRecibido}
@@ -1315,19 +1509,27 @@ export function POSScreen() {
                         />
                         <div className="flex flex-wrap gap-1.5">
                           <button
+                            type="button"
                             onClick={() => { setEfectivoRecibido(totalFinal); setPagos([{ metodo: 'EFECTIVO', monto: totalFinal }]); }}
+                            title="Efectivo exacto (F9)"
                             className="text-xs px-2.5 py-1.5 rounded-lg border-2 border-emerald-400 text-emerald-700 font-semibold hover:bg-emerald-50 transition-colors"
                           >
-                            Exacto
+                            Exacto (F9)
                           </button>
-                          {BILLETES.filter((b) => b >= totalFinal).slice(0, 3).map((b) => (
-                            <button key={b}
-                              onClick={() => { setEfectivoRecibido(b); setPagos([{ metodo: 'EFECTIVO', monto: b }]); }}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-                                efectivoRecibido === b ? 'bg-primary-500 text-white border-primary-500' : 'bg-navy-50 text-navy-500 border-transparent hover:bg-primary-50'
+                          {billetesRapidos.map(({ monto, tecla }) => (
+                            <button
+                              key={monto}
+                              type="button"
+                              onClick={() => { setEfectivoRecibido(monto); setPagos([{ metodo: 'EFECTIVO', monto }]); }}
+                              title={`${formatCurrency(monto)} (tecla ${tecla})`}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1 ${
+                                efectivoRecibido === monto ? 'bg-primary-500 text-white border-primary-500' : 'bg-navy-50 text-navy-500 border-transparent hover:bg-primary-50'
                               }`}
                             >
-                              {formatCurrency(b)}
+                              <kbd className={`font-mono text-[9px] px-1 rounded ${efectivoRecibido === monto ? 'bg-white/20' : 'bg-navy-200/80 text-navy-600'}`}>
+                                {tecla}
+                              </kbd>
+                              {formatCurrency(monto)}
                             </button>
                           ))}
                         </div>
@@ -1491,12 +1693,16 @@ export function POSScreen() {
                       >
                         Efectivo exacto
                       </button>
-                      {BILLETES.filter((b) => b >= (restante > 0 ? restante : totalFinal)).slice(0, 2).map((b) => (
-                        <button key={b}
-                          onClick={() => handleSetMonto('EFECTIVO', String(b))}
-                          className="text-xs px-2.5 py-1.5 rounded-lg border bg-navy-50 text-navy-500 border-transparent hover:bg-primary-50 transition-colors"
+                      {billetesRapidos.slice(0, 4).map(({ monto, tecla }) => (
+                        <button
+                          key={monto}
+                          type="button"
+                          onClick={() => handleSetMonto('EFECTIVO', String(monto))}
+                          title={`${formatCurrency(monto)} (tecla ${tecla})`}
+                          className="text-xs px-2.5 py-1.5 rounded-lg border bg-navy-50 text-navy-500 border-transparent hover:bg-primary-50 transition-colors inline-flex items-center gap-1"
                         >
-                          {formatCurrency(b)}
+                          <kbd className="font-mono text-[9px] px-1 rounded bg-navy-200/80 text-navy-600">{tecla}</kbd>
+                          {formatCurrency(monto)}
                         </button>
                       ))}
                     </div>
@@ -1760,21 +1966,28 @@ export function POSScreen() {
                   </p>
                 )}
                 <button
+                  type="button"
                   onClick={handleConfirmar}
                   disabled={!puedeConfirmar || registrar.isPending || (usarNCF && !clienteId)}
+                  title="Confirmar venta (F10 o Ctrl+Enter)"
                   className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-navy-200 disabled:text-navy-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
                 >
                   {registrar.isPending
                     ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     : <CheckCircle size={16} />}
                   {registrar.isPending ? 'Procesando…' : `Confirmar ${formatCurrency(totalFinal)}`}
+                  {!registrar.isPending && (
+                    <kbd className="hidden sm:inline font-mono text-[10px] opacity-75">F10</kbd>
+                  )}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setMode('cart')}
                   disabled={registrar.isPending}
+                  title="Volver al carrito (Esc)"
                   className="w-full text-xs text-navy-400 hover:text-navy-500 py-1.5 transition-colors"
                 >
-                  Cancelar
+                  Cancelar (Esc)
                 </button>
               </div>
             </>
@@ -1839,6 +2052,10 @@ export function POSScreen() {
           onDetect={handleCodigoDetectado}
           onClose={() => setShowCamera(false)}
         />
+      )}
+
+      {showShortcutsHelp && posShortcutsEnabled && (
+        <PosShortcutsHelp onClose={() => setShowShortcutsHelp(false)} />
       )}
     </>
   );
