@@ -210,7 +210,7 @@ export default function PlataformaPage() {
       </h1>
       <PageHeader title="Panel de organizaciones" breadcrumb={['Plataforma', 'Panel de organizaciones']} />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-live="polite" aria-atomic="true">
         {[
           { label: 'Mostrando',  value: stats.total,    color: 'text-navy-800' },
           { label: 'Activas',    value: stats.activos,  color: 'text-emerald-600' },

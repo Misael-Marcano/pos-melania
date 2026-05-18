@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useAuthStore }         from '@/store/auth.store';
-import { useStockBajo }         from '@/hooks/useInventario';
+import { usePanelResumen }      from '@/hooks/usePanelResumen';
+import { QueryError }           from '@/components/reportes/reportes-shared';
+import type { IArticulo } from '@pos/shared';
 import { PanelTiendaFilter, type PanelTiendaFilterValue } from '@/components/dashboard/PanelTiendaFilter';
 import { StatsCards }           from '@/components/dashboard/StatsCards';
 import { SalesChart }           from '@/components/dashboard/SalesChart';
@@ -50,23 +52,41 @@ function GreetingBanner() {
 }
 
 export default function PanelPage() {
+  const todayStr = new Date().toISOString().split('T')[0];
   const [tiendaId, setTiendaId] = useState<PanelTiendaFilterValue>(null);
-  const stockQuery = useStockBajo();
-  const stockCount = stockQuery.data?.length ?? 0;
-  const stockErrorMsg = stockQuery.error instanceof Error
-    ? stockQuery.error.message
-    : 'No se pudo cargar stock bajo';
+  const [fecha, setFecha] = useState(todayStr);
+
+  const { data: panel, isLoading, isError, error, refetch } = usePanelResumen(fecha, tiendaId);
+  const errorMsg = error instanceof Error ? error.message : 'No se pudo cargar el panel';
+  const stockItems = (panel?.stockBajo.items ?? []) as IArticulo[];
 
   return (
     <section aria-labelledby="panel-heading" className="space-y-8">
       <GreetingBanner />
       <CajaAbiertaWidget />
       <PanelTiendaFilter value={tiendaId} onChange={setTiendaId} />
-      <StatsCards stockCount={stockCount} tiendaId={tiendaId} />
+
+      {isError && <QueryError message={errorMsg} onRetry={() => void refetch()} />}
+
+      {!isError && (
+        <>
+      <StatsCards
+        fecha={fecha}
+        onFechaChange={setFecha}
+        stockCount={panel?.stockBajo.count ?? 0}
+        tiendaId={tiendaId}
+        resumen={panel?.resumen}
+        resumenAnterior={panel?.resumenAnterior}
+        isLoading={isLoading}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <SalesChart tiendaId={tiendaId} />
+          <SalesChart
+            tiendaId={tiendaId}
+            ventasPorDia={panel?.ventasPorDia}
+            isLoading={isLoading}
+          />
         </div>
         <div>
           <QuickActions />
@@ -75,14 +95,19 @@ export default function PanelPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StockBajoWidget
-          data={stockQuery.data}
-          isLoading={stockQuery.isLoading}
-          isError={stockQuery.isError}
-          errorMessage={stockErrorMsg}
-          onRetry={() => void stockQuery.refetch()}
+          data={stockItems}
+          isLoading={isLoading}
+          isError={false}
+          onRetry={() => void refetch()}
         />
-        <ClientesDeudaWidget />
+        <ClientesDeudaWidget
+          clientes={panel?.cartera.clientes}
+          totalDeuda={panel?.cartera.totalDeuda}
+          isLoading={isLoading}
+        />
       </div>
+        </>
+      )}
     </section>
   );
 }

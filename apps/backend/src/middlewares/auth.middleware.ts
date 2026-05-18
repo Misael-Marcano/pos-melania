@@ -82,6 +82,8 @@ export const canAdmin    = roleGuard('admin', 'plataforma');
 export const canAdminOrSoporte = roleGuard('admin', 'soporte', 'plataforma');
 /** Reportes y exportaciones de solo lectura (incluye rol contador externo). */
 export const canReportes   = roleGuard('admin', 'soporte', 'contador', 'plataforma');
+/** Dashboard `/panel` (KPIs operativos; incluye cajero sin acceso completo a reportes). */
+export const canDashboard  = roleGuard('admin', 'cajero', 'soporte', 'plataforma');
 /** Lectura de configuración (recibos, reportes); contador sin escritura. */
 export const canConfigRead = roleGuard('admin', 'cajero', 'soporte', 'contador', 'plataforma');
 export const canAll      = roleGuard('admin', 'cajero', 'soporte', 'plataforma');

@@ -6,6 +6,7 @@ import { useResumenDia } from '@/hooks/useReportes';
 import { useDashboardCurrency } from '@/hooks/useDashboardCurrency';
 import { formatCurrency } from '@/lib/utils';
 import { QueryError } from '@/components/reportes/reportes-shared';
+import type { ResumenDia } from '@/services/reportes.service';
 
 function StatCard({
   label, value, sub, icon, color, alert,
@@ -50,17 +51,40 @@ function pctChange(actual: number, prev: number): string | null {
 interface Props {
   stockCount: number;
   tiendaId?: number | null;
+  fecha?: string;
+  onFechaChange?: (fecha: string) => void;
+  resumen?: ResumenDia;
+  resumenAnterior?: ResumenDia;
+  isLoading?: boolean;
 }
 
-export function StatsCards({ stockCount, tiendaId = null }: Props) {
+export function StatsCards({
+  stockCount,
+  tiendaId = null,
+  fecha: fechaProp,
+  onFechaChange,
+  resumen: resumenProp,
+  resumenAnterior: resumenAnteriorProp,
+  isLoading: loadingProp,
+}: Props) {
   const todayStr = new Date().toISOString().split('T')[0];
-  const [fecha, setFecha] = useState(todayStr);
+  const [fechaLocal, setFechaLocal] = useState(todayStr);
+  const fecha = fechaProp ?? fechaLocal;
+  const setFecha = onFechaChange ?? setFechaLocal;
   const isHoy = fecha === todayStr;
   const fechaAnterior = stepDate(fecha, -1);
 
   const { symbol } = useDashboardCurrency();
-  const { data: resumen, isError, error, refetch, isLoading } = useResumenDia(fecha, tiendaId);
-  const { data: resumenPrev } = useResumenDia(fechaAnterior, tiendaId);
+  const useExternal = resumenProp !== undefined && resumenAnteriorProp !== undefined;
+  const fallback = useResumenDia(fecha, tiendaId, { enabled: !useExternal });
+  const fallbackPrev = useResumenDia(fechaAnterior, tiendaId, { enabled: !useExternal });
+
+  const resumen = useExternal ? resumenProp : fallback.data;
+  const resumenPrev = useExternal ? resumenAnteriorProp : fallbackPrev.data;
+  const isError = useExternal ? false : fallback.isError;
+  const error = useExternal ? null : fallback.error;
+  const refetch = useExternal ? () => {} : fallback.refetch;
+  const isLoading = loadingProp ?? (useExternal ? false : fallback.isLoading);
 
   const transacciones = Number(resumen?.totalTransacciones ?? 0);
   const totalVentas   = Number(resumen?.totalVentas        ?? 0);

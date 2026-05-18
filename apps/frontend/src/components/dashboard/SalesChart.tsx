@@ -7,12 +7,15 @@ import { useVentasPorDia } from '@/hooks/useReportes';
 import { useDashboardCurrency } from '@/hooks/useDashboardCurrency';
 import { QueryError } from '@/components/reportes/reportes-shared';
 import { formatChartDayLabel } from '@/lib/utils';
+import type { VentaDia } from '@/services/reportes.service';
 
 interface Props {
   tiendaId?: number | null;
+  ventasPorDia?: VentaDia[];
+  isLoading?: boolean;
 }
 
-export function SalesChart({ tiendaId = null }: Props) {
+export function SalesChart({ tiendaId = null, ventasPorDia, isLoading: loadingProp }: Props) {
   const [view, setView] = useState<'mes' | 'semana'>('mes');
   const { symbol } = useDashboardCurrency();
 
@@ -24,13 +27,21 @@ export function SalesChart({ tiendaId = null }: Props) {
     };
   }, [view]);
 
-  const { data: raw = [], isLoading, isError, error, refetch } = useVentasPorDia(
+  const useBundled = ventasPorDia !== undefined;
+  const { data: fetched = [], isLoading: fetchLoading, isError, error, refetch } = useVentasPorDia(
     range.desde,
     range.hasta,
     tiendaId,
+    { enabled: !useBundled },
   );
 
-  const data = raw.map((d: { dia: string; totalMonto: number }) => ({
+  const raw = useBundled
+    ? ventasPorDia.slice(-(view === 'mes' ? 30 : 7))
+    : fetched;
+
+  const isLoading = loadingProp ?? (useBundled ? false : fetchLoading);
+
+  const data = raw.map((d) => ({
     dia:   formatChartDayLabel(d.dia),
     total: Number(d.totalMonto),
   }));
@@ -62,7 +73,7 @@ export function SalesChart({ tiendaId = null }: Props) {
         </div>
       </div>
 
-      {isError ? (
+      {!useBundled && isError ? (
         <QueryError message={errorMsg} onRetry={() => void refetch()} />
       ) : (
         <div className={isLoading ? 'opacity-50' : ''}>

@@ -199,7 +199,7 @@ Orden sugerido: **P0 plataforma (rendimiento)** → **P1 UX tenant** → **P1 UX
 - [x] Banner de saludo, KPIs del día (`StatsCards`), gráfico 7/30 días (`SalesChart`), acciones rápidas por rol/plan, stock bajo y cuentas por cobrar.
 - [x] `QueryError` + React Query; moneda vía `useDashboardCurrency`; stock bajo deduplicado; filtro sucursal (`PanelTiendaFilter`); widget caja abierta; comparativa vs día anterior.
 - [x] Landmark `<main>` y `aria-labelledby` (`#panel-heading`).
-- Pendiente opcional (P2): endpoint agregado `GET /panel/resumen` (varias peticiones actuales son aceptables con React Query).
+- [x] Endpoint agregado `GET /reportes/panel-resumen` + hook `usePanelResumen` (un round-trip para KPIs, gráfico 30d, stock y cartera).
 
 **`/plataforma` (SaaS)**
 
@@ -236,7 +236,7 @@ Orden sugerido: **P0 plataforma (rendimiento)** → **P1 UX tenant** → **P1 UX
 
 ### P2 — Valor ampliado
 
-- [ ] **Endpoint agregado `GET /panel/resumen`** (opcional) — un round-trip: resumen día + sparkline + contadores stock/deuda (tenant-scoped). *Diferido — las queries actuales con React Query son aceptables.*
+- [x] **Endpoint agregado `GET /reportes/panel-resumen`** — resumen día + día anterior + ventas 30d + stock bajo + cartera; `usePanelResumen` en `/panel`.
 - [x] **Plataforma: export CSV** — `exportTenantPanelCsv()` sobre vista filtrada/ordenada.
 - [x] **Plataforma: filtros extra** — activo/inactivo, trial por vencer (7d), `trialEndsAt` en API + tooltip en chip.
 - [x] **Plataforma: enlace Stripe** — icono a `dashboard.stripe.com/customers/…` si hay `stripeCustomerId`.
@@ -323,6 +323,7 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Panel Fase 9 P0 + parte P1 plataforma:** agregación SQL `tenant-panel-usage-batch`, Zod/`TenantPanelRow`, React Query, KPIs filtrados, ventas del mes, chips ES — ver sección Fase 9.
 - [x] **Panel Fase 9 P1 dashboard + plataforma:** `/panel` (QueryError, stock único, moneda, acciones por rol, caja abierta, comparativa); `/plataforma` (ordenación, cards móvil, badge org).
 - [x] **Panel Fase 9 cierre pendiente:** filtro sucursal en `/panel`; paginación, CSV, filtros activo/trial, enlace Stripe, E2E panel, integración `tenants/panel`.
+- [x] **Panel Fase 9 P2:** `GET /reportes/panel-resumen` + `usePanelResumen`; flujo Operar en `MULTI-TENANT.md`; fix fechas ISO en gráfico (`formatChartDayLabel`).
 
 ## Notas
 

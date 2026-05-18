@@ -9,6 +9,7 @@ import { AppError } from '../../middlewares/error.middleware';
 import {
   reportesRangoFechasSchema,
   reportesResumenDiaSchema,
+  reportesPanelResumenSchema,
   reportesPeriodoDgiiSchema,
   reportesCompararPeriodosSchema,
   inventarioValorizadoQuerySchema,
@@ -86,6 +87,26 @@ export class ReportesController {
       const q = reportesResumenDiaSchema.parse(req.query);
       const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
       return sendSuccess(res, await service.resumenDia(q.fecha, tenantIdOrThrow(req.user), tid));
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
+  async panelResumen(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesPanelResumenSchema.parse(req.query);
+      const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
+      return sendSuccess(
+        res,
+        await service.panelResumen(
+          q.fecha,
+          tenantIdOrThrow(req.user),
+          tid,
+          q.dias,
+          q.stockMinimo,
+        ),
+      );
     } catch (e: unknown) {
       if (e instanceof ZodError) return zodFail(res, e);
       return sendFail(res, e);

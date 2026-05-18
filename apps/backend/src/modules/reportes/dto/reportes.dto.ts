@@ -52,6 +52,11 @@ export const reportesResumenDiaSchema = z.object({
     }),
 });
 
+export const reportesPanelResumenSchema = reportesResumenDiaSchema.extend({
+  dias: z.coerce.number().int().min(7).max(30).optional().default(30),
+  stockMinimo: z.coerce.number().int().min(0).max(1000).optional().default(10),
+});
+
 export const reportesPeriodoDgiiSchema = z.object({
   periodo: z.string().regex(/^\d{6}$/, 'periodo debe ser YYYYMM'),
 });

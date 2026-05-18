@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ReportesController } from './reportes.controller';
-import { authMiddleware, canReportes } from '../../middlewares/auth.middleware';
+import { authMiddleware, canDashboard, canReportes } from '../../middlewares/auth.middleware';
 
 const router = Router();
 const ctrl   = new ReportesController();
@@ -94,6 +94,8 @@ const ctrl   = new ReportesController();
  *     responses:
  *       200: { description: Datos }
  */
+
+router.get('/panel-resumen', authMiddleware, canDashboard, ctrl.panelResumen.bind(ctrl));
 
 router.use(authMiddleware, canReportes);
 

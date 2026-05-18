@@ -1,5 +1,17 @@
 /** Fragmentos SQL compartidos para agregaciones de reportes. */
 
+/** Normaliza `dia` de SQL Server (ISO) a `YYYY-MM-DD` para el cliente. */
+export function normalizeReporteDia(dia: unknown): string {
+  if (dia instanceof Date) return dia.toISOString().slice(0, 10);
+  return String(dia).trim().slice(0, 10);
+}
+
+export function stepIsoDate(base: string, deltaDays: number): string {
+  const d = new Date(`${base}T12:00:00`);
+  d.setDate(d.getDate() + deltaDays);
+  return d.toISOString().split('T')[0];
+}
+
 /** Alias de tabla `ventas` = `v`. Excluye ventas marcadas con `[ANULADA]` en notas. */
 export const VENTA_ACTIVA_SQL = `CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) = 0`;
 

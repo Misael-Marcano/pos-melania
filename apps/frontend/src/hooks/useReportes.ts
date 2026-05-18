@@ -5,11 +5,16 @@ function tiendaKey(tiendaId?: number | null) {
   return tiendaId ?? 'all';
 }
 
-export function useVentasPorDia(desde: string, hasta: string, tiendaId?: number | null) {
+export function useVentasPorDia(
+  desde: string,
+  hasta: string,
+  tiendaId?: number | null,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ['reportes', 'ventas-por-dia', desde, hasta, tiendaKey(tiendaId)],
     queryFn:  () => reportesService.ventasPorDia(desde, hasta, tiendaId),
-    enabled:  !!(desde && hasta),
+    enabled:  (options?.enabled !== false) && !!(desde && hasta),
   });
 }
 
@@ -21,11 +26,15 @@ export function useTopProductos(desde: string, hasta: string, limit = 10, tienda
   });
 }
 
-export function useResumenDia(fecha: string, tiendaId?: number | null) {
+export function useResumenDia(
+  fecha: string,
+  tiendaId?: number | null,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ['reportes', 'resumen-dia', fecha, tiendaKey(tiendaId)],
     queryFn:  () => reportesService.resumenDia(fecha, tiendaId),
-    enabled:  !!fecha,
+    enabled:  (options?.enabled !== false) && !!fecha,
   });
 }
 

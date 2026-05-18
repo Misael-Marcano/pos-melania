@@ -19,6 +19,26 @@ export interface ResumenDia {
   totalGastos:        number;
 }
 
+export interface PanelResumenStockItem {
+  id: number;
+  nombre: string;
+  cantidad: number;
+  codigoBarras: string;
+}
+
+export interface PanelResumen {
+  fecha: string;
+  resumen: ResumenDia;
+  resumenAnterior: ResumenDia;
+  ventasPorDia: VentaDia[];
+  stockBajo: { count: number; items: PanelResumenStockItem[] };
+  cartera: {
+    clientesConSaldo: number;
+    totalDeuda: number;
+    clientes: { id: number; nombre: string; saldo: number }[];
+  };
+}
+
 export interface PnL {
   desde: string; hasta: string;
   ingresos: number; costoVentas: number; devoluciones: number;
@@ -249,6 +269,13 @@ export const reportesService = {
     const params: Record<string, string | number> = { fecha };
     if (tiendaId != null) params.tiendaId = tiendaId;
     const { data } = await apiClient.get('/reportes/resumen-dia', { params });
+    return data.data;
+  },
+
+  panelResumen: async (fecha: string, tiendaId?: number | null): Promise<PanelResumen> => {
+    const params: Record<string, string | number> = { fecha, dias: 30 };
+    if (tiendaId != null) params.tiendaId = tiendaId;
+    const { data } = await apiClient.get('/reportes/panel-resumen', { params });
     return data.data;
   },
 

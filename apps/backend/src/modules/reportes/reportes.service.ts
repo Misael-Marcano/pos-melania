@@ -15,6 +15,8 @@ import {
   aggregateCarteraBuckets,
   carteraBucketId,
   CARTERA_BUCKETS,
+  normalizeReporteDia,
+  stepIsoDate,
 } from './reportes-query';
 import type { ReportesStockAlertaQuery } from './dto/reportes.dto';
 import type { InventarioValorizadoQuery } from './dto/reportes.dto';
@@ -1177,5 +1179,92 @@ export class ReportesService {
         ticketPromedio: transacciones > 0 ? monto / transacciones : 0,
       },
     });
+  }
+
+  /** Agregado para `/panel`: resumen del día, sparkline, stock bajo y cartera en un round-trip. */
+  async panelResumen(
+    fecha: string,
+    tenantId: number,
+    tiendaId: number | null,
+    dias = 30,
+    stockMinimo = 10,
+  ) {
+    const desdeDate = new Date(`${fecha}T12:00:00`);
+    desdeDate.setDate(desdeDate.getDate() - (dias - 1));
+    const desde = desdeDate.toISOString().split('T')[0];
+    const fechaAnterior = stepIsoDate(fecha, -1);
+
+    const [resumen, resumenAnterior, ventasPorDia, stockBajo, cartera] = await Promise.all([
+      this.resumenDia(fecha, tenantId, tiendaId),
+      this.resumenDia(fechaAnterior, tenantId, tiendaId),
+      this.ventasPorDia(desde, fecha, tenantId, tiendaId),
+      this.stockBajoPanel(tenantId, stockMinimo),
+      this.carteraPanel(tenantId),
+    ]);
+
+    return {
+      fecha,
+      resumen,
+      resumenAnterior,
+      ventasPorDia: ventasPorDia.map((row: { dia: unknown; totalVentas: unknown; totalMonto: unknown }) => ({
+        dia: normalizeReporteDia(row.dia),
+        totalVentas: Number(row.totalVentas ?? 0),
+        totalMonto: Number(row.totalMonto ?? 0),
+      })),
+      stockBajo,
+      cartera,
+    };
+  }
+
+  private async stockBajoPanel(tenantId: number, minimo: number) {
+    const [countRow] = await this.ds.query(
+      `SELECT COUNT(*) AS n
+       FROM articulos a
+       WHERE a.activo = 1 AND a.tenantId = @0
+         AND a.cantidad IS NOT NULL AND a.cantidad <= @1`,
+      [tenantId, minimo],
+    );
+    const items = await this.ds.query(
+      `SELECT TOP 20 a.id, a.nombre, a.cantidad, a.codigoBarras
+       FROM articulos a
+       WHERE a.activo = 1 AND a.tenantId = @0
+         AND a.cantidad IS NOT NULL AND a.cantidad <= @1
+       ORDER BY a.cantidad ASC`,
+      [tenantId, minimo],
+    );
+    return {
+      count: Number(countRow?.n ?? 0),
+      items: items.map((a: { id: number; nombre: string; cantidad: number; codigoBarras?: string }) => ({
+        id: a.id,
+        nombre: a.nombre,
+        cantidad: Number(a.cantidad),
+        codigoBarras: a.codigoBarras ?? '',
+      })),
+    };
+  }
+
+  private async carteraPanel(tenantId: number) {
+    const [sumRow] = await this.ds.query(
+      `SELECT COUNT(*) AS clientesConSaldo, ISNULL(SUM(saldo), 0) AS totalDeuda
+       FROM clientes
+       WHERE activo = 1 AND tenantId = @0 AND saldo > 0`,
+      [tenantId],
+    );
+    const clientes = await this.ds.query(
+      `SELECT TOP 5 id, nombre, saldo
+       FROM clientes
+       WHERE activo = 1 AND tenantId = @0 AND saldo > 0
+       ORDER BY saldo DESC`,
+      [tenantId],
+    );
+    return {
+      clientesConSaldo: Number(sumRow?.clientesConSaldo ?? 0),
+      totalDeuda: Number(sumRow?.totalDeuda ?? 0),
+      clientes: clientes.map((c: { id: number; nombre: string; saldo: unknown }) => ({
+        id: c.id,
+        nombre: c.nombre,
+        saldo: Number(c.saldo ?? 0),
+      })),
+    };
   }
 }

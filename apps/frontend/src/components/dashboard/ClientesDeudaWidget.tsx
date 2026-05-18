@@ -5,10 +5,17 @@ import Link from 'next/link';
 import { useClientesConSaldo } from '@/hooks/useClientes';
 import { formatCurrency } from '@/lib/utils';
 
-export function ClientesDeudaWidget() {
-  const { data, isLoading } = useClientesConSaldo();
-  const clientes = data?.data ?? [];
-  const totalDeuda = clientes.reduce((s, c) => s + Number(c.saldo ?? 0), 0);
+interface Props {
+  clientes?: { id: number; nombre: string; saldo: number }[];
+  totalDeuda?: number;
+  isLoading?: boolean;
+}
+
+export function ClientesDeudaWidget({ clientes: clientesProp, totalDeuda: totalProp, isLoading: loadingProp }: Props = {}) {
+  const { data, isLoading: fetchLoading } = useClientesConSaldo({ enabled: clientesProp === undefined });
+  const clientes = clientesProp ?? data?.data ?? [];
+  const totalDeuda = totalProp ?? clientes.reduce((s, c) => s + Number(c.saldo ?? 0), 0);
+  const isLoading = loadingProp ?? (clientesProp === undefined ? fetchLoading : false);
 
   return (
     <div className="bg-white rounded-[12px] shadow-card flex flex-col h-full overflow-hidden">

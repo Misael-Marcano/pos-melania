@@ -80,9 +80,10 @@ export function useAbonar() {
   });
 }
 
-export function useClientesConSaldo() {
+export function useClientesConSaldo(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [CLIENTES_KEY, 'con-saldo'],
     queryFn:  clientesService.getConSaldo,
+    enabled:  options?.enabled !== false,
   });
 }
