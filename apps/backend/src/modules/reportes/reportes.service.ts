@@ -1,15 +1,37 @@
 import { AppDataSource } from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
+import { resolveFiscalProvider } from '../../fiscal';
+import type { FiscalTaxSplit } from '../../fiscal';
 import {
   VENTA_ACTIVA_SQL,
   sqlTiendaOpcional,
   aggregateVentasPorMetodo,
   dgiiPeriodoBounds,
+  computeGananciasResumen,
 } from './reportes-query';
 import type { InventarioValorizadoQuery } from './dto/reportes.dto';
 
+type FiscalTaxSplitFn = (total: number) => FiscalTaxSplit;
+
 export class ReportesService {
   private ds = AppDataSource;
+
+  /** ITBIS/base según jurisdicción fiscal del tenant (`FiscalProvider` + `tasaImpuesto1`). */
+  private async fiscalTaxSplitForTenant(tenantId: number): Promise<FiscalTaxSplitFn> {
+    const [cfg] = await this.ds
+      .query(
+        `SELECT TOP 1 fiscalJurisdiccion, tasaImpuesto1 FROM configuracion WHERE tenantId = @0`,
+        [tenantId],
+      )
+      .catch(() => [{}]);
+    const provider = resolveFiscalProvider(cfg?.fiscalJurisdiccion ?? null);
+    const tasa =
+      cfg?.tasaImpuesto1 != null && Number(cfg.tasaImpuesto1) > 0
+        ? Number(cfg.tasaImpuesto1)
+        : null;
+    const ctx = { tasaImpuestoPct: tasa };
+    return (total: number) => provider.splitItbisIncluido(total, ctx);
+  }
 
   private async ventasPorMetodoEnRango(
     desde: string,
@@ -214,26 +236,17 @@ export class ReportesService {
       [desde, hasta, tenantId, tiendaId],
     );
 
-    const ingresosN    = Number(ingresos.ingresos);
-    const costoN       = Number(costo.costoVentas);
-    const gastosN      = Number(gastos.gastos);
-    const devolucionesN = Number(devoluciones.devoluciones);
-    const utilidadBruta = ingresosN - costoN - devolucionesN;
-    const utilidadNeta  = utilidadBruta - gastosN;
-    const margenBruto   = ingresosN > 0 ? (utilidadBruta / ingresosN) * 100 : 0;
-    const margenNeto    = ingresosN > 0 ? (utilidadNeta  / ingresosN) * 100 : 0;
+    const resumen = computeGananciasResumen({
+      ingresos: Number(ingresos.ingresos),
+      costoVentas: Number(costo.costoVentas),
+      gastos: Number(gastos.gastos),
+      devoluciones: Number(devoluciones.devoluciones),
+    });
 
     return {
       desde,
       hasta,
-      ingresos:       ingresosN,
-      costoVentas:    costoN,
-      devoluciones:   devolucionesN,
-      utilidadBruta,
-      gastos:         gastosN,
-      utilidadNeta,
-      margenBruto:    Number(margenBruto.toFixed(2)),
-      margenNeto:     Number(margenNeto.toFixed(2)),
+      ...resumen,
       ventasPorMetodo,
       gastosPorCategoria,
     };
@@ -371,7 +384,9 @@ export class ReportesService {
       .query(`SELECT TOP 1 rnc FROM configuracion WHERE tenantId = @0`, [tenantId])
       .catch(() => [{}]);
     const rncEmpresa = (cfg?.rnc ?? '').trim();
-    const itbisIncluido = Number((Number(row.totalVentas) - Number(row.totalVentas) / 1.18).toFixed(2));
+    const splitItbis = await this.fiscalTaxSplitForTenant(tenantId);
+    const totalVentas = Number(row.totalVentas);
+    const itbisEstimado = splitItbis(totalVentas).itbis;
 
     const alertas: string[] = [];
     if (!rncEmpresa) alertas.push('Configure el RNC de la empresa en Configuración.');
@@ -388,8 +403,8 @@ export class ReportesService {
     return {
       periodo,
       lineas: Number(row.lineas),
-      totalVentas: Number(row.totalVentas),
-      itbisEstimado: itbisIncluido,
+      totalVentas,
+      itbisEstimado,
       sinNcf: Number(row.sinNcf),
       clienteSinIdentificacion: Number(row.clienteSinIdentificacion),
       rncEmpresa: rncEmpresa || null,
@@ -425,7 +440,8 @@ export class ReportesService {
     const rncEmpresa = (cfg?.rnc ?? '').trim();
     const lineas = Number(ord.lineasOrdenes) + Number(gas.lineasGastos);
     const totalCompras = Number(ord.totalOrdenes) + Number(gas.totalGastos);
-    const itbisEstimado = Number((totalCompras - totalCompras / 1.18).toFixed(2));
+    const splitItbis = await this.fiscalTaxSplitForTenant(tenantId);
+    const itbisEstimado = splitItbis(totalCompras).itbis;
 
     const alertas: string[] = [];
     if (!rncEmpresa) alertas.push('Configure el RNC de la empresa en Configuración.');
@@ -481,11 +497,11 @@ export class ReportesService {
       RNC: '1', CEDULA: '2', PASAPORTE: '3',
     };
 
+    const splitItbis = await this.fiscalTaxSplitForTenant(tenantId);
     const lines: string[] = [];
     for (const v of ventas) {
       const total  = Number(v.total);
-      const itbis  = Number((total - total / 1.18).toFixed(2));
-      const base   = Number((total / 1.18).toFixed(2));
+      const { baseImponible: base, itbis } = splitItbis(total);
       const tipoNCF = v.comprobante ? v.comprobante.substring(1, 3) : '';
       const rnc    = v.numeroIdentificacion ?? '';
       const tipoId = v.tipoIdentificacion   ? (tipoIdMap[v.tipoIdentificacion] ?? '') : '';
@@ -538,12 +554,12 @@ export class ReportesService {
     };
     const fmtNum = (n: number) => n === 0 ? '' : n.toFixed(2);
 
+    const splitItbis = await this.fiscalTaxSplitForTenant(tenantId);
     const lines: string[] = [];
 
     for (const o of ordenes) {
       const total  = Number(o.total);
-      const itbis  = Number((total - total / 1.18).toFixed(2));
-      const base   = Number((total / 1.18).toFixed(2));
+      const { baseImponible: base, itbis } = splitItbis(total);
       const fecha  = fmtDate(o.fechaRecibida ?? o.createdAt);
 
       lines.push([

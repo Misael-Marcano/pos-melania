@@ -75,3 +75,32 @@ export function dgiiPeriodoBounds(periodo: string): { desde: Date; hasta: Date }
     hasta: new Date(year, month, 0, 23, 59, 59, 999),
   };
 }
+
+export type GananciasInputs = {
+  ingresos: number;
+  costoVentas: number;
+  gastos: number;
+  devoluciones: number;
+};
+
+/** Utilidades y márgenes del reporte P&L (sin I/O). */
+export function computeGananciasResumen(input: GananciasInputs) {
+  const ingresos = Number(input.ingresos);
+  const costoVentas = Number(input.costoVentas);
+  const gastos = Number(input.gastos);
+  const devoluciones = Number(input.devoluciones);
+  const utilidadBruta = ingresos - costoVentas - devoluciones;
+  const utilidadNeta = utilidadBruta - gastos;
+  const margenBruto = ingresos > 0 ? (utilidadBruta / ingresos) * 100 : 0;
+  const margenNeto = ingresos > 0 ? (utilidadNeta / ingresos) * 100 : 0;
+  return {
+    ingresos,
+    costoVentas,
+    devoluciones,
+    utilidadBruta,
+    gastos,
+    utilidadNeta,
+    margenBruto: Number(margenBruto.toFixed(2)),
+    margenNeto: Number(margenNeto.toFixed(2)),
+  };
+}
