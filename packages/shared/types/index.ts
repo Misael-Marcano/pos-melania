@@ -517,3 +517,5 @@ export interface IAuditLog {
   ip?: string;
   createdAt: string;
 }
+
+export * from '../validation/configuracion';

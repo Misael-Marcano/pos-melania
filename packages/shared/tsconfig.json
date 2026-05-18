@@ -11,5 +11,5 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["types/**/*.ts"]
+  "include": ["types/**/*.ts", "validation/**/*.ts"]
 }

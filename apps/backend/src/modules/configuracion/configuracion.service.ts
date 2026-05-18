@@ -5,6 +5,7 @@ import { Tienda } from '../../entities/Tienda.entity';
 import { Caja } from '../../entities/Caja.entity';
 import { Tenant } from '../../entities/Tenant.entity';
 import { assertTenantForTienda, tenantIdOrThrow } from '../../utils/tenant-access';
+import { UpdateConfiguracionDto } from './dto/configuracion.dto';
 
 const repo = () => AppDataSource.getRepository(Configuracion);
 const tiendaRepo = () => AppDataSource.getRepository(Tienda);
@@ -28,6 +29,10 @@ export class ConfiguracionService {
       cfg = repo().create({
         nombreCompania: 'Mi Empresa',
         simboloMoneda: 'RDS',
+        tasaImpuesto1Nombre: 'ITBIS',
+        tasaImpuesto1: 18,
+        preciosIncluyenImpuesto: true,
+        comprobanteDefecto: '02',
         tenant: { id: tid } as Tenant,
       });
       cfg = await repo().save(cfg);
@@ -39,16 +44,21 @@ export class ConfiguracionService {
     return mapConfig(cfg);
   }
 
-  async update(user: AuthUser, data: Record<string, unknown>): Promise<Configuracion> {
+  async update(user: AuthUser, dto: UpdateConfiguracionDto): Promise<Configuracion> {
     const cfg = await this.get(user);
-    const { tiendaId, cajaId, ...rest } = data;
-    Object.assign(cfg, rest);
+    const { tiendaId, cajaId, ...scalar } = dto;
+
+    Object.assign(cfg, scalar);
+    if (dto.tasaImpuesto2 == null) {
+      cfg.tasaImpuesto2 = 0;
+    }
+
     if (tiendaId !== undefined) {
-      if (tiendaId === null || tiendaId === '') {
+      if (tiendaId === null) {
         cfg.tienda = null;
       } else {
         const tienda = await tiendaRepo().findOne({
-          where: { id: Number(tiendaId) },
+          where: { id: tiendaId },
           relations: ['tenant'],
         });
         assertTenantForTienda(user, tienda);
@@ -56,11 +66,11 @@ export class ConfiguracionService {
       }
     }
     if (cajaId !== undefined) {
-      if (cajaId === null || cajaId === '') {
+      if (cajaId === null) {
         cfg.caja = null;
       } else {
         const caja = await cajaRepo().findOne({
-          where: { id: Number(cajaId) },
+          where: { id: cajaId },
           relations: ['tienda', 'tienda.tenant'],
         });
         assertTenantForTienda(user, caja?.tienda);
