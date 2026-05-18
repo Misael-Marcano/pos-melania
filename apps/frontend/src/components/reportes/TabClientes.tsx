@@ -1,16 +1,15 @@
 'use client';
 
-import { useTopClientes } from '@/hooks/useReportes';
+import { useTopClientes, useCartera } from '@/hooks/useReportes';
 import { formatCurrency } from '@/lib/utils';
-import { Users, TrendingUp, DollarSign, Download } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Download, Wallet } from 'lucide-react';
 import {
-  downloadCSV, BarChartSimple, StatCard, LoadingCard, QueryError,
+  downloadCSV, StatCard, LoadingCard, QueryError,
 } from '@/components/reportes/reportes-shared';
-
-// ── Tab: Clientes ─────────────────────────────────────────────────────────────
 
 export function TabClientes({ desde, hasta, tiendaId }: { desde: string; hasta: string; tiendaId?: number | null }) {
   const { data: clientes = [], isLoading, isError, error, refetch } = useTopClientes(desde, hasta, 20, tiendaId);
+  const { data: cartera, isLoading: carteraLoading, isError: carteraError, error: carteraErr, refetch: refetchCartera } = useCartera();
 
   if (isLoading) return <LoadingCard />;
   if (isError) return <QueryError message={error instanceof Error ? error.message : 'Error al cargar clientes'} onRetry={() => refetch()} />;
@@ -23,12 +22,98 @@ export function TabClientes({ desde, hasta, tiendaId }: { desde: string; hasta: 
       clientes.map((c, i) => [
         i + 1, c.nombre, c.compania ?? '',
         c.totalTransacciones, Number(c.totalCompras).toFixed(2), Number(c.saldo).toFixed(2),
-      ])
+      ]),
+    );
+  };
+
+  const exportarCartera = () => {
+    if (!cartera) return;
+    downloadCSV(`cartera_${new Date().toISOString().split('T')[0]}.csv`,
+      ['Cliente', 'Empresa', 'Saldo', 'Días antigüedad', 'Tramo', 'Venta crédito más antigua'],
+      cartera.clientes.map((c) => [
+        c.nombre, c.compania ?? '', Number(c.saldo).toFixed(2),
+        c.diasAntiguedad ?? '', c.bucketEtiqueta, c.fechaDeudaMasAntigua ?? '',
+      ]),
     );
   };
 
   return (
     <div className="space-y-5">
+      {carteraLoading && !cartera ? (
+        <p className="text-xs text-navy-400 text-center py-2">Cargando cartera…</p>
+      ) : carteraError ? (
+        <QueryError
+          message={carteraErr instanceof Error ? carteraErr.message : 'Error al cargar cartera'}
+          onRetry={() => refetchCartera()}
+        />
+      ) : cartera && cartera.resumen.clientesConSaldo > 0 ? (
+        <div className="bg-white rounded-[12px] shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-navy-100/40 flex items-center gap-2 flex-wrap">
+            <Wallet size={15} className="text-amber-600" />
+            <span className="font-semibold text-navy-800 text-sm">Cartera y antigüedad de saldos</span>
+            <span className="text-xs text-navy-500 ml-1">
+              (según venta a crédito más antigua por cliente)
+            </span>
+            <button type="button" onClick={exportarCartera}
+              className="ml-auto flex items-center gap-1.5 text-xs text-navy-500 hover:text-primary-600 font-medium border border-navy-200 hover:border-primary-400 px-3 py-1.5 rounded-lg">
+              <Download size={12} /> CSV cartera
+            </button>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <StatCard label="Cartera total" value={formatCurrency(cartera.resumen.totalCartera)}
+                icon={<Wallet size={16} className="text-amber-600" />} color="bg-amber-50" />
+              <StatCard label="Clientes con saldo" value={String(cartera.resumen.clientesConSaldo)}
+                icon={<Users size={16} className="text-primary-600" />} color="bg-primary-50" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {cartera.buckets.map((b) => (
+                <div key={b.id} className="rounded-lg border border-navy-100 px-3 py-2">
+                  <p className="text-[10px] text-navy-500 uppercase tracking-wide">{b.etiqueta}</p>
+                  <p className="text-sm font-bold text-navy-800">{formatCurrency(b.total)}</p>
+                  <p className="text-[10px] text-navy-400">{b.clientes} cliente(s)</p>
+                </div>
+              ))}
+            </div>
+            <div className="overflow-x-auto max-h-56 overflow-y-auto border border-navy-100 rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr>
+                    <th className="table-header">Cliente</th>
+                    <th className="table-header text-right">Saldo</th>
+                    <th className="table-header text-center hidden sm:table-cell">Días</th>
+                    <th className="table-header text-right">Tramo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cartera.clientes.map((c) => (
+                    <tr key={c.id} className="table-row-hover">
+                      <td className="table-cell py-2">
+                        <p className="font-medium text-navy-700 text-xs">{c.nombre}</p>
+                        {c.compania && <p className="text-[10px] text-navy-400">{c.compania}</p>}
+                      </td>
+                      <td className="table-cell text-right py-2 font-bold text-amber-700 text-xs">
+                        {formatCurrency(c.saldo)}
+                      </td>
+                      <td className="table-cell text-center py-2 text-xs text-navy-500 hidden sm:table-cell">
+                        {c.diasAntiguedad ?? '—'}
+                      </td>
+                      <td className="table-cell text-right py-2 text-[10px] text-navy-600">
+                        {c.bucketEtiqueta}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : cartera ? (
+        <p className="text-xs text-navy-500 bg-navy-50 border border-navy-100 rounded-lg px-3 py-2">
+          No hay saldos pendientes en cartera en este momento.
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard label="Clientes activos" value={String(clientes.length)}
           sub="con compras en el período"
@@ -104,4 +189,3 @@ export function TabClientes({ desde, hasta, tiendaId }: { desde: string; hasta: 
     </div>
   );
 }
-

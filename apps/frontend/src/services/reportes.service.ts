@@ -76,6 +76,55 @@ export interface TopCliente {
   saldo: number; totalTransacciones: number; totalCompras: number;
 }
 
+export interface InventarioAlertaArticulo {
+  id: number;
+  nombre: string;
+  codigoBarras: string;
+  cantidad: number;
+  costo?: number;
+  precioVenta?: number;
+  categoria: string | null;
+  ultimoMovimiento?: string | null;
+}
+
+export interface InventarioAlertas {
+  umbral: number;
+  diasSinMovimiento: number;
+  resumen: {
+    sinStock: number;
+    bajoUmbral: number;
+    totalBajo: number;
+    sinMovimiento: number;
+  };
+  stockBajo: InventarioAlertaArticulo[];
+  sinMovimiento: InventarioAlertaArticulo[];
+}
+
+export interface CarteraBucket {
+  id: string;
+  etiqueta: string;
+  clientes: number;
+  total: number;
+}
+
+export interface CarteraCliente {
+  id: number;
+  nombre: string;
+  compania: string | null;
+  saldo: number;
+  limiteCredito: number | null;
+  fechaDeudaMasAntigua: string | null;
+  diasAntiguedad: number | null;
+  bucketId: string;
+  bucketEtiqueta: string;
+}
+
+export interface CarteraReporte {
+  resumen: { totalCartera: number; clientesConSaldo: number };
+  buckets: CarteraBucket[];
+  clientes: CarteraCliente[];
+}
+
 export interface ResumenPorSucursal {
   tienda: { id: number; nombre: string };
   desde: string;
@@ -201,6 +250,22 @@ export const reportesService = {
     const { data } = await apiClient.get('/reportes/inventario-valorizado/export', {
       params: q ? { q } : undefined,
     });
+    return data.data;
+  },
+
+  inventarioAlertas: async (
+    umbral = 5,
+    diasSinMovimiento = 90,
+    limit = 100,
+  ): Promise<InventarioAlertas> => {
+    const { data } = await apiClient.get('/reportes/inventario-alertas', {
+      params: { umbral, diasSinMovimiento, limit },
+    });
+    return data.data;
+  },
+
+  cartera: async (): Promise<CarteraReporte> => {
+    const { data } = await apiClient.get('/reportes/cartera');
     return data.data;
   },
 

@@ -109,8 +109,8 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 ### P3 — Valor ampliado (cuando P0–P2 estén estables)
 
 - [x] Comparar períodos (mes actual vs anterior) en ventas y P&L — `GET /reportes/comparar-periodos` (MTD alineado); banner en `TabVentas` y `TabPnL`.
-- [ ] Reporte stock bajo / sin movimiento (umbrales configurables).
-- [ ] Cartera y crédito (antigüedad de saldos, más allá del top clientes).
+- [x] Reporte stock bajo / sin movimiento (umbrales configurables) — `GET /reportes/inventario-alertas` (`umbral` default 5, `diasSinMovimiento` default 90); UI en pestaña Inventario (`TabInventario.tsx`).
+- [x] Cartera y crédito (antigüedad de saldos, más allá del top clientes) — `GET /reportes/cartera` (tramos 0–30 / 31–60 / 61–90 / 90+ días según venta a crédito más antigua); UI en pestaña Clientes (`TabClientes.tsx`); helpers `carteraBucketId` / `aggregateCarteraBuckets` en `reportes-query.ts`.
 - [x] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`) — `GET /reportes/conciliacion-caja` (+ `/:id`); historial enriquecido; UI en cierres y pestaña Por sucursal.
 - [ ] Reportes de promociones, cotizaciones (conversión) y compras vs ventas.
 - [ ] Export PDF además de CSV.

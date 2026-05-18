@@ -52,6 +52,20 @@ export function useInventarioValorizado(page = 1, limit = 25, q = '') {
   });
 }
 
+export function useInventarioAlertas(umbral = 5, diasSinMovimiento = 90) {
+  return useQuery({
+    queryKey: ['reportes', 'inventario-alertas', umbral, diasSinMovimiento],
+    queryFn:  () => reportesService.inventarioAlertas(umbral, diasSinMovimiento),
+  });
+}
+
+export function useCartera() {
+  return useQuery({
+    queryKey: ['reportes', 'cartera'],
+    queryFn:  () => reportesService.cartera(),
+  });
+}
+
 export function useDgii607Preview(periodo: string) {
   return useQuery({
     queryKey: ['reportes', 'dgii-607-preview', periodo],
