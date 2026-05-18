@@ -127,6 +127,57 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 
 ---
 
+## Fase 8 — Módulo de configuración
+
+Backlog derivado de la revisión de `/configuracion` (2026-05). Código: `apps/backend/src/modules/configuracion/`, `apps/frontend/src/app/(dashboard)/configuracion/`, entidad `configuracion` (una fila por tenant). Referencia fiscal: [`docs/operacion/FISCAL-DGII-CHECKLIST.md`](operacion/FISCAL-DGII-CHECKLIST.md).
+
+### Estado actual (breve)
+
+- API `GET/PUT /api/v1/configuracion`: lectura todos los roles (`canAll`), escritura solo **admin**; aislamiento por `tenantId` + validación de `tiendaId`/`cajaId` del mismo tenant.
+- Sin DTO previo: `Object.assign` aceptaba campos arbitrarios del body (riesgo `tenant`, metadatos).
+- UI monolítica (~700 líneas), sin validación de RNC/ITBIS en cliente ni servidor, sin indicador de completitud ni aviso de cambios sin guardar.
+- `tasaImpuesto1` en BD alimenta reportes DGII y `FiscalProvider`; zona horaria de reportes sigue en `REPORTES_TIMEZONE` (env), no en configuración por tenant.
+
+### P0 — Integridad y seguridad
+
+- [x] **Zod en PUT** — `dto/configuracion.dto.ts`: nombre obligatorio, RNC 9/11 dígitos, tasas 0–100, URLs `http(s)://`, `strict()` sin `tenantId`/`id`.
+- [x] **Whitelist en servicio** — solo campos del DTO; relaciones `tienda`/`caja` validadas con `assertTenantForTienda`.
+- [x] **Defaults al crear fila** — ITBIS 18 %, `comprobanteDefecto` B02, `preciosIncluyenImpuesto`.
+- [x] **Utilidades compartidas** — `packages/shared/validation/configuracion.ts` (RNC, completitud, constantes).
+- [x] **Tests unitarios DTO** — `configuracion.dto.test.ts`.
+
+### P1 — Producto y UX
+
+- [x] **Pestañas** — Empresa, Fiscal e impuestos, POS / ventas, Plan y sistema.
+- [x] **Banner de completitud** — % y enlaces a pendientes (RNC, ITBIS, sucursal, etc.).
+- [x] **Validación en cliente** antes de guardar + mensajes de error del API.
+- [x] **Cambios sin guardar** — aviso en pantalla y `beforeunload`.
+- [x] **Error de carga** — `QueryError` + reintentar.
+- [x] **Ayuda contextual** — RNC/recibos/DGII, `tasaImpuesto1` alineada a reportes, jurisdicción fiscal.
+- [x] **POS separado de NCF** — sucursal/caja en pestaña POS; fiscal en pestaña propia.
+- [ ] **Rol contador / solo lectura** en configuración (hoy sidebar oculta la ruta a no-admin). *Diferido.*
+
+### P2 — Valor ampliado
+
+- [ ] **`zonaHoraria` en BD** por tenant (sustituir o complementar `REPORTES_TIMEZONE` del servidor).
+- [ ] **Indicador de conexión fiscal** — prueba de `FiscalProvider` / series NCF desde configuración.
+- [ ] **Subida de logotipo** (storage) en lugar de solo URL.
+- [ ] **Notificaciones** — email trial/facturación enlazadas a datos de empresa en config.
+- [ ] **E2E Playwright** — flujo guardar configuración como admin.
+- [ ] **Ampliar test integración** — `PUT` con RNC inválido → 400; no-admin → 403.
+
+### Recomendaciones (buenas prácticas)
+
+| Área | Recomendación |
+|------|----------------|
+| Validación | Mantener reglas en `packages/shared/validation` + Zod en backend; no duplicar lógica en el cliente. |
+| UX | Guardar único al pie; pestañas no pierden estado; completitud orienta onboarding sin bloquear guardado parcial. |
+| Seguridad | Nunca aceptar `tenantId`/`tenant` en body; auditoría ya registra UPDATE completo. |
+| Fiscal | Con `fiscalJurisdiccion=DO`, exigir RNC válido y `tasaImpuesto1` > 0 antes de producción; revisar checklist DGII. |
+| Multi-tenant | Una fila por org; GET de otra org no devuelve `id` ajeno (`configuracion-tenant-isolation.integration.test.ts`). |
+
+---
+
 ## Visión futura (multi‑negocio / otros puntos de venta)
 
 Las viñetas siguientes son el **mapa estratégico** del POS genérico; la **implementación base** de las fases A–D del documento enlazado está en el repositorio. Sigue abierta la **evolución por país** (nuevo `FiscalProvider`) y las **decisiones de despliegue** de §2 en [`docs/PLAN-EVOLUCION-POS-GENERICO.md`](PLAN-EVOLUCION-POS-GENERICO.md).
@@ -184,6 +235,7 @@ Decisiones de **Fase 0** (registro, trial, dominios, impago): `docs/arquitectura
 - [x] **Tests integración — aislamiento tenant:** `clientes-`, `gastos-`, `empleados-`, `kits-`, `proveedores-`, `promociones-`, `cotizaciones-`, `tarjetas-regalo-`, `recetas-tenant-isolation.integration.test.ts` (404/403 según módulo); **2026-05-12:** `comprobantes-`, `tiendas-`, `cajas-`, `auditoria-`, `saas-`, `billing-`, `tenants-tenant-isolation.integration.test.ts`; inventario en `docs/arquitectura/TENANT-ISOLATION-INVENTORY.md`.
 - [x] **Plan reportes:** backlog Fase 7 en este documento (revisión módulo `/reportes`, prioridades P0–P3).
 - [x] **Reportes Fase 7 (P0 + parte P1):** filtro anuladas, Zod, pagos mixtos, filtro sucursal, pestaña Auditoría, tests `reportes-query.test.ts`.
+- [x] **Configuración Fase 8 (P0 + P1):** Zod/whitelist backend, pestañas UI, completitud, validación cliente, tests `configuracion.dto.test.ts` — ver sección Fase 8.
 
 ## Notas
 
