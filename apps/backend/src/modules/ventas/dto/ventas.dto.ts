@@ -129,7 +129,26 @@ export const fullUpdateVentaSchema = z.object({
 });
 export type FullUpdateVentaDto = z.infer<typeof fullUpdateVentaSchema>;
 
+export const historialCajasQuerySchema = z.object({
+  page:                z.coerce.number().int().positive().default(1),
+  limit:               z.coerce.number().int().positive().max(100).default(20),
+  desde:               z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  hasta:               z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  tiendaId:            z.coerce.number().int().positive().optional(),
+  cajaId:              z.coerce.number().int().positive().optional(),
+  estado:              z.enum(['abierta', 'cerrada', 'todas']).default('cerrada'),
+  incluirIntegracion:  z
+    .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return false;
+      if (typeof v === 'boolean') return v;
+      return v === 'true' || v === '1';
+    }),
+});
+
 export type CreateVentaDto  = z.infer<typeof createVentaSchema>;
 export type UpdateVentaDto  = z.infer<typeof updateVentaSchema>;
 export type AperturaCajaDto = z.infer<typeof aperturaCajaSchema>;
 export type CierreCajaDto   = z.infer<typeof cierreCajaSchema>;
+export type HistorialCajasQueryDto = z.infer<typeof historialCajasQuerySchema>;

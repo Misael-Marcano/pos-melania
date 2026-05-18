@@ -1,4 +1,6 @@
 import { AppDataSource } from '../../config/database';
+import { fetchConciliacionCajaBatch } from '../reportes/conciliacion-caja';
+import type { ConciliacionCajaResumen } from '../reportes/conciliacion-caja';
 import { Venta }         from '../../entities/Venta.entity';
 import { VentaDetalle }  from '../../entities/VentaDetalle.entity';
 import { Articulo }      from '../../entities/Articulo.entity';
@@ -12,7 +14,8 @@ import { AppError }      from '../../middlewares/error.middleware';
 import { getPagination } from '../../utils/pagination';
 import { resolveFiscalProvider } from '../../fiscal';
 import { registrarMovimiento } from '../inventario/inventario.service';
-import { CreateVentaDto, UpdateVentaDto, FullUpdateVentaDto, AperturaCajaDto, CierreCajaDto, CAJA_DENOMINACIONES } from './dto/ventas.dto';
+import { CreateVentaDto, UpdateVentaDto, FullUpdateVentaDto, AperturaCajaDto, CierreCajaDto, CAJA_DENOMINACIONES, HistorialCajasQueryDto } from './dto/ventas.dto';
+import { mapCajaAperturaHistorial } from './caja-session.util';
 import { computeFullUpdateVentaTotals, fullUpdateVentaTotalViolationMessage } from './ventas-full-update-totals';
 import { stripVentaDetalleParentRef, syncFullUpdateVentaDetalleGraph } from './ventas-full-update-detail-graph';
 import { AuthUser } from '@pos/shared';
@@ -1219,7 +1222,8 @@ export class VentasService {
     });
   }
 
-  async getHistorialCajas(page = 1, limit = 20, user?: AuthUser) {
+  async getHistorialCajas(query: HistorialCajasQueryDto, user?: AuthUser) {
+    const { page, limit, desde, hasta, tiendaId, cajaId, estado, incluirIntegracion } = query;
     const skip = (page - 1) * limit;
     const qb = cajaRepo()
       .createQueryBuilder('ca')
@@ -1246,8 +1250,94 @@ export class VentasService {
       }
     }
 
-    const [data, total] = await qb.skip(skip).take(limit).getManyAndCount();
+    if (!incluirIntegracion) {
+      qb.andWhere("ca.cajaNombre NOT LIKE 'INTEG%'");
+    }
+
+    if (estado === 'cerrada') {
+      qb.andWhere('ca.abierta = :cerrada', { cerrada: false });
+    } else if (estado === 'abierta') {
+      qb.andWhere('ca.abierta = :abierta', { abierta: true });
+    }
+
+    if (desde) {
+      qb.andWhere('CAST(ca.fechaApertura AS DATE) >= CAST(:desde AS DATE)', { desde });
+    }
+    if (hasta) {
+      qb.andWhere('CAST(ca.fechaApertura AS DATE) <= CAST(:hasta AS DATE)', { hasta });
+    }
+    if (tiendaId != null) {
+      qb.andWhere('(t.id = :filtroTienda OR ct.id = :filtroTienda)', { filtroTienda: tiendaId });
+    }
+    if (cajaId != null) {
+      qb.andWhere('c.id = :filtroCaja', { filtroCaja: cajaId });
+    }
+
+    const [rows, total] = await qb.skip(skip).take(limit).getManyAndCount();
+
+    const ventasPorSesion = await this.totalesVentasPorSesion(
+      rows.map((r) => r.id),
+      user ? tenantIdOrThrow(user) : undefined,
+    );
+
+    let concMap = new Map<number, ConciliacionCajaResumen>();
+    if (user) {
+      const cerradaIds = rows
+        .filter((ca) => !ca.abierta && ca.fechaCierre != null)
+        .map((ca) => ca.id);
+      if (cerradaIds.length) {
+        concMap = await fetchConciliacionCajaBatch(
+          AppDataSource,
+          cerradaIds,
+          tenantIdOrThrow(user),
+        );
+      }
+    }
+
+    const data = rows.map((ca) =>
+      mapCajaAperturaHistorial(
+        ca,
+        ventasPorSesion.get(ca.id) ?? 0,
+        concMap.get(ca.id) ?? null,
+      ),
+    );
+
     return { data, total, page, limit };
+  }
+
+  private async totalesVentasPorSesion(
+    aperturaIds: number[],
+    tenantId?: number,
+  ): Promise<Map<number, number>> {
+    const map = new Map<number, number>();
+    if (aperturaIds.length === 0) return map;
+
+    const placeholders = aperturaIds.map((_, i) => `@${i}`).join(', ');
+    const params: unknown[] = [...aperturaIds];
+    let tenantClause = '';
+    if (tenantId != null) {
+      tenantClause = ` AND EXISTS (
+        SELECT 1 FROM usuarios vu
+        WHERE vu.id = v.usuarioId AND vu.tenantId = @${params.length}
+      )`;
+      params.push(tenantId);
+    }
+
+    const rows: { cajaAperturaId: number; totalVentas: number }[] = await AppDataSource.query(
+      `SELECT v.cajaAperturaId AS cajaAperturaId,
+              ISNULL(SUM(v.total), 0) AS totalVentas
+       FROM ventas v
+       WHERE v.cajaAperturaId IN (${placeholders})
+         AND CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) = 0
+         ${tenantClause}
+       GROUP BY v.cajaAperturaId`,
+      params,
+    );
+
+    for (const row of rows) {
+      map.set(Number(row.cajaAperturaId), Number(row.totalVentas));
+    }
+    return map;
   }
 
   /** Cajas abiertas (varias sucursales / varias cajas con nombre distinto) */

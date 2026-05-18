@@ -14,6 +14,10 @@ import {
   pctVariacion,
 } from './reportes-query';
 import type { InventarioValorizadoQuery } from './dto/reportes.dto';
+import {
+  fetchConciliacionCaja,
+  listConciliacionCaja,
+} from './conciliacion-caja';
 
 type FiscalTaxSplitFn = (total: number) => FiscalTaxSplit;
 
@@ -78,6 +82,20 @@ export class ReportesService {
        ORDER BY dia ASC`,
       [desde, hasta, tenantId, tiendaId],
     );
+  }
+
+  async conciliacionCaja(aperturaId: number, tenantId: number) {
+    return fetchConciliacionCaja(this.ds, aperturaId, tenantId);
+  }
+
+  async conciliacionCajaLista(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+    limit = 50,
+  ) {
+    return listConciliacionCaja(this.ds, desde, hasta, tenantId, tiendaId, limit);
   }
 
   async cierreCaja(aperturaId: number, tenantId: number) {

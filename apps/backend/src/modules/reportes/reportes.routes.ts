@@ -102,6 +102,8 @@ router.get('/ventas-por-usuario',    ctrl.ventasPorUsuario.bind(ctrl));
 router.get('/ventas-por-caja',       ctrl.ventasPorCaja.bind(ctrl));
 router.get('/por-sucursal/:tiendaId', ctrl.resumenPorSucursal.bind(ctrl));
 router.get('/cierre-caja/:id',       ctrl.cierreCaja.bind(ctrl));
+router.get('/conciliacion-caja',     ctrl.conciliacionCajaLista.bind(ctrl));
+router.get('/conciliacion-caja/:id', ctrl.conciliacionCaja.bind(ctrl));
 router.get('/resumen-dia',           ctrl.resumenDia.bind(ctrl));
 router.get('/top-productos',         ctrl.topProductos.bind(ctrl));
 router.get('/ganancias',             ctrl.ganancias.bind(ctrl));

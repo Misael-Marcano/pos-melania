@@ -55,6 +55,31 @@ export class ReportesController {
     } catch (e: unknown) { return sendFail(res, e); }
   }
 
+  async conciliacionCaja(req: AuthRequest, res: Response) {
+    try {
+      return sendSuccess(
+        res,
+        await service.conciliacionCaja(Number(req.params.id), tenantIdOrThrow(req.user)),
+      );
+    } catch (e: unknown) { return sendFail(res, e); }
+  }
+
+  async conciliacionCajaLista(req: AuthRequest, res: Response) {
+    try {
+      const q = reportesRangoFechasSchema.parse(req.query);
+      const tid = tiendaIdParamForReportes(req, q.tiendaId != null ? String(q.tiendaId) : undefined);
+      return sendSuccess(
+        res,
+        await service.conciliacionCajaLista(
+          q.desde, q.hasta, tenantIdOrThrow(req.user), tid, q.limit ?? 50,
+        ),
+      );
+    } catch (e: unknown) {
+      if (e instanceof ZodError) return zodFail(res, e);
+      return sendFail(res, e);
+    }
+  }
+
   async resumenDia(req: AuthRequest, res: Response) {
     try {
       const q = reportesResumenDiaSchema.parse(req.query);

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { VentasService } from './ventas.service';
-import { createVentaSchema, updateVentaSchema, fullUpdateVentaSchema, aperturaCajaSchema, cierreCajaSchema } from './dto/ventas.dto';
+import { createVentaSchema, updateVentaSchema, fullUpdateVentaSchema, aperturaCajaSchema, cierreCajaSchema, historialCajasQuerySchema } from './dto/ventas.dto';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { sendSuccess, sendError, sendFail, sendPaginated } from '../../utils/response';
 import { registrarAudit } from '../../utils/audit';
@@ -161,9 +161,8 @@ export class VentasController {
 
   async getHistorialCajas(req: AuthRequest, res: Response) {
     try {
-      const page  = Number(req.query.page)  || 1;
-      const limit = Number(req.query.limit) || 20;
-      const { data, total } = await service.getHistorialCajas(page, limit, req.user);
+      const query = historialCajasQuerySchema.parse(req.query);
+      const { data, total, page, limit } = await service.getHistorialCajas(query, req.user);
       return sendPaginated(res, data, total, page, limit);
     } catch (e: unknown) { return sendFail(res, e); }
   }
