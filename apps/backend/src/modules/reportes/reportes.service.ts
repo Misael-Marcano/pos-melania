@@ -1,10 +1,42 @@
 import { AppDataSource } from '../../config/database';
 import { AppError } from '../../middlewares/error.middleware';
+import {
+  VENTA_ACTIVA_SQL,
+  sqlTiendaOpcional,
+  aggregateVentasPorMetodo,
+  dgiiPeriodoBounds,
+} from './reportes-query';
+import type { InventarioValorizadoQuery } from './dto/reportes.dto';
 
 export class ReportesService {
   private ds = AppDataSource;
 
-  async ventasPorDia(desde: string, hasta: string, tenantId: number) {
+  private async ventasPorMetodoEnRango(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null,
+  ) {
+    const filas = await this.ds.query(
+      `SELECT v.metodoPago, v.total, v.metodosPago
+       FROM ventas v
+       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
+       INNER JOIN tiendas t ON t.id = ca.tiendaId
+       WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
+         AND t.tenantId = @2
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(3)}`,
+      [desde, hasta, tenantId, tiendaId],
+    );
+    return aggregateVentasPorMetodo(filas);
+  }
+
+  async ventasPorDia(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
     return this.ds.query(
       `SELECT CAST(v.fecha AS DATE) AS dia,
               COUNT(*)            AS totalVentas,
@@ -14,9 +46,11 @@ export class ReportesService {
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
          AND t.tenantId = @2
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(3)}
        GROUP BY CAST(v.fecha AS DATE)
        ORDER BY dia ASC`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId, tiendaId],
     );
   }
 
@@ -25,7 +59,7 @@ export class ReportesService {
       `SELECT 1 AS ok FROM caja_aperturas ca
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE ca.id = @0 AND t.tenantId = @1`,
-      [aperturaId, tenantId]
+      [aperturaId, tenantId],
     );
     if (!apRows?.length) throw new AppError('Sesión de caja no encontrada', 404);
 
@@ -37,39 +71,56 @@ export class ReportesService {
        WHERE ca.id = @0
          AND v.fecha >= ca.fechaApertura
          AND (ca.fechaCierre IS NULL OR v.fecha <= ca.fechaCierre)
-         AND CHARINDEX('[ANULADA]', ISNULL(v.notas, '')) = 0
+         AND ${VENTA_ACTIVA_SQL}
        GROUP BY v.metodoPago`,
-      [aperturaId, tenantId]
+      [aperturaId, tenantId],
     );
     return ventas;
   }
 
-  async resumenDia(fecha: string, tenantId: number) {
-    const [ventas]  = await this.ds.query(
-      `SELECT COUNT(*) AS totalTransacciones, ISNULL(SUM(v.total),0) AS totalVentas
+  async resumenDia(
+    fecha: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
+    const baseJoin = `
        FROM ventas v
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
-       WHERE CAST(v.fecha AS DATE) = @0 AND t.tenantId = @1`,
-      [fecha, tenantId]
+       WHERE CAST(v.fecha AS DATE) = @0
+         AND t.tenantId = @1
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(2)}`;
+
+    const [ventas] = await this.ds.query(
+      `SELECT COUNT(*) AS totalTransacciones, ISNULL(SUM(v.total),0) AS totalVentas
+       ${baseJoin}`,
+      [fecha, tenantId, tiendaId],
     );
     const [efectivo] = await this.ds.query(
       `SELECT ISNULL(SUM(v.total),0) AS totalEfectivo
-       FROM ventas v
-       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
-       INNER JOIN tiendas t ON t.id = ca.tiendaId
-       WHERE CAST(v.fecha AS DATE) = @0 AND v.metodoPago = 'EFECTIVO' AND t.tenantId = @1`,
-      [fecha, tenantId]
+       ${baseJoin}
+         AND v.metodoPago = 'EFECTIVO'`,
+      [fecha, tenantId, tiendaId],
     );
     const [gastos] = await this.ds.query(
       `SELECT ISNULL(SUM(cantidad),0) AS totalGastos
-       FROM gastos WHERE CAST(fecha AS DATE) = @0 AND tenantId = @1`,
-      [fecha, tenantId]
+       FROM gastos
+       WHERE CAST(fecha AS DATE) = @0
+         AND tenantId = @1
+         AND (@2 IS NULL OR tiendaId IS NULL OR tiendaId = @2)`,
+      [fecha, tenantId, tiendaId],
     );
     return { ...ventas, ...efectivo, ...gastos };
   }
 
-  async topProductos(desde: string, hasta: string, limit = 10, tenantId: number) {
+  async topProductos(
+    desde: string,
+    hasta: string,
+    limit = 10,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
     return this.ds.query(
       `SELECT TOP (@2) a.nombre,
               SUM(vd.cantidad)         AS unidadesVendidas,
@@ -82,23 +133,32 @@ export class ReportesService {
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
          AND a.tenantId = @3
          AND t.tenantId = @3
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(4)}
        GROUP BY a.id, a.nombre
        ORDER BY totalVentas DESC`,
-      [desde, hasta, limit, tenantId]
+      [desde, hasta, limit, tenantId, tiendaId],
     );
   }
 
-  // ── P&L ──────────────────────────────────────────────────────────────────
-  async ganancias(desde: string, hasta: string, tenantId: number) {
-    const [ingresos] = await this.ds.query(
-      `SELECT ISNULL(SUM(v.total),0) AS ingresos
+  async ganancias(
+    desde: string,
+    hasta: string,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
+    const ventaScope = `
        FROM ventas v
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND v.notas NOT LIKE '[ANULADA]%'
-         AND t.tenantId = @2`,
-      [desde, hasta, tenantId]
+         AND t.tenantId = @2
+         AND ${VENTA_ACTIVA_SQL}
+         AND ${sqlTiendaOpcional(3)}`;
+
+    const [ingresos] = await this.ds.query(
+      `SELECT ISNULL(SUM(v.total),0) AS ingresos ${ventaScope}`,
+      [desde, hasta, tenantId, tiendaId],
     );
 
     const [costo] = await this.ds.query(
@@ -109,18 +169,20 @@ export class ReportesService {
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND v.notas NOT LIKE '[ANULADA]%'
+         AND ${VENTA_ACTIVA_SQL}
          AND a.tenantId = @2
-         AND t.tenantId = @2`,
-      [desde, hasta, tenantId]
+         AND t.tenantId = @2
+         AND ${sqlTiendaOpcional(3)}`,
+      [desde, hasta, tenantId, tiendaId],
     );
 
     const [gastos] = await this.ds.query(
       `SELECT ISNULL(SUM(cantidad),0) AS gastos
        FROM gastos
        WHERE CAST(fecha AS DATE) BETWEEN @0 AND @1
-         AND tenantId = @2`,
-      [desde, hasta, tenantId]
+         AND tenantId = @2
+         AND (@3 IS NULL OR tiendaId IS NULL OR tiendaId = @3)`,
+      [desde, hasta, tenantId, tiendaId],
     );
 
     const [devoluciones] = await this.ds.query(
@@ -132,27 +194,13 @@ export class ReportesService {
        WHERE d.estado = 'APROBADA'
          AND CAST(d.createdAt AS DATE) BETWEEN @0 AND @1
          AND d.tenantId = @2
-         AND t.tenantId = @2`,
-      [desde, hasta, tenantId]
-    );
-
-    // Ventas por método de pago
-    const ventasPorMetodo = await this.ds.query(
-      `SELECT v.metodoPago,
-              COUNT(*) AS cantidad,
-              ISNULL(SUM(v.total),0) AS total
-       FROM ventas v
-       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
-       INNER JOIN tiendas t ON t.id = ca.tiendaId
-       WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND v.notas NOT LIKE '[ANULADA]%'
          AND t.tenantId = @2
-       GROUP BY v.metodoPago
-       ORDER BY total DESC`,
-      [desde, hasta, tenantId]
+         AND ${sqlTiendaOpcional(3)}`,
+      [desde, hasta, tenantId, tiendaId],
     );
 
-    // Gastos por categoría
+    const ventasPorMetodo = await this.ventasPorMetodoEnRango(desde, hasta, tenantId, tiendaId);
+
     const gastosPorCategoria = await this.ds.query(
       `SELECT categoria,
               COUNT(*) AS cantidad,
@@ -160,9 +208,10 @@ export class ReportesService {
        FROM gastos
        WHERE CAST(fecha AS DATE) BETWEEN @0 AND @1
          AND tenantId = @2
+         AND (@3 IS NULL OR tiendaId IS NULL OR tiendaId = @3)
        GROUP BY categoria
        ORDER BY total DESC`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId, tiendaId],
     );
 
     const ingresosN    = Number(ingresos.ingresos);
@@ -190,24 +239,7 @@ export class ReportesService {
     };
   }
 
-  // ── Inventario valorizado ─────────────────────────────────────────────────
-  async inventarioValorizado(tenantId: number) {
-    const articulos = await this.ds.query(
-      `SELECT a.nombre,
-              a.codigoBarras,
-              a.cantidad,
-              a.costo,
-              a.precioVenta,
-              ISNULL(a.cantidad,0) * a.costo        AS valorCosto,
-              ISNULL(a.cantidad,0) * a.precioVenta  AS valorVenta,
-              c.nombre AS categoria
-       FROM articulos a
-       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
-       WHERE a.activo = 1 AND a.tenantId = @0
-       ORDER BY valorCosto DESC`,
-      [tenantId]
-    );
-
+  private async inventarioTotalesYCategorias(tenantId: number) {
     const [totales] = await this.ds.query(
       `SELECT ISNULL(SUM(ISNULL(cantidad,0) * costo),0)       AS totalCosto,
               ISNULL(SUM(ISNULL(cantidad,0) * precioVenta),0) AS totalVenta,
@@ -215,10 +247,9 @@ export class ReportesService {
               ISNULL(SUM(ISNULL(cantidad,0)),0)               AS totalUnidades
        FROM articulos
        WHERE activo = 1 AND tenantId = @0`,
-      [tenantId]
+      [tenantId],
     );
 
-    // Por categoría
     const porCategoria = await this.ds.query(
       `SELECT c.nombre AS categoria,
               COUNT(a.id) AS articulos,
@@ -228,11 +259,10 @@ export class ReportesService {
        WHERE a.activo = 1 AND a.tenantId = @0
        GROUP BY c.nombre
        ORDER BY valorCosto DESC`,
-      [tenantId]
+      [tenantId],
     );
 
     return {
-      articulos,
       totales: {
         totalCosto:      Number(totales.totalCosto),
         totalVenta:      Number(totales.totalVenta),
@@ -244,12 +274,181 @@ export class ReportesService {
     };
   }
 
-  // ── DGII 607 — Registro de Ventas ─────────────────────────────────────────
+  private inventarioWhereSql(q: string): { clause: string; params: unknown[] } {
+    const term = q.trim();
+    if (!term) return { clause: '', params: [] };
+    const like = `%${term.replace(/[%_\[\]]/g, '')}%`;
+    return {
+      clause: ` AND (a.nombre LIKE @1 OR ISNULL(c.nombre, '') LIKE @1)`,
+      params: [like],
+    };
+  }
+
+  async inventarioValorizado(tenantId: number, query: InventarioValorizadoQuery) {
+    const { totales, porCategoria } = await this.inventarioTotalesYCategorias(tenantId);
+    const { clause, params } = this.inventarioWhereSql(query.q);
+    const offset = (query.page - 1) * query.limit;
+
+    const [{ total }] = await this.ds.query(
+      `SELECT COUNT(*) AS total
+       FROM articulos a
+       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
+       WHERE a.activo = 1 AND a.tenantId = @0${clause}`,
+      [tenantId, ...params],
+    );
+
+    const articulos = await this.ds.query(
+      `SELECT a.nombre,
+              a.codigoBarras,
+              a.cantidad,
+              a.costo,
+              a.precioVenta,
+              ISNULL(a.cantidad,0) * a.costo        AS valorCosto,
+              ISNULL(a.cantidad,0) * a.precioVenta  AS valorVenta,
+              c.nombre AS categoria
+       FROM articulos a
+       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
+       WHERE a.activo = 1 AND a.tenantId = @0${clause}
+       ORDER BY valorCosto DESC
+       OFFSET @${params.length + 1} ROWS FETCH NEXT @${params.length + 2} ROWS ONLY`,
+      [tenantId, ...params, offset, query.limit],
+    );
+
+    return {
+      totales,
+      porCategoria,
+      articulos: {
+        items: articulos,
+        total: Number(total),
+        page: query.page,
+        limit: query.limit,
+      },
+    };
+  }
+
+  /** Listado completo para export CSV (máx. 15 000 filas). */
+  async inventarioValorizadoExport(tenantId: number, q = '') {
+    const { clause, params } = this.inventarioWhereSql(q);
+    const articulos = await this.ds.query(
+      `SELECT TOP 15000 a.nombre,
+              a.codigoBarras,
+              a.cantidad,
+              a.costo,
+              a.precioVenta,
+              ISNULL(a.cantidad,0) * a.costo        AS valorCosto,
+              ISNULL(a.cantidad,0) * a.precioVenta  AS valorVenta,
+              c.nombre AS categoria
+       FROM articulos a
+       LEFT JOIN categorias c ON c.id = a.categoriaId AND c.tenantId = @0
+       WHERE a.activo = 1 AND a.tenantId = @0${clause}
+       ORDER BY valorCosto DESC`,
+      [tenantId, ...params],
+    );
+    return articulos;
+  }
+
+  async dgii607Preview(periodo: string, tenantId: number) {
+    const { desde, hasta } = dgiiPeriodoBounds(periodo);
+    const [row] = await this.ds.query(
+      `SELECT COUNT(*) AS lineas,
+              ISNULL(SUM(v.total), 0) AS totalVentas,
+              SUM(CASE WHEN v.comprobante IS NULL OR LTRIM(RTRIM(v.comprobante)) = ''
+                  THEN 1 ELSE 0 END) AS sinNcf,
+              SUM(CASE WHEN v.clienteId IS NOT NULL
+                  AND (c.numeroIdentificacion IS NULL OR LTRIM(RTRIM(c.numeroIdentificacion)) = '')
+                  THEN 1 ELSE 0 END) AS clienteSinIdentificacion
+       FROM ventas v
+       LEFT JOIN clientes c ON c.id = v.clienteId AND c.tenantId = @2
+       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
+       INNER JOIN tiendas t ON t.id = ca.tiendaId
+       WHERE v.fecha >= @0 AND v.fecha <= @1
+         AND ${VENTA_ACTIVA_SQL}
+         AND t.tenantId = @2`,
+      [desde, hasta, tenantId],
+    );
+
+    const [cfg] = await this.ds
+      .query(`SELECT TOP 1 rnc FROM configuracion WHERE tenantId = @0`, [tenantId])
+      .catch(() => [{}]);
+    const rncEmpresa = (cfg?.rnc ?? '').trim();
+    const itbisIncluido = Number((Number(row.totalVentas) - Number(row.totalVentas) / 1.18).toFixed(2));
+
+    const alertas: string[] = [];
+    if (!rncEmpresa) alertas.push('Configure el RNC de la empresa en Configuración.');
+    if (Number(row.sinNcf) > 0) {
+      alertas.push(`${row.sinNcf} venta(s) sin NCF/comprobante fiscal.`);
+    }
+    if (Number(row.clienteSinIdentificacion) > 0) {
+      alertas.push(`${row.clienteSinIdentificacion} venta(s) con cliente sin número de identificación.`);
+    }
+    if (Number(row.lineas) === 0) {
+      alertas.push('No hay ventas activas en este período.');
+    }
+
+    return {
+      periodo,
+      lineas: Number(row.lineas),
+      totalVentas: Number(row.totalVentas),
+      itbisEstimado: itbisIncluido,
+      sinNcf: Number(row.sinNcf),
+      clienteSinIdentificacion: Number(row.clienteSinIdentificacion),
+      rncEmpresa: rncEmpresa || null,
+      alertas,
+    };
+  }
+
+  async dgii606Preview(periodo: string, tenantId: number) {
+    const { desde, hasta } = dgiiPeriodoBounds(periodo);
+    const [ord] = await this.ds.query(
+      `SELECT COUNT(*) AS lineasOrdenes,
+              ISNULL(SUM(oc.total), 0) AS totalOrdenes,
+              SUM(CASE WHEN p.rnc IS NULL OR LTRIM(RTRIM(p.rnc)) = ''
+                  THEN 1 ELSE 0 END) AS ordenSinRncProveedor
+       FROM ordenes_compra oc
+       LEFT JOIN proveedores p ON p.id = oc.proveedorId AND p.tenantId = oc.tenantId
+       WHERE oc.estado = 'RECIBIDA'
+         AND oc.fechaRecibida >= @0 AND oc.fechaRecibida <= @1
+         AND oc.tenantId = @2`,
+      [desde, hasta, tenantId],
+    );
+    const [gas] = await this.ds.query(
+      `SELECT COUNT(*) AS lineasGastos,
+              ISNULL(SUM(cantidad), 0) AS totalGastos
+       FROM gastos
+       WHERE fecha >= @0 AND fecha <= @1 AND tenantId = @2`,
+      [desde, hasta, tenantId],
+    );
+
+    const [cfg] = await this.ds
+      .query(`SELECT TOP 1 rnc FROM configuracion WHERE tenantId = @0`, [tenantId])
+      .catch(() => [{}]);
+    const rncEmpresa = (cfg?.rnc ?? '').trim();
+    const lineas = Number(ord.lineasOrdenes) + Number(gas.lineasGastos);
+    const totalCompras = Number(ord.totalOrdenes) + Number(gas.totalGastos);
+    const itbisEstimado = Number((totalCompras - totalCompras / 1.18).toFixed(2));
+
+    const alertas: string[] = [];
+    if (!rncEmpresa) alertas.push('Configure el RNC de la empresa en Configuración.');
+    if (Number(ord.ordenSinRncProveedor) > 0) {
+      alertas.push(`${ord.ordenSinRncProveedor} orden(es) de compra sin RNC de proveedor.`);
+    }
+    if (lineas === 0) alertas.push('No hay compras ni gastos en este período.');
+
+    return {
+      periodo,
+      lineas,
+      lineasOrdenes: Number(ord.lineasOrdenes),
+      lineasGastos: Number(gas.lineasGastos),
+      totalCompras,
+      itbisEstimado,
+      ordenSinRncProveedor: Number(ord.ordenSinRncProveedor),
+      rncEmpresa: rncEmpresa || null,
+      alertas,
+    };
+  }
+
   async dgii607(periodo: string, tenantId: number): Promise<string> {
-    const year  = parseInt(periodo.substring(0, 4));
-    const month = parseInt(periodo.substring(4, 6));
-    const desde = new Date(year, month - 1, 1);
-    const hasta = new Date(year, month, 0, 23, 59, 59, 999);
+    const { desde, hasta } = dgiiPeriodoBounds(periodo);
 
     const ventas = await this.ds.query(
       `SELECT v.total, v.metodoPago, v.comprobante, v.fecha,
@@ -259,10 +458,10 @@ export class ReportesService {
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE v.fecha >= @0 AND v.fecha <= @1
-         AND v.notas NOT LIKE '[ANULADA]%'
+         AND ${VENTA_ACTIVA_SQL}
          AND t.tenantId = @2
        ORDER BY v.fecha`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId],
     );
 
     const [cfg] = await this.ds
@@ -306,12 +505,8 @@ export class ReportesService {
     return [`607|${rncEmpresa}|${periodo}|${lines.length}`, ...lines].join('\r\n');
   }
 
-  // ── DGII 606 — Registro de Compras ────────────────────────────────────────
   async dgii606(periodo: string, tenantId: number): Promise<string> {
-    const year  = parseInt(periodo.substring(0, 4));
-    const month = parseInt(periodo.substring(4, 6));
-    const desde = new Date(year, month - 1, 1);
-    const hasta = new Date(year, month, 0, 23, 59, 59, 999);
+    const { desde, hasta } = dgiiPeriodoBounds(periodo);
 
     const ordenes = await this.ds.query(
       `SELECT oc.total, oc.fechaRecibida, oc.createdAt,
@@ -322,15 +517,14 @@ export class ReportesService {
          AND oc.fechaRecibida >= @0 AND oc.fechaRecibida <= @1
          AND oc.tenantId = @2
        ORDER BY oc.fechaRecibida`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId],
     );
 
-    // También incluir gastos del período como compras
     const gastos = await this.ds.query(
       `SELECT cantidad AS total, fecha
        FROM gastos
        WHERE fecha >= @0 AND fecha <= @1 AND tenantId = @2`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId],
     );
 
     const [cfg] = await this.ds
@@ -346,7 +540,6 @@ export class ReportesService {
 
     const lines: string[] = [];
 
-    // Órdenes de compra
     for (const o of ordenes) {
       const total  = Number(o.total);
       const itbis  = Number((total - total / 1.18).toFixed(2));
@@ -355,17 +548,16 @@ export class ReportesService {
 
       lines.push([
         o.proveedorRnc ?? '', o.proveedorRnc ? '1' : '',
-        '5',           // tipo bienes: inventario
-        '', '',        // NCF proveedor (no tenemos)
+        '5',
+        '', '',
         fecha, fecha,
         '', fmtNum(base), fmtNum(total),
         fmtNum(itbis), '', '', '', '', '',
         '', '', '', '', '', '',
-        '2',           // transferencia/cheque
+        '2',
       ].join('|'));
     }
 
-    // Gastos (tipo 7 = otras deducciones)
     for (const g of gastos) {
       const total = Number(g.total);
       const fecha = fmtDate(g.fecha);
@@ -382,8 +574,13 @@ export class ReportesService {
     return [`606|${rncEmpresa}|${periodo}|${lines.length}`, ...lines].join('\r\n');
   }
 
-  // ── Top clientes ──────────────────────────────────────────────────────────
-  async topClientes(desde: string, hasta: string, limit = 10, tenantId: number) {
+  async topClientes(
+    desde: string,
+    hasta: string,
+    limit = 10,
+    tenantId: number,
+    tiendaId: number | null = null,
+  ) {
     return this.ds.query(
       `SELECT TOP (@2)
               c.id,
@@ -397,22 +594,20 @@ export class ReportesService {
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND v.notas NOT LIKE '[ANULADA]%'
+         AND ${VENTA_ACTIVA_SQL}
          AND c.tenantId = @3
          AND t.tenantId = @3
+         AND ${sqlTiendaOpcional(4)}
        GROUP BY c.id, c.nombre, c.compania, c.saldo
        ORDER BY totalCompras DESC`,
-      [desde, hasta, limit, tenantId]
+      [desde, hasta, limit, tenantId, tiendaId],
     );
   }
 
-  /**
-   * Flujos de ventas y gastos por sucursal (ventas ligadas a sesión de caja con esa tienda).
-   */
   async resumenPorSucursal(tiendaId: number, desde: string, hasta: string, tenantId: number) {
     const [tienda] = await this.ds.query(
       `SELECT id, nombre FROM tiendas WHERE id = @0 AND tenantId = @1`,
-      [tiendaId, tenantId]
+      [tiendaId, tenantId],
     );
     if (!tienda) throw new AppError('Sucursal no encontrada', 404);
 
@@ -423,22 +618,11 @@ export class ReportesService {
        INNER JOIN tiendas t ON t.id = ca.tiendaId AND t.tenantId = @3
        WHERE ca.tiendaId = @0
          AND CAST(v.fecha AS DATE) BETWEEN @1 AND @2
-         AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0`,
-      [tiendaId, desde, hasta, tenantId]
+         AND ${VENTA_ACTIVA_SQL}`,
+      [tiendaId, desde, hasta, tenantId],
     );
 
-    const ventasPorMetodo = await this.ds.query(
-      `SELECT v.metodoPago, COUNT(*) AS cantidad, ISNULL(SUM(v.total),0) AS total
-       FROM ventas v
-       INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
-       INNER JOIN tiendas t ON t.id = ca.tiendaId AND t.tenantId = @3
-       WHERE ca.tiendaId = @0
-         AND CAST(v.fecha AS DATE) BETWEEN @1 AND @2
-         AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0
-       GROUP BY v.metodoPago
-       ORDER BY total DESC`,
-      [tiendaId, desde, hasta, tenantId]
-    );
+    const ventasPorMetodo = await this.ventasPorMetodoEnRango(desde, hasta, tenantId, tiendaId);
 
     const [gastosAgg] = await this.ds.query(
       `SELECT ISNULL(SUM(cantidad),0) AS total, COUNT(*) AS n
@@ -446,7 +630,7 @@ export class ReportesService {
        WHERE tiendaId = @0
          AND tenantId = @3
          AND CAST(fecha AS DATE) BETWEEN @1 AND @2`,
-      [tiendaId, desde, hasta, tenantId]
+      [tiendaId, desde, hasta, tenantId],
     );
 
     const gastosPorCategoria = await this.ds.query(
@@ -457,7 +641,7 @@ export class ReportesService {
          AND CAST(fecha AS DATE) BETWEEN @1 AND @2
        GROUP BY categoria
        ORDER BY total DESC`,
-      [tiendaId, desde, hasta, tenantId]
+      [tiendaId, desde, hasta, tenantId],
     );
 
     const cierresDeCaja = await this.ds.query(
@@ -471,7 +655,7 @@ export class ReportesService {
            OR (ca.abierta = 0 AND CAST(ISNULL(ca.fechaCierre, ca.fechaApertura) AS DATE) BETWEEN @1 AND @2)
          )
        ORDER BY ISNULL(ca.fechaCierre, ca.fechaApertura) DESC`,
-      [tiendaId, desde, hasta, tenantId]
+      [tiendaId, desde, hasta, tenantId],
     );
 
     return {
@@ -492,11 +676,12 @@ export class ReportesService {
     };
   }
 
-  /**
-   * Ventas por usuario (registrador) con sesión de caja — auditoría.
-   * `tiendaId` null = todas las sucursales (solo contexto admin).
-   */
-  async ventasPorUsuario(desde: string, hasta: string, tiendaId: number | null, tenantId: number) {
+  async ventasPorUsuario(
+    desde: string,
+    hasta: string,
+    tiendaId: number | null,
+    tenantId: number,
+  ) {
     if (tiendaId != null) {
       return this.ds.query(
         `SELECT u.id AS usuarioId, u.nombre AS usuarioNombre,
@@ -506,12 +691,12 @@ export class ReportesService {
          INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
          INNER JOIN tiendas t ON t.id = ca.tiendaId
          WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-           AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0
+           AND ${VENTA_ACTIVA_SQL}
            AND ca.tiendaId = @2
            AND t.tenantId = @3
          GROUP BY u.id, u.nombre
          ORDER BY totalMonto DESC`,
-        [desde, hasta, tiendaId, tenantId]
+        [desde, hasta, tiendaId, tenantId],
       );
     }
     return this.ds.query(
@@ -522,16 +707,20 @@ export class ReportesService {
        INNER JOIN caja_aperturas ca ON ca.id = v.cajaAperturaId
        INNER JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0
+         AND ${VENTA_ACTIVA_SQL}
          AND t.tenantId = @2
        GROUP BY u.id, u.nombre
        ORDER BY totalMonto DESC`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId],
     );
   }
 
-  /** Ventas agrupadas por caja (nombre) y sucursal — auditoría. */
-  async ventasPorCaja(desde: string, hasta: string, tiendaId: number | null, tenantId: number) {
+  async ventasPorCaja(
+    desde: string,
+    hasta: string,
+    tiendaId: number | null,
+    tenantId: number,
+  ) {
     if (tiendaId != null) {
       return this.ds.query(
         `SELECT ISNULL(t.nombre, '') AS tiendaNombre,
@@ -543,12 +732,12 @@ export class ReportesService {
            AND EXISTS (SELECT 1 FROM tiendas tcx WHERE tcx.id = c.tiendaId AND tcx.tenantId = @3)
          LEFT JOIN tiendas t ON t.id = ca.tiendaId
          WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-           AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0
+           AND ${VENTA_ACTIVA_SQL}
            AND ca.tiendaId = @2
            AND t.tenantId = @3
          GROUP BY ISNULL(t.nombre, ''), ISNULL(c.nombre, ca.cajaNombre)
          ORDER BY totalMonto DESC`,
-        [desde, hasta, tiendaId, tenantId]
+        [desde, hasta, tiendaId, tenantId],
       );
     }
     return this.ds.query(
@@ -561,11 +750,11 @@ export class ReportesService {
          AND EXISTS (SELECT 1 FROM tiendas tcx WHERE tcx.id = c.tiendaId AND tcx.tenantId = @2)
        LEFT JOIN tiendas t ON t.id = ca.tiendaId
        WHERE CAST(v.fecha AS DATE) BETWEEN @0 AND @1
-         AND CHARINDEX('[ANULADA]', ISNULL(v.notas,'')) = 0
+         AND ${VENTA_ACTIVA_SQL}
          AND t.tenantId = @2
        GROUP BY ISNULL(t.nombre, ''), ISNULL(c.nombre, ca.cajaNombre)
        ORDER BY totalMonto DESC`,
-      [desde, hasta, tenantId]
+      [desde, hasta, tenantId],
     );
   }
 }
