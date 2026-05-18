@@ -112,12 +112,12 @@ Backlog derivado de la revisión del módulo `/reportes` (2026-05). Código prin
 - [x] Reporte stock bajo / sin movimiento (umbrales configurables) — `GET /reportes/inventario-alertas` (`umbral` default 5, `diasSinMovimiento` default 90); UI en pestaña Inventario (`TabInventario.tsx`).
 - [x] Cartera y crédito (antigüedad de saldos, más allá del top clientes) — `GET /reportes/cartera` (tramos 0–30 / 31–60 / 61–90 / 90+ días según venta a crédito más antigua); UI en pestaña Clientes (`TabClientes.tsx`); helpers `carteraBucketId` / `aggregateCarteraBuckets` en `reportes-query.ts`.
 - [x] Conciliación caja (ventas de sesión vs monto de cierre; cruce con `/ventas/cierres-caja`) — `GET /reportes/conciliacion-caja` (+ `/:id`); historial enriquecido; UI en cierres y pestaña Por sucursal.
-- [ ] Reportes de promociones, cotizaciones (conversión) y compras vs ventas.
-- [ ] Export PDF además de CSV.
-- [ ] Envío programado por email (enterprise).
-- [ ] Caché o vistas materializadas para rangos largos (año completo).
-- [ ] Rol **contador** (solo lectura reportes; hoy `canAdminOrSoporte` en `reportes.routes.ts`).
-- [ ] Zona horaria explícita en agregaciones por día (`CAST(fecha AS DATE)` vs TZ del negocio).
+- [x] Reportes de promociones, cotizaciones (conversión) y compras vs ventas — `GET /reportes/operaciones-comerciales`; pestaña Operaciones (`TabOperaciones.tsx`).
+- [x] Export PDF además de CSV — `GET /reportes/ventas-resumen/pdf` (pdfkit); botón en pestaña Ventas.
+- [ ] Envío programado por email (enterprise). *Diferido — alcance enterprise.*
+- [ ] Caché o vistas materializadas para rangos largos (año completo). *Diferido — optimización pesada.*
+- [x] Rol **contador** (solo lectura reportes) — `canReportes` en `reportes.routes.ts`; rol en `@pos/shared`, empleados y sidebar.
+- [x] Zona horaria explícita en agregaciones por día — `sqlFechaDia` / `REPORTES_TIMEZONE` (default `America/Santo_Domingo`) en `reportes-timezone.ts` y queries de reportes.
 
 ### Notas de implementación (Fase 7)
 
