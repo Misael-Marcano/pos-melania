@@ -17,13 +17,17 @@
     @apply box-border;
   }
 
+  html {
+    height: 100%;
+  }
+
   html,
   body {
     @apply overflow-x-hidden;
   }
 
   body {
-    @apply bg-[var(--atmosphere)] text-navy-800 antialiased;
+    @apply min-h-full bg-[var(--atmosphere)] text-navy-800 antialiased;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }

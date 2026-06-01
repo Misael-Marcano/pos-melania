@@ -53,7 +53,7 @@ export default function SelectOrganizacionPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#E8EDEB] flex flex-col items-center justify-center p-6">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[#E8EDEB] p-6">
       <AppAtmosphere />
       <main aria-labelledby="select-organizacion-heading" className="relative z-10 w-full max-w-md">
         <h1 id="select-organizacion-heading" className="sr-only">

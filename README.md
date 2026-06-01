@@ -96,6 +96,16 @@ En `apps/backend`: `npm run migration:run`, `npm run seed`, `npm run migration:r
 
 Build de todo el monorepo desde la raíz: `npm run build`.
 
+## GitHub Pages (sitio público estático)
+
+Publica la **landing** y páginas legales en GitHub sin servidor propio. URL típica: **https://misael-marcano.github.io/pos-melania/**
+
+1. Haz push de `.github/workflows/github-pages.yml` a `main`.
+2. En el repo de GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Tras el workflow **GitHub Pages**, abre la URL del deployment.
+
+Build local: `npm run build:pages` (genera `apps/frontend/out/`). Detalle y limitaciones (sin API): [`docs/operacion/GITHUB-PAGES.md`](docs/operacion/GITHUB-PAGES.md).
+
 ## Pruebas
 
 | Ámbito | Comando | Notas |

@@ -19,6 +19,7 @@
     "verify:docs-links": "node scripts/check-docs-links.mjs",
     "verify:shared": "npm run build -w @pos/shared && npm run typecheck -w @pos/shared",
     "build": "npm run build --workspaces",
+    "build:pages": "node scripts/build-github-pages.mjs",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"
   },

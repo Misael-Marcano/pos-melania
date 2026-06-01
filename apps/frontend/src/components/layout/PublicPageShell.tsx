@@ -15,9 +15,9 @@ export function PublicPageShell({
   backLabel = 'Volver al inicio',
 }: PublicPageShellProps) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#E8EDEB]">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-[#E8EDEB]">
       <AppAtmosphere />
-      <div className="relative flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-8">
+      <div className="relative flex flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
         <header className="mx-auto mb-6 w-full max-w-2xl">
           <Link
             href={backHref}

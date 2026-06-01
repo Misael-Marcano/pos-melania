@@ -81,7 +81,7 @@ export default function LoginPage() {
   return (
     <main
       aria-labelledby="login-heading"
-      className="relative min-h-screen overflow-hidden bg-[#E8EDEB]"
+      className="relative flex min-h-dvh flex-col overflow-hidden bg-[#E8EDEB]"
     >
       <h1 id="login-heading" className="sr-only">
         Iniciar sesión
@@ -89,7 +89,7 @@ export default function LoginPage() {
 
       <AppAtmosphere />
 
-      <div className="relative flex min-h-screen flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-12">
+      <div className="relative flex flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-12">
         {/* Cabecera móvil / tablet */}
         <header className="mb-6 flex items-center justify-between lg:mb-8 lg:max-w-5xl lg:w-full lg:mx-auto">
           <Link

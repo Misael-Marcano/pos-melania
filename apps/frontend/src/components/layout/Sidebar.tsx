@@ -403,7 +403,7 @@ export function Sidebar({ open, onClose }: Props) {
 
   return (
     <>
-      <div className="hidden lg:flex shrink-0 h-screen sticky top-0">
+      <div className="hidden lg:flex h-full shrink-0 self-stretch">
         {renderAside()}
       </div>
       {open && (

@@ -17,11 +17,11 @@ export default function LandingPage() {
   const [contactPlan, setContactPlan] = useState<LandingPlan | null>(null);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#E8EDEB] font-sans antialiased">
+    <div className="relative min-h-dvh overflow-x-hidden bg-[#E8EDEB] font-sans antialiased">
       <LandingAtmosphere />
       <ContactModal plan={contactPlan} onClose={() => setContactPlan(null)} />
 
-      <div className="relative flex min-h-screen flex-col">
+      <div className="relative flex flex-col">
         <LandingNav />
 
         <main aria-labelledby="landing-heading">

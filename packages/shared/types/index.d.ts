@@ -466,6 +466,7 @@ export interface TenantPanelRow {
     billingStatus: string | null;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
+    /** ISO 8601 o null — fin de trial en BD. */
     trialEndsAt?: string | null;
     usage: TenantPanelUsage;
     limits: TenantPanelLimits;

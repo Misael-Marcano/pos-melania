@@ -1,0 +1,65 @@
+# Publica el frontend Next.js (export estático) en GitHub Pages.
+# URL: https://<usuario>.github.io/<repo>/  (p. ej. /pos-melania/)
+#
+# En el repo: Settings → Pages → Source: GitHub Actions.
+# El POS completo requiere API propia; Pages sirve landing, legales y UI estática.
+
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build @pos/shared
+        run: npm run build -w @pos/shared
+
+      - name: Build frontend (static export)
+        working-directory: apps/frontend
+        env:
+          GITHUB_PAGES: '1'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          # Sin API en Pages; login/panel no funcionan hasta desplegar backend aparte.
+          NEXT_PUBLIC_API_URL: https://example.invalid/api/v1
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/frontend/out
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
