@@ -57,10 +57,12 @@ describe('POST /api/v1/tenants/:id/operate', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data).toMatchObject({ id: targetTenantId, nombre: expect.any(String) });
 
-    const log = await AppDataSource.getRepository(AuditLog).findOne({
+    const logs = await AppDataSource.getRepository(AuditLog).find({
       where: { tabla: 'tenants', registroId: targetTenantId, operacion: 'READ' },
       order: { id: 'DESC' },
+      take: 1,
     });
+    const log = logs[0];
     expect(log).toBeDefined();
     expect(log?.descripcion).toMatch(/operó en contexto/i);
   });

@@ -18,25 +18,31 @@ async function ensureContadorToken(): Promise<string> {
     return String(login.body.data.accessToken);
   }
 
-  const tenantRow = await AppDataSource.getRepository(Tenant)
-    .createQueryBuilder('t')
-    .select('t.id', 'id')
-    .orderBy('t.id', 'ASC')
-    .getRawOne<{ id: number }>();
-  if (tenantRow?.id == null) throw new Error('Se esperaba al menos un tenant en BD');
-  const tenant = await AppDataSource.getRepository(Tenant).findOneBy({ id: Number(tenantRow.id) });
-  if (!tenant) throw new Error('Tenant no encontrado');
-
+  const userRepo = AppDataSource.getRepository(Usuario);
+  const existing = await userRepo.findOne({ where: { email: 'contador@pos.com' } });
   const hash = await bcrypt.hash('Contador123!', 10);
-  await AppDataSource.getRepository(Usuario).save(
-    AppDataSource.getRepository(Usuario).create({
-      nombre:       'Contador externo',
-      email:        'contador@pos.com',
-      passwordHash: hash,
-      rol:          'contador',
-      tenant,
-    }),
-  );
+  if (existing) {
+    existing.passwordHash = hash;
+    await userRepo.save(existing);
+  } else {
+    const tenantRow = await AppDataSource.getRepository(Tenant)
+      .createQueryBuilder('t')
+      .select('t.id', 'id')
+      .orderBy('t.id', 'ASC')
+      .getRawOne<{ id: number }>();
+    if (tenantRow?.id == null) throw new Error('Se esperaba al menos un tenant en BD');
+    const tenant = await AppDataSource.getRepository(Tenant).findOneBy({ id: Number(tenantRow.id) });
+    if (!tenant) throw new Error('Tenant no encontrado');
+    await userRepo.save(
+      userRepo.create({
+        nombre:       'Contador externo',
+        email:        'contador@pos.com',
+        passwordHash: hash,
+        rol:          'contador',
+        tenant,
+      }),
+    );
+  }
 
   const retry = await request(app)
     .post('/api/v1/auth/login')

@@ -11,7 +11,7 @@ describe('pos-keyboard-shortcuts', () => {
     expect(isEditableTarget(input)).toBe(true);
 
     const editable = document.createElement('div');
-    editable.contentEditable = 'true';
+    editable.setAttribute('contenteditable', 'true');
     expect(isEditableTarget(editable)).toBe(true);
 
     const span = document.createElement('span');
