@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { clearClientAuthStorage, isStaticSite } from '@/lib/site-mode';
 import {
+  applyStaticDemoAuth,
+  clearStaticDemoAuth,
   isStaticDemoSession,
-  STATIC_DEMO_USER,
 } from '@/lib/static-demo';
 
 /**
@@ -13,6 +15,7 @@ import {
  * Usar en el layout raíz del dashboard.
  */
 export function useAuth() {
+  const pathname = usePathname();
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
   const user            = useAuthStore((s) => s.user);
   const loaded          = useAuthStore((s) => s.loaded);
@@ -20,19 +23,15 @@ export function useAuth() {
   useEffect(() => {
     if (isStaticSite) {
       if (isStaticDemoSession()) {
-        useAuthStore.setState({
-          user:             STATIC_DEMO_USER,
-          loaded:           true,
-          platformTenantId: null,
-        });
+        applyStaticDemoAuth();
         return;
       }
       clearClientAuthStorage();
-      useAuthStore.setState({ user: null, loaded: true, platformTenantId: null });
+      clearStaticDemoAuth();
       return;
     }
     loadFromStorage();
-  }, [loadFromStorage]);
+  }, [loadFromStorage, pathname]);
 
   return { user, loaded };
 }

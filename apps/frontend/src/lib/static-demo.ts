@@ -1,6 +1,7 @@
 import type { AuthUser, ITienda, SaasContext } from '@pos/shared';
 import type { PanelResumen } from '@/services/reportes.service';
 import type { ICajaApertura } from '@/services/ventas.service';
+import { useAuthStore } from '@/store/auth.store';
 import { isStaticSite } from '@/lib/site-mode';
 
 export const STATIC_DEMO_SESSION_KEY = 'pos_static_demo';
@@ -22,14 +23,33 @@ export function isStaticDemoActive(): boolean {
   return isStaticSite && isStaticDemoSession();
 }
 
+/** Sincroniza el store de auth con la sesión demo (sin esperar a useEffect). */
+export function applyStaticDemoAuth(): void {
+  useAuthStore.setState({
+    user:             STATIC_DEMO_USER,
+    loaded:           true,
+    platformTenantId: null,
+  });
+}
+
+export function clearStaticDemoAuth(): void {
+  useAuthStore.setState({
+    user:             null,
+    loaded:           true,
+    platformTenantId: null,
+  });
+}
+
 export function enterStaticDemo(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.setItem(STATIC_DEMO_SESSION_KEY, '1');
+  applyStaticDemoAuth();
 }
 
 export function exitStaticDemo(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(STATIC_DEMO_SESSION_KEY);
+  clearStaticDemoAuth();
 }
 
 function ventasPorDiaDemo(anchorFecha: string): PanelResumen['ventasPorDia'] {

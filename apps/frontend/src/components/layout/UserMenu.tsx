@@ -223,7 +223,6 @@ export function UserMenu() {
                 setOpen(false);
                 if (isStaticDemoActive()) {
                   exitStaticDemo();
-                  useAuthStore.setState({ user: null, loaded: true, platformTenantId: null });
                   router.push('/');
                   return;
                 }

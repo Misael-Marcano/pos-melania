@@ -4,14 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Sparkles, X } from 'lucide-react';
 import { exitStaticDemo } from '@/lib/static-demo';
-import { useAuthStore } from '@/store/auth.store';
 
 export function StaticDemoBanner() {
   const router = useRouter();
 
   const salir = () => {
     exitStaticDemo();
-    useAuthStore.setState({ user: null, loaded: true, platformTenantId: null });
     router.push('/');
   };
 
