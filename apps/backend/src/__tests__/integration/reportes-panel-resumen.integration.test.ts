@@ -6,6 +6,7 @@ import request from 'supertest';
 import app from '../../app';
 import { initDatabaseForTests } from '../../config/database';
 import { redis } from '../../config/redis';
+import { closeTestConnections } from './close-test-connections';
 
 const ADMIN_EMAIL = 'admin@pos.com';
 const ADMIN_PASS = 'Admin123!';
@@ -27,11 +28,7 @@ describe('GET /api/v1/reportes/panel-resumen', () => {
   });
 
   afterAll(async () => {
-    try {
-      await redis.quit();
-    } catch {
-      /* sin conexion previa */
-    }
+    await closeTestConnections();
   });
 
   it('devuelve resumen, ventasPorDia, stockBajo y cartera', async () => {

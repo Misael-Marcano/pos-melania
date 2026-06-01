@@ -5,6 +5,8 @@
 import request from 'supertest';
 import app from '../../app';
 import { initDatabaseForTests } from '../../config/database';
+import { redis } from '../../config/redis';
+import { closeTestConnections } from './close-test-connections';
 
 const PLATAFORMA_EMAIL = 'plataforma@pos.com';
 const PLATAFORMA_PASS = 'Plataforma123!';
@@ -14,6 +16,7 @@ describe('GET /api/v1/tenants/panel', () => {
 
   beforeAll(async () => {
     await initDatabaseForTests();
+    await redis.connect();
     const login = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: PLATAFORMA_EMAIL, password: PLATAFORMA_PASS });
@@ -21,6 +24,10 @@ describe('GET /api/v1/tenants/panel', () => {
       throw new Error(`Login plataforma falló: ${login.status} ${JSON.stringify(login.body)}`);
     }
     token = login.body.data.accessToken as string;
+  });
+
+  afterAll(async () => {
+    await closeTestConnections();
   });
 
   it('devuelve lista con usage, limits y ventasMesActual', async () => {

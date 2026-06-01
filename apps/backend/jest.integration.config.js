@@ -9,4 +9,7 @@ module.exports = {
   clearMocks: true,
   testTimeout: 120_000,
   maxWorkers: 1,
+  // Pool SQL Server + ioredis pueden dejar handles; el teardown global de Jest corre en otro proceso.
+  globalTeardown: '<rootDir>/src/__tests__/integration/global-teardown.ts',
+  forceExit: true,
 };
