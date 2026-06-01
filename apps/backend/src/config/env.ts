@@ -54,6 +54,17 @@ if (isIntegrationTest) {
   // Paridad con CI (reduce dependencia del `.env` local).
   if (!process.env.BILLING_PROVIDER) process.env.BILLING_PROVIDER = 'none';
   if (!process.env.FISCAL_JURISDICTION) process.env.FISCAL_JURISDICTION = 'NONE';
+
+  // Jest unit/integration sin `.env` (p. ej. job CI sin variables de BD).
+  if (!process.env.DB_HOST?.trim()) process.env.DB_HOST = 'localhost';
+  if (!process.env.DB_PORT?.trim()) process.env.DB_PORT = '1433';
+  if (!process.env.DB_USER?.trim()) process.env.DB_USER = 'sa';
+  if (!process.env.DB_PASS?.trim()) process.env.DB_PASS = 'test_db_pass';
+  if (!process.env.DB_NAME?.trim()) process.env.DB_NAME = 'pos_test';
+  if (!process.env.JWT_SECRET?.trim()) process.env.JWT_SECRET = 'test_jwt_secret_at_least_16chars';
+  if (!process.env.JWT_REFRESH_SECRET?.trim()) {
+    process.env.JWT_REFRESH_SECRET = 'test_refresh_secret_at_least_16chars';
+  }
 }
 
 const envSchema = z.object({
