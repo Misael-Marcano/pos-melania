@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 import { isStaticSite } from '@/lib/site-mode';
+import { LandingDemoCta } from '@/components/landing/LandingDemoCta';
 
 export function LandingCta() {
   return (
@@ -28,13 +29,27 @@ export function LandingCta() {
               ? 'Solicita una demo o despliega el sistema en tu red con Docker.'
               : 'Accede directamente a tu panel de operaciones.'}
           </p>
-          <Link
-            href={isStaticSite ? '/solicitar-demo' : '/login'}
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-primary-700 shadow-lg transition-transform hover:-translate-y-0.5"
-          >
-            {isStaticSite ? 'Solicitar demo' : 'Iniciar sesión'}
-            <ArrowRight size={18} aria-hidden />
-          </Link>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {isStaticSite ? (
+              <LandingDemoCta className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-primary-700 shadow-lg transition-transform hover:-translate-y-0.5" />
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-primary-700 shadow-lg transition-transform hover:-translate-y-0.5"
+              >
+                Iniciar sesión
+                <ArrowRight size={18} aria-hidden />
+              </Link>
+            )}
+            {isStaticSite ? (
+              <Link
+                href="/solicitar-demo"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white/90 hover:bg-white/10"
+              >
+                Contactar ventas
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>

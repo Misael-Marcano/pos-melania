@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { SAAS_CONTEXT_KEY } from '@/hooks/useSaasContext';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { exitStaticDemo, isStaticDemoActive } from '@/lib/static-demo';
 import { Portal } from '@/components/ui/Portal';
 import { Rol } from '@pos/shared';
 import {
@@ -220,11 +221,17 @@ export function UserMenu() {
               className={cn(itemClass, 'text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-500/20')}
               onClick={() => {
                 setOpen(false);
+                if (isStaticDemoActive()) {
+                  exitStaticDemo();
+                  useAuthStore.setState({ user: null, loaded: true, platformTenantId: null });
+                  router.push('/');
+                  return;
+                }
                 void logout();
               }}
             >
               <LogOut size={17} className="shrink-0" aria-hidden />
-              Cerrar sesión
+              {isStaticDemoActive() ? 'Salir de la demo' : 'Cerrar sesión'}
             </button>
           </div>
         </Portal>

@@ -12,6 +12,7 @@ import {
 import { appBrand } from '@/lib/app-brand';
 import { uiLabels } from '@/lib/ui-labels';
 import { isStaticSite } from '@/lib/site-mode';
+import { LandingDemoCta } from '@/components/landing/LandingDemoCta';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 
 const CAPABILITIES = [
@@ -54,13 +55,15 @@ export function LandingHero() {
               {isStaticSite ? 'Solicitar demo' : 'Acceder al sistema'}
               <ArrowRight size={17} aria-hidden />
             </Link>
-            {!isStaticSite && (
-            <Link
-              href="/solicitar-demo"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-navy-200/90 bg-white/80 px-7 py-3.5 text-base font-semibold text-navy-700 shadow-sm backdrop-blur-sm transition-colors hover:border-navy-300 hover:bg-white"
-            >
-              Solicitar demo
-            </Link>
+            {isStaticSite ? (
+              <LandingDemoCta />
+            ) : (
+              <Link
+                href="/solicitar-demo"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-navy-200/90 bg-white/80 px-7 py-3.5 text-base font-semibold text-navy-700 shadow-sm backdrop-blur-sm transition-colors hover:border-navy-300 hover:bg-white"
+              >
+                Solicitar demo
+              </Link>
             )}
             <a
               href="#planes"

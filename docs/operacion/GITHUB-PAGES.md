@@ -45,10 +45,10 @@ npx --yes serve out -p 3456
 
 Con `NEXT_PUBLIC_STATIC_SITE=1` (automático en el workflow):
 
-- La **landing** es la experiencia principal; los CTAs llevan a **Solicitar demo**, no al login.
-- **`/login`** muestra un aviso (sin formulario funcional) y enlace de vuelta al inicio.
-- Rutas del panel (`/panel`, etc.) redirigen a la landing.
-- No se usan tokens guardados en el navegador (evita bucles por sesión de desarrollo local).
+- La **landing** es la experiencia principal; botón **Ver panel (demo)** con datos ficticios.
+- **`/login`** muestra un aviso (sin formulario) y enlace al panel demo.
+- En demo solo se navega **`/panel`** (KPIs, gráfico, stock bajo, cartera de ejemplo); otras rutas vuelven al panel.
+- No se usan tokens guardados salvo la sesión demo en `sessionStorage` (sin API).
 
 Para producción del producto use `docker-compose`, `DEPLOY-LAN-UN-PC.md` o su hosting habitual.
 

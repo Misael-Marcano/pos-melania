@@ -7,6 +7,7 @@ import {
   HistorialCajasFilters,
 } from '@/services/ventas.service';
 export type { ICajaApertura } from '@/services/ventas.service';
+import { isStaticDemoActive, MOCK_CAJA_ABIERTA } from '@/lib/static-demo';
 
 export const VENTAS_KEY = 'ventas';
 export const CAJA_KEY   = 'caja';
@@ -148,9 +149,13 @@ export function useHistorialCajas(
 
 /** Sesiones de caja abiertas (varias sucursales / varias cajas) */
 export function useCajasAbiertas() {
+  const demo = isStaticDemoActive();
   return useQuery({
-    queryKey: [CAJA_KEY, 'abiertas'],
-    queryFn:  () => ventasService.listCajasAbiertas(),
-    staleTime: 30_000,
+    queryKey: [CAJA_KEY, 'abiertas', demo ? 'demo' : 'live'],
+    queryFn:  () =>
+      demo
+        ? Promise.resolve([MOCK_CAJA_ABIERTA])
+        : ventasService.listCajasAbiertas(),
+    staleTime: demo ? Infinity : 30_000,
   });
 }

@@ -3,6 +3,10 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { clearClientAuthStorage, isStaticSite } from '@/lib/site-mode';
+import {
+  isStaticDemoSession,
+  STATIC_DEMO_USER,
+} from '@/lib/static-demo';
 
 /**
  * Carga el usuario desde localStorage al montar la app.
@@ -14,7 +18,19 @@ export function useAuth() {
   const loaded          = useAuthStore((s) => s.loaded);
 
   useEffect(() => {
-    if (isStaticSite) clearClientAuthStorage();
+    if (isStaticSite) {
+      if (isStaticDemoSession()) {
+        useAuthStore.setState({
+          user:             STATIC_DEMO_USER,
+          loaded:           true,
+          platformTenantId: null,
+        });
+        return;
+      }
+      clearClientAuthStorage();
+      useAuthStore.setState({ user: null, loaded: true, platformTenantId: null });
+      return;
+    }
     loadFromStorage();
   }, [loadFromStorage]);
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSaasContext } from '@/services/saas.service';
 import { useAuthStore } from '@/store/auth.store';
+import { isStaticDemoActive, mockSaasContext } from '@/lib/static-demo';
 
 export const SAAS_CONTEXT_KEY = 'saas-context';
 
@@ -16,10 +17,12 @@ export function useSaasContext() {
       ? platformTenantId ?? 'pending'
       : (user?.tenantId ?? 1);
 
+  const demo = isStaticDemoActive();
+
   return useQuery({
-    queryKey: [SAAS_CONTEXT_KEY, user?.id, orgKey],
-    queryFn:  getSaasContext,
-    enabled:  !!user && (user.rol !== 'plataforma' || platformTenantId != null),
-    staleTime: 5 * 60 * 1000,
+    queryKey: [SAAS_CONTEXT_KEY, user?.id, orgKey, demo ? 'demo' : 'live'],
+    queryFn:  () => (demo ? Promise.resolve(mockSaasContext()) : getSaasContext()),
+    enabled:  !!user && (demo || user.rol !== 'plataforma' || platformTenantId != null),
+    staleTime: demo ? Infinity : 5 * 60 * 1000,
   });
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { appBrand } from '@/lib/app-brand';
 import { isStaticSite } from '@/lib/site-mode';
+import { LandingDemoCta } from '@/components/landing/LandingDemoCta';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 
 export function LandingNav() {
@@ -40,10 +41,13 @@ export function LandingNav() {
             Solicitar demo
           </Link>
           {isStaticSite ? (
-            <Link href="/solicitar-demo" className="btn-primary inline-flex items-center gap-1.5 px-4 py-2.5">
-              Solicitar demo
-              <ArrowRight size={14} aria-hidden />
-            </Link>
+            <>
+              <LandingDemoCta className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-navy-600 hover:bg-navy-50" />
+              <Link href="/solicitar-demo" className="btn-primary inline-flex items-center gap-1.5 px-4 py-2.5">
+                Solicitar demo
+                <ArrowRight size={14} aria-hidden />
+              </Link>
+            </>
           ) : (
             <Link href="/login" className="btn-primary inline-flex items-center gap-1.5 px-4 py-2.5">
               Iniciar sesión
