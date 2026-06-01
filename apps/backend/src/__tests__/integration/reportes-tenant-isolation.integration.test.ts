@@ -96,8 +96,9 @@ describe('reportes — aislamiento por tenant', () => {
     const tot = res.body.data?.totales;
     expect(tot).toBeDefined();
     expect(Number(tot.totalArticulos)).toBe(0);
-    expect(Array.isArray(res.body.data?.articulos)).toBe(true);
-    expect(res.body.data.articulos.length).toBe(0);
+    expect(Array.isArray(res.body.data?.articulos?.items)).toBe(true);
+    expect(res.body.data.articulos.items.length).toBe(0);
+    expect(Number(res.body.data.articulos.total)).toBe(0);
   });
 
   it('GET /reportes/inventario-alertas — org nueva sin artículos', async () => {

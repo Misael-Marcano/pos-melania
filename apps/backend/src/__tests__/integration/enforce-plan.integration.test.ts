@@ -1,5 +1,5 @@
 /**
- * Límites `plan-limits` + `enforce-plan.ts` (starter: 5 asientos, 2 sucursales activas).
+ * Límites `plan-limits` + `enforce-plan.ts` (starter: ver `PLAN_LIMITS.starter`).
  * Requiere BD migrada + seed (`npm run seed`). Ejecutar: `npm run test:integration`
  */
 import request from 'supertest';
@@ -7,6 +7,7 @@ import app from '../../app';
 import { AppDataSource, initDatabaseForTests } from '../../config/database';
 import { redis } from '../../config/redis';
 import { Tenant } from '../../entities/Tenant.entity';
+import { resolvePlanLimits } from '../../saas/plan-limits';
 import { countSeatsForTenant, countTiendasActivasForTenant } from '../../saas/tenant-usage';
 
 const DEFAULT_TID = 1;
@@ -69,10 +70,11 @@ describe('enforce-plan (starter)', () => {
   });
 
   it('403 al crear usuario cuando no hay asientos libres (plan starter)', async () => {
-    const maxUsers = 5;
+    const maxUsers = resolvePlanLimits('starter').maxUsers;
+    if (maxUsers == null) return;
+
     const c = await countSeatsForTenant(DEFAULT_TID);
-    const toFill = Math.max(0, maxUsers - c);
-    for (let i = 0; i < toFill; i++) {
+    for (let i = 0; i < maxUsers - c; i++) {
       const res = await request(app)
         .post('/api/v1/empleados')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -101,10 +103,11 @@ describe('enforce-plan (starter)', () => {
   });
 
   it('403 al crear sucursal cuando ya está el máximo de sucursales activas (starter)', async () => {
-    const maxT = 2;
+    const maxT = resolvePlanLimits('starter').maxTiendas;
+    if (maxT == null) return;
+
     const c = await countTiendasActivasForTenant(DEFAULT_TID);
-    const toFill = Math.max(0, maxT - c);
-    for (let i = 0; i < toFill; i++) {
+    for (let i = 0; i < maxT - c; i++) {
       const res = await request(app)
         .post('/api/v1/tiendas')
         .set('Authorization', `Bearer ${adminToken}`)
