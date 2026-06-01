@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { NexoIcon } from '@/components/layout/NexoIcon';
+import { isStaticSite } from '@/lib/site-mode';
 
 export function LandingCta() {
   return (
@@ -20,16 +21,18 @@ export function LandingCta() {
             <NexoIcon className="h-full w-full" ariaLabel="" />
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            ¿Ya tienes una cuenta?
+            {isStaticSite ? '¿Listo para probarlo en tu negocio?' : '¿Ya tienes una cuenta?'}
           </h2>
           <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-white/60">
-            Accede directamente a tu panel de operaciones.
+            {isStaticSite
+              ? 'Solicita una demo o despliega el sistema en tu red con Docker.'
+              : 'Accede directamente a tu panel de operaciones.'}
           </p>
           <Link
-            href="/login"
+            href={isStaticSite ? '/solicitar-demo' : '/login'}
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-primary-700 shadow-lg transition-transform hover:-translate-y-0.5"
           >
-            Iniciar sesión
+            {isStaticSite ? 'Solicitar demo' : 'Iniciar sesión'}
             <ArrowRight size={18} aria-hidden />
           </Link>
         </div>

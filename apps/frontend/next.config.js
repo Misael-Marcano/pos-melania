@@ -23,6 +23,12 @@ const nextConfig = {
         outputFileTracingRoot: path.join(__dirname, '../../'),
       }),
   env: {
+    ...(isGitHubPages
+      ? {
+          NEXT_PUBLIC_STATIC_SITE: '1',
+          NEXT_PUBLIC_BASE_PATH: basePath,
+        }
+      : {}),
     NEXT_PUBLIC_APP_VERSION: pkg.version ?? '1.0.0',
     // Contacto del vendedor del sistema (landing page → modal de planes)
     // Cambia estos valores y rebuilda la imagen para actualizar.

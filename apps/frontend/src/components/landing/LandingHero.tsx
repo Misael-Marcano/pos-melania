@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { appBrand } from '@/lib/app-brand';
 import { uiLabels } from '@/lib/ui-labels';
+import { isStaticSite } from '@/lib/site-mode';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 
 const CAPABILITIES = [
@@ -47,18 +48,20 @@ export function LandingHero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
-              href="/login"
+              href={isStaticSite ? '/solicitar-demo' : '/login'}
               className="btn-primary inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base shadow-lg shadow-primary-900/15"
             >
-              Acceder al sistema
+              {isStaticSite ? 'Solicitar demo' : 'Acceder al sistema'}
               <ArrowRight size={17} aria-hidden />
             </Link>
+            {!isStaticSite && (
             <Link
               href="/solicitar-demo"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-navy-200/90 bg-white/80 px-7 py-3.5 text-base font-semibold text-navy-700 shadow-sm backdrop-blur-sm transition-colors hover:border-navy-300 hover:bg-white"
             >
               Solicitar demo
             </Link>
+            )}
             <a
               href="#planes"
               className="text-center text-sm font-medium text-primary-600 underline decoration-primary-300/80 underline-offset-4 hover:text-primary-700 sm:ml-1"

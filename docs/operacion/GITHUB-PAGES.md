@@ -43,6 +43,13 @@ npx --yes serve out -p 3456
 | Términos / privacidad / demo (UI) | Login JWT, sesiones |
 | Vista estática de rutas del panel | Stripe, webhooks, Redis |
 
+Con `NEXT_PUBLIC_STATIC_SITE=1` (automático en el workflow):
+
+- La **landing** es la experiencia principal; los CTAs llevan a **Solicitar demo**, no al login.
+- **`/login`** muestra un aviso (sin formulario funcional) y enlace de vuelta al inicio.
+- Rutas del panel (`/panel`, etc.) redirigen a la landing.
+- No se usan tokens guardados en el navegador (evita bucles por sesión de desarrollo local).
+
 Para producción del producto use `docker-compose`, `DEPLOY-LAN-UN-PC.md` o su hosting habitual.
 
 ## Variables en CI

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { appBrand, copyrightLine } from '@/lib/app-brand';
+import { isStaticSite } from '@/lib/site-mode';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 
 export function LandingFooter() {
@@ -31,9 +32,11 @@ export function LandingFooter() {
           <Link href="/privacidad" className="transition-colors hover:text-white/70">
             Privacidad
           </Link>
-          <Link href="/login" className="transition-colors hover:text-white/70">
-            Acceder
-          </Link>
+          {!isStaticSite && (
+            <Link href="/login" className="transition-colors hover:text-white/70">
+              Acceder
+            </Link>
+          )}
         </nav>
       </div>
     </footer>

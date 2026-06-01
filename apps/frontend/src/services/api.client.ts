@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 import { messageForAxiosNoResponse } from '@/lib/api-network-error';
+import { appPath, isStaticSite } from '@/lib/site-mode';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1',
@@ -47,13 +48,19 @@ function forceLogout() {
   localStorage.removeItem('pos_token');
   localStorage.removeItem('pos_refresh_token');
   localStorage.removeItem('pos_user');
-  window.location.href = '/login';
+  window.location.href = isStaticSite ? appPath('/') : appPath('/login');
 }
 
 // ── Response: 401 → intenta refresh, luego reintenta la petición ──────────────
 apiClient.interceptors.response.use(
   (res) => res,
   async (err: AxiosError<{ message?: string; data?: { code?: string } }>) => {
+    if (isStaticSite) {
+      return Promise.reject(
+        new Error('Esta versión del sitio es solo informativa y no tiene API.'),
+      );
+    }
+
     const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     /** Cuenta suspendida (impago o trial vencido con enforcement) — pantalla dedicada. */

@@ -9,6 +9,7 @@ import { Toaster }           from '@/components/ui/Toaster';
 import { OnboardingBanner }  from '@/components/layout/OnboardingBanner';
 import { TrialBanner }       from '@/components/layout/TrialBanner';
 import { AppAtmosphere }     from '@/components/layout/AppAtmosphere';
+import { isStaticSite }      from '@/lib/site-mode';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   useEffect(() => {
+    if (isStaticSite) {
+      router.replace('/');
+      return;
+    }
     if (loaded && !user) router.replace('/login');
   }, [user, loaded, router]);
 

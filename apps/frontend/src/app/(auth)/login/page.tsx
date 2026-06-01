@@ -26,6 +26,8 @@ import { uiLabels } from '@/lib/ui-labels';
 import { cn } from '@/lib/utils';
 import { NexoIcon } from '@/components/layout/NexoIcon';
 import { AppAtmosphere } from '@/components/layout/AppAtmosphere';
+import { StaticSiteNotice } from '@/components/layout/StaticSiteNotice';
+import { isStaticSite } from '@/lib/site-mode';
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -211,10 +213,15 @@ export default function LoginPage() {
                   Bienvenido de vuelta
                 </h2>
                 <p className="mt-1.5 text-sm text-navy-400">
-                  Ingresa tus credenciales para continuar
+                  {isStaticSite
+                    ? 'Instalación completa disponible en tu servidor o red local'
+                    : 'Ingresa tus credenciales para continuar'}
                 </p>
               </div>
 
+              {isStaticSite ? (
+                <StaticSiteNotice />
+              ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
                 <div>
                   <label
@@ -327,11 +334,14 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+              )}
 
+              {!isStaticSite && (
               <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-navy-400">
                 <ShieldCheck size={14} className="shrink-0 text-primary-500" aria-hidden />
                 <span>Conexión segura · acceso por invitación</span>
               </div>
+              )}
 
               <p className="mt-6 text-center text-xs text-navy-400">
                 <Link
