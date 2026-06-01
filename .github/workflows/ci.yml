@@ -40,33 +40,20 @@ jobs:
       - name: TypeScript check — @pos/shared
         run: npm run verify:shared
 
-      - name: Install backend dependencies
-        working-directory: apps/backend
-        run: npm ci
-
-      - name: Install frontend dependencies
-        working-directory: apps/frontend
-        run: npm ci
-
       - name: TypeScript check — backend
-        working-directory: apps/backend
-        run: npm run typecheck
+        run: npm run typecheck -w @pos/backend
 
       - name: TypeScript check — frontend
-        working-directory: apps/frontend
-        run: npm run typecheck
+        run: npm run typecheck -w @pos/frontend
 
       - name: Lint — frontend
-        working-directory: apps/frontend
-        run: npm run lint
+        run: npm run lint -w @pos/frontend
 
       - name: Unit tests — frontend
-        working-directory: apps/frontend
-        run: npm run test:unit
+        run: npm run test:unit -w @pos/frontend
 
       - name: Production build — frontend
-        working-directory: apps/frontend
-        run: npm run build
+        run: npm run build -w @pos/frontend
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:4000/api/v1
 
@@ -79,8 +66,7 @@ jobs:
         run: npm run verify:docs-links
 
       - name: Unit tests — backend
-        working-directory: apps/backend
-        run: npm test
+        run: npm test -w @pos/backend
         env:
           NODE_ENV: test
 
@@ -145,20 +131,10 @@ jobs:
       - name: TypeScript check — @pos/shared
         run: npm run verify:shared
 
-      - name: Install backend dependencies
-        working-directory: apps/backend
-        run: npm ci
-
-      - name: TypeScript check — backend
-        working-directory: apps/backend
-        run: npm run typecheck
-
       - name: Run migrations + seed
-        working-directory: apps/backend
         run: |
-          npm run migration:run
-          npm run seed
+          npm run migration:run -w @pos/backend
+          npm run seed -w @pos/backend
 
       - name: Integration tests
-        working-directory: apps/backend
-        run: npm run test:integration
+        run: npm run test:integration -w @pos/backend

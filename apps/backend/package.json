@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
     "migration:generate": "typeorm migration:generate -d src/config/database.ts",
-    "migration:run": "ts-node -e \"require('./src/config/database').initDatabaseForTests().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); })\"",
+    "migration:run": "ts-node src/scripts/run-migrations.ts",
     "migration:revert": "ts-node -e \"require('./src/config/database').AppDataSource.initialize().then((ds: import('typeorm').DataSource) => ds.undoLastMigration()).then(() => process.exit(0))\"",
     "seed": "ts-node src/seeds/initial.seed.ts",
     "openapi:export": "ts-node src/scripts/export-openapi.ts",
