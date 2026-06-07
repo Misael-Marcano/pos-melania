@@ -76,6 +76,9 @@ export const createVentaSchema = z.object({
 }).refine(
   (d) => !d.usarNCF || (d.usarNCF && d.tipoNCF),
   { message: 'Debe seleccionar tipo de comprobante cuando usarNCF es true', path: ['tipoNCF'] }
+).refine(
+  (d) => !d.usarNCF || d.tipoNCF === '02' || (d.clienteId != null && d.clienteId > 0),
+  { message: 'Este tipo de comprobante fiscal requiere un cliente', path: ['clienteId'] }
 );
 
 export const aperturaCajaSchema = z.object({

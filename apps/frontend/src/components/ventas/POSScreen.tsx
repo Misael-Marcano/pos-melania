@@ -30,7 +30,12 @@ import {
 import { tarjetasRegaloService, ITarjetaRegalo } from '@/services/tarjetas-regalo.service';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
 import { useComprobantes } from '@/hooks/useComprobantes';
-import { buildNcfPreview, parseNcfSequenceTail } from '@/lib/ncf';
+import {
+  buildNcfPreview,
+  isFiscalJurisdictionActiva,
+  ncfRequiereCliente,
+  parseNcfSequenceTail,
+} from '@/lib/ncf';
 import { useCajas } from '@/hooks/useCajas';
 import { promocionesService } from '@/services/promociones.service';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
@@ -392,10 +397,20 @@ export function POSScreen() {
     return TIPOS_NCF.filter((t) => activos.has(t.id));
   }, [comprobantes]);
 
+  const comprobanteDefecto = ((cfg?.comprobanteDefecto ?? '02') as TipoNCF);
+  const fiscalActivo = isFiscalJurisdictionActiva(cfg?.fiscalJurisdiccion);
+
   const comprobanteSeleccionado = useMemo(
     () => comprobantes.find((c) => c.tipo === tipoNCF && c.activo),
     [comprobantes, tipoNCF],
   );
+
+  const comprobanteDefaultRegistrado = useMemo(
+    () => comprobantes.find((c) => c.tipo === comprobanteDefecto && c.activo),
+    [comprobantes, comprobanteDefecto],
+  );
+
+  const ncfClienteRequerido = usarNCF && ncfRequiereCliente(tipoNCF);
 
   const proximoNcf = useMemo(() => {
     if (!comprobanteSeleccionado) return null;
@@ -405,11 +420,10 @@ export function POSScreen() {
   }, [comprobanteSeleccionado]);
 
   useEffect(() => {
-    const def = cfg?.comprobanteDefecto as TipoNCF | undefined;
-    if (def && TIPOS_NCF.some((t) => t.id === def)) {
-      setTipoNCF(def);
+    if (TIPOS_NCF.some((t) => t.id === comprobanteDefecto)) {
+      setTipoNCF(comprobanteDefecto);
     }
-  }, [cfg?.comprobanteDefecto]);
+  }, [comprobanteDefecto]);
 
   useEffect(() => {
     if (tiposNcfDisponibles.length === 0) return;
@@ -504,6 +518,10 @@ export function POSScreen() {
       setPagos([{ metodo: 'EFECTIVO', monto: total() }]);
       setGcCodigo(''); setGcData(null); setGcError('');
       setPromoCodigo(''); setPromoDescuento(0); setPromoNombre('');
+      if (fiscalActivo && comprobanteDefaultRegistrado) {
+        setTipoNCF(comprobanteDefecto);
+        setUsarNCF(true);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
@@ -529,7 +547,10 @@ export function POSScreen() {
       setDeliveryCargo('');
       setDeliveryDireccion('');
       setReceipt(venta as IVenta);
-      toast.success(`Venta registrada — Factura F-${String(venta.id).padStart(6, '0')}`);
+      const etiqueta = venta.comprobante
+        ? `NCF ${venta.comprobante}`
+        : `Factura F-${String(venta.id).padStart(6, '0')}`;
+      toast.success(`Venta registrada — ${etiqueta}`);
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : 'Error al registrar la venta');
@@ -643,8 +664,8 @@ export function POSScreen() {
 
   const handleConfirmar = async () => {
     if (!puedeConfirmar || registrar.isPending) return;
-    if (usarNCF && !clienteId) {
-      toast.error('Para emitir comprobante fiscal se requiere seleccionar un cliente');
+    if (ncfClienteRequerido && !clienteId) {
+      toast.error('Este tipo de comprobante fiscal requiere seleccionar un cliente');
       return;
     }
     if (usarNCF && !comprobanteSeleccionado) {
@@ -2007,9 +2028,9 @@ export function POSScreen() {
 
               {/* Confirmar */}
               <div className="p-4 border-t border-navy-100/40 shrink-0 space-y-2">
-                {usarNCF && !clienteId && (
+                {ncfClienteRequerido && !clienteId && (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
-                    Selecciona un cliente para emitir el comprobante fiscal
+                    Este tipo de comprobante requiere un cliente (B02 consumo no lo exige)
                   </p>
                 )}
                 {esDelivery && !deliveryMontoValido && (
@@ -2020,7 +2041,7 @@ export function POSScreen() {
                 <button
                   type="button"
                   onClick={handleConfirmar}
-                  disabled={!puedeConfirmar || registrar.isPending || (usarNCF && !clienteId) || (usarNCF && !comprobanteSeleccionado)}
+                  disabled={!puedeConfirmar || registrar.isPending || (ncfClienteRequerido && !clienteId) || (usarNCF && !comprobanteSeleccionado)}
                   title="Confirmar venta (F10 o Ctrl+Enter)"
                   className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-navy-200 disabled:text-navy-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
                 >

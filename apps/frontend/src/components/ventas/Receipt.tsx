@@ -3,7 +3,8 @@
 import { useCallback, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
-import { parseNcfTipo } from '@/lib/ncf';
+import { resolveComprobanteTitulo } from '@/lib/ncf';
+import { useComprobantes } from '@/hooks/useComprobantes';
 import { nombreArticuloConUnidad } from '@/lib/format-articulo';
 import { IVenta } from '@pos/shared';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
@@ -34,31 +35,11 @@ const METODO_LABEL: Record<string, string> = {
   TARJETA_REGALO:  'Tarjeta regalo',
 };
 
-const TIPO_NCF_LABEL: Record<string, string> = {
-  '01': 'Factura de crédito fiscal',
-  '02': 'Factura de consumo',
-  '03': 'Nota de débito',
-  '04': 'Nota de crédito',
-  '11': 'Comprobante de compras',
-  '12': 'Registro único de ingresos',
-  '13': 'Gastos menores',
-  '14': 'Régimen especial',
-  '15': 'Gubernamental',
-  '16': 'Exportaciones',
-  '17': 'Pagos al exterior',
-};
-
 const IDENT_LABEL: Record<string, string> = {
   CEDULA:    'Cédula',
   RNC:       'RNC',
   PASAPORTE: 'Pasaporte',
 };
-
-function ncfTipoLabel(comprobante?: string | null): string | null {
-  if (!comprobante?.trim()) return null;
-  const tipo = parseNcfTipo(comprobante);
-  return tipo ? (TIPO_NCF_LABEL[tipo] ?? null) : null;
-}
 
 function computeTaxBreakdown(
   venta: IVenta,
@@ -102,6 +83,7 @@ export function Receipt({
 }: Props) {
   const [duplicado, setDuplicado] = useState(false);
   const { data: cfg } = useConfiguracion();
+  const { data: comprobantes = [] } = useComprobantes();
 
   const simboloMoneda =
     (cfg?.simboloMoneda && String(cfg.simboloMoneda).trim()) || 'RDS';
@@ -120,7 +102,6 @@ export function Receipt({
   const textoPieRecibo = (cfg?.textoPieRecibo && String(cfg.textoPieRecibo).trim()) || '';
 
   const { baseImponible, itbis, tasaNombre, tasaPct } = computeTaxBreakdown(venta, cfg);
-  const tipoComprobante = ncfTipoLabel(venta.comprobante);
   const cantidadArticulos = (venta.detalles ?? []).reduce((n, d) => n + d.cantidad, 0);
   const tiendaNombre =
     venta.cajaApertura?.tienda?.nombre ??
@@ -136,6 +117,7 @@ export function Receipt({
   const referenciaInterna = `F-${String(venta.id).padStart(6, '0')}`;
   const numeroFactura = venta.comprobante?.trim() || referenciaInterna;
   const tieneNcf = Boolean(venta.comprobante?.trim());
+  const tituloComprobante = resolveComprobanteTitulo(venta.comprobante, comprobantes);
 
   const registrarImpresionRecibo = useCallback(() => {
     void ventasService.auditarReciboImpresion(venta.id).catch(() => {});
@@ -213,7 +195,7 @@ export function Receipt({
                     </button>
                   )}
                   <h2 className="text-sm font-semibold text-navy-800 truncate">
-                    Factura de Punto de Venta
+                    {tituloComprobante}
                   </h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -247,7 +229,7 @@ export function Receipt({
             /* Vista desde historial / modal de venta */
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
               <div className="min-w-0">
-                <p className="font-semibold text-gray-700 text-sm">Comprobante de Venta</p>
+                <p className="font-semibold text-gray-700 text-sm">{tituloComprobante}</p>
                 <p className="text-xs text-gray-400 truncate">
                   {numeroFactura}
                   {venta.comprobante ? ` · NCF: ${venta.comprobante}` : ''}
@@ -285,13 +267,13 @@ export function Receipt({
             <ReceiptContent
               empresa={empresa}
               venta={venta}
+              tituloComprobante={tituloComprobante}
               numeroFactura={numeroFactura}
               referenciaInterna={tieneNcf ? referenciaInterna : undefined}
               baseImponible={baseImponible}
               itbis={itbis}
               tasaNombre={tasaNombre}
               tasaPct={tasaPct}
-              tipoComprobante={tipoComprobante}
               cantidadArticulos={cantidadArticulos}
               tiendaNombre={tiendaNombre}
               cajaNombre={cajaNombre}
@@ -322,13 +304,13 @@ export function Receipt({
         <ReceiptContent
           empresa={empresa}
           venta={venta}
+          tituloComprobante={tituloComprobante}
           numeroFactura={numeroFactura}
           referenciaInterna={tieneNcf ? referenciaInterna : undefined}
           baseImponible={baseImponible}
           itbis={itbis}
           tasaNombre={tasaNombre}
           tasaPct={tasaPct}
-          tipoComprobante={tipoComprobante}
           cantidadArticulos={cantidadArticulos}
           tiendaNombre={tiendaNombre}
           cajaNombre={cajaNombre}
@@ -420,13 +402,13 @@ function ReceiptLogo({
 interface ContentProps {
   empresa:       { nombre: string; rnc: string; direccion: string; telefono: string; sitioWeb?: string; logoUrl?: string };
   venta:         IVenta;
+  tituloComprobante: string;
   numeroFactura: string;
   referenciaInterna?: string;
   baseImponible: number;
   itbis:         number;
   tasaNombre:    string;
   tasaPct:       number;
-  tipoComprobante?: string | null;
   cantidadArticulos: number;
   tiendaNombre?: string | null;
   cajaNombre?:   string | null;
@@ -442,13 +424,13 @@ interface ContentProps {
 function ReceiptContent({
   empresa,
   venta,
+  tituloComprobante,
   numeroFactura,
   referenciaInterna,
   baseImponible,
   itbis,
   tasaNombre,
   tasaPct,
-  tipoComprobante = null,
   cantidadArticulos,
   tiendaNombre = null,
   cajaNombre = null,
@@ -466,7 +448,6 @@ function ReceiptContent({
   ];
   if (venta.comprobante?.trim()) {
     metaRows.push({ label: 'NCF', value: venta.comprobante.trim() });
-    if (tipoComprobante) metaRows.push({ label: 'Tipo comprobante', value: tipoComprobante });
     if (referenciaInterna) metaRows.push({ label: 'Referencia interna', value: referenciaInterna });
   } else {
     metaRows.push({ label: 'Factura', value: numeroFactura });
@@ -520,6 +501,13 @@ function ReceiptContent({
             {empresa.sitioWeb && <p>{empresa.sitioWeb}</p>}
           </div>
         </header>
+
+        <p className="text-center font-semibold text-navy-800 uppercase tracking-wide text-sm mb-4">
+          {tituloComprobante}
+        </p>
+        {venta.comprobante?.trim() && (
+          <p className="text-center font-mono font-bold text-lg text-navy-900 mb-6">{numeroFactura}</p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 p-4 rounded-lg bg-navy-50/60 border border-navy-100">
           {metaRows.map((row) => (
@@ -630,13 +618,10 @@ function ReceiptContent({
       <Separator />
 
       <section className="text-center my-3 space-y-1">
-        <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">
-          {venta.comprobante?.trim() ? 'Comprobante fiscal (NCF)' : 'Comprobante de venta'}
+        <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold leading-snug px-1">
+          {tituloComprobante}
         </p>
         <p className="font-bold text-lg leading-none tracking-wide">{numeroFactura}</p>
-        {tipoComprobante && (
-          <p className="text-xs text-gray-600">{tipoComprobante}</p>
-        )}
         {referenciaInterna && (
           <p className="text-xs text-gray-500">Ref. interna: {referenciaInterna}</p>
         )}
