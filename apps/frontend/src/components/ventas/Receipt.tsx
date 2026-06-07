@@ -33,6 +33,65 @@ const METODO_LABEL: Record<string, string> = {
   TARJETA_REGALO:  'Tarjeta regalo',
 };
 
+const TIPO_NCF_LABEL: Record<string, string> = {
+  '01': 'Factura de crédito fiscal',
+  '02': 'Factura de consumo',
+  '03': 'Nota de débito',
+  '04': 'Nota de crédito',
+  '11': 'Comprobante de compras',
+  '12': 'Registro único de ingresos',
+  '13': 'Gastos menores',
+  '14': 'Régimen especial',
+  '15': 'Gubernamental',
+  '16': 'Exportaciones',
+  '17': 'Pagos al exterior',
+};
+
+const IDENT_LABEL: Record<string, string> = {
+  CEDULA:    'Cédula',
+  RNC:       'RNC',
+  PASAPORTE: 'Pasaporte',
+};
+
+function ncfTipoLabel(comprobante?: string | null): string | null {
+  if (!comprobante?.trim()) return null;
+  const digits = comprobante.replace(/\D/g, '');
+  const tipo = digits.length >= 10 ? digits.slice(8, 10) : comprobante.replace(/^B/i, '').slice(0, 2);
+  return TIPO_NCF_LABEL[tipo] ?? null;
+}
+
+function computeTaxBreakdown(
+  venta: IVenta,
+  cfg?: { tasaImpuesto1?: number; tasaImpuesto1Nombre?: string; preciosIncluyenImpuesto?: boolean },
+) {
+  const tasaNombre = (cfg?.tasaImpuesto1Nombre && String(cfg.tasaImpuesto1Nombre).trim()) || 'ITBIS';
+  const tasaPct = cfg?.tasaImpuesto1 ?? 18;
+  const incluye = cfg?.preciosIncluyenImpuesto ?? true;
+
+  if (venta.impuesto > 0) {
+    return {
+      baseImponible: Math.max(0, venta.total - venta.impuesto),
+      itbis: venta.impuesto,
+      tasaNombre,
+      tasaPct,
+    };
+  }
+
+  if (tasaPct <= 0) {
+    return { baseImponible: venta.total, itbis: 0, tasaNombre, tasaPct };
+  }
+
+  const rate = tasaPct / 100;
+  if (incluye) {
+    const baseImponible = venta.total / (1 + rate);
+    return { baseImponible, itbis: venta.total - baseImponible, tasaNombre, tasaPct };
+  }
+
+  const baseImponible = venta.subtotal - venta.descuento;
+  const itbis = baseImponible * rate;
+  return { baseImponible, itbis, tasaNombre, tasaPct };
+}
+
 export function Receipt({
   venta,
   onClose,
@@ -55,14 +114,24 @@ export function Receipt({
     rnc:       cfg?.rnc ?? '',
     direccion: cfg?.direccion ?? '',
     telefono:  cfg?.telefono ?? '',
+    sitioWeb:  cfg?.sitioWeb ?? '',
     logoUrl,
   };
   const textoPieRecibo = (cfg?.textoPieRecibo && String(cfg.textoPieRecibo).trim()) || '';
 
-  // ITBIS incluido en el precio (18% — estándar RD)
-  // Los precios en RD generalmente ya incluyen ITBIS
-  const baseImponible = (venta.total / 1.18);
-  const itbis         = venta.total - baseImponible;
+  const { baseImponible, itbis, tasaNombre, tasaPct } = computeTaxBreakdown(venta, cfg);
+  const tipoComprobante = ncfTipoLabel(venta.comprobante);
+  const cantidadArticulos = (venta.detalles ?? []).reduce((n, d) => n + d.cantidad, 0);
+  const tiendaNombre =
+    venta.cajaApertura?.tienda?.nombre ??
+    cfg?.caja?.tienda?.nombre ??
+    null;
+  const cajaNombre =
+    venta.cajaApertura?.caja?.nombre ??
+    venta.cajaApertura?.cajaNombre ??
+    cfg?.caja?.nombre ??
+    cfg?.nombreCaja ??
+    null;
 
   const numeroFactura = `F-${String(venta.id).padStart(6, '0')}`;
 
@@ -207,8 +276,8 @@ export function Receipt({
 
           {/* Preview en pantalla: ancho tipo documento en POS; ticket en modal detalle */}
           <div
-            className={`overflow-y-auto flex-1 min-h-0 ${
-              postSale ? 'p-4 sm:p-8 bg-navy-50/40' : 'p-1'
+            className={`overflow-y-auto flex-1 min-h-0 flex justify-center ${
+              postSale ? 'p-4 sm:p-8 bg-navy-50/40' : 'p-3'
             }`}
           >
             <ReceiptContent
@@ -217,6 +286,12 @@ export function Receipt({
               numeroFactura={numeroFactura}
               baseImponible={baseImponible}
               itbis={itbis}
+              tasaNombre={tasaNombre}
+              tasaPct={tasaPct}
+              tipoComprobante={tipoComprobante}
+              cantidadArticulos={cantidadArticulos}
+              tiendaNombre={tiendaNombre}
+              cajaNombre={cajaNombre}
               esDuplicado={duplicado}
               presentation={postSale ? 'document' : 'ticket'}
               textoPieRecibo={textoPieRecibo}
@@ -247,6 +322,12 @@ export function Receipt({
           numeroFactura={numeroFactura}
           baseImponible={baseImponible}
           itbis={itbis}
+          tasaNombre={tasaNombre}
+          tasaPct={tasaPct}
+          tipoComprobante={tipoComprobante}
+          cantidadArticulos={cantidadArticulos}
+          tiendaNombre={tiendaNombre}
+          cajaNombre={cajaNombre}
           esDuplicado={duplicado}
           textoPieRecibo={textoPieRecibo}
           simboloMoneda={simboloMoneda}
@@ -255,27 +336,45 @@ export function Receipt({
 
       <style jsx global>{`
         @media print {
-          /* Ocultar TODO usando visibility para que el DOM no colapse */
           body * {
             visibility: hidden !important;
           }
-          /* Mostrar solo el recibo imprimible */
           #receipt-print,
           #receipt-print * {
             visibility: visible !important;
           }
           #receipt-print {
             position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 80mm !important;
-            padding: 6mm !important;
-            font-size: 10pt !important;
-            background: white !important;
+            inset: 0 !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+            width: 100% !important;
+            padding: 3mm 0 !important;
+            margin: 0 !important;
+            background: #fff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #receipt-print .receipt-sheet {
+            width: 72mm !important;
+            max-width: 72mm !important;
+            margin: 0 auto !important;
+            padding: 2mm 2.5mm !important;
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif !important;
+            font-size: 11pt !important;
+            line-height: 1.45 !important;
+            color: #000 !important;
+            text-rendering: geometricPrecision !important;
+            -webkit-font-smoothing: auto !important;
+          }
+          #receipt-print .receipt-sheet * {
+            font-family: inherit !important;
+            color: #000 !important;
           }
           @page {
             size: 80mm auto;
-            margin: 0;
+            margin: 2mm;
           }
         }
       `}</style>
@@ -315,11 +414,17 @@ function ReceiptLogo({
 
 // ─── Contenido del recibo (reutilizado en preview e impresión) ────────────────
 interface ContentProps {
-  empresa:       { nombre: string; rnc: string; direccion: string; telefono: string; logoUrl?: string };
+  empresa:       { nombre: string; rnc: string; direccion: string; telefono: string; sitioWeb?: string; logoUrl?: string };
   venta:         IVenta;
   numeroFactura: string;
   baseImponible: number;
   itbis:         number;
+  tasaNombre:    string;
+  tasaPct:       number;
+  tipoComprobante?: string | null;
+  cantidadArticulos: number;
+  tiendaNombre?: string | null;
+  cajaNombre?:   string | null;
   esDuplicado?:  boolean;
   /** `document` = vista amplia en pantalla; `ticket` = 80mm (modal detalle e impresión térmica) */
   presentation?: 'ticket' | 'document';
@@ -335,6 +440,12 @@ function ReceiptContent({
   numeroFactura,
   baseImponible,
   itbis,
+  tasaNombre,
+  tasaPct,
+  tipoComprobante = null,
+  cantidadArticulos,
+  tiendaNombre = null,
+  cajaNombre = null,
   esDuplicado = false,
   presentation = 'ticket',
   textoPieRecibo = '',
@@ -342,88 +453,117 @@ function ReceiptContent({
 }: ContentProps) {
   const isDoc = presentation === 'document';
   const fmt = (n: number) => formatCurrency(n, simboloMoneda);
+  const impuestoLabel = tasaPct > 0 ? `${tasaNombre} (${tasaPct}%)` : tasaNombre;
+
+  const metaRows: { label: string; value: string }[] = [
+    { label: 'Fecha', value: formatDateTime(venta.fecha) },
+    { label: 'Factura', value: numeroFactura },
+  ];
+  if (venta.comprobante) {
+    metaRows.push({ label: 'NCF', value: venta.comprobante });
+  }
+  if (tipoComprobante) {
+    metaRows.push({ label: 'Tipo', value: tipoComprobante });
+  }
+  metaRows.push({ label: 'Método de pago', value: METODO_LABEL[venta.metodoPago] ?? venta.metodoPago });
+  if (tiendaNombre) metaRows.push({ label: 'Sucursal', value: tiendaNombre });
+  if (cajaNombre) metaRows.push({ label: 'Caja', value: cajaNombre });
+  if (venta.usuario?.nombre) metaRows.push({ label: 'Atendido por', value: venta.usuario.nombre });
+  if (venta.cliente) {
+    metaRows.push({ label: 'Cliente', value: venta.cliente.nombre });
+    if (venta.cliente.compania) metaRows.push({ label: 'Empresa', value: venta.cliente.compania });
+    if (venta.cliente.tipoIdentificacion && venta.cliente.numeroIdentificacion) {
+      metaRows.push({
+        label: IDENT_LABEL[venta.cliente.tipoIdentificacion] ?? venta.cliente.tipoIdentificacion,
+        value: venta.cliente.numeroIdentificacion,
+      });
+    }
+    if (venta.cliente.telefono) metaRows.push({ label: 'Tel. cliente', value: venta.cliente.telefono });
+    if (venta.cliente.correo) metaRows.push({ label: 'Correo', value: venta.cliente.correo });
+  }
+  if (venta.notas?.trim()) metaRows.push({ label: 'Notas', value: venta.notas.trim() });
 
   if (isDoc) {
     return (
       <div
         className={cn(
-          'w-full max-w-4xl mx-auto bg-white rounded-xl border border-navy-200/60 shadow-sm',
-          'px-6 py-8 sm:px-10 sm:py-10 text-navy-800',
-          'text-sm sm:text-[15px] leading-relaxed',
+          'w-full max-w-3xl mx-auto bg-white rounded-xl border border-navy-200/60 shadow-sm',
+          'px-6 py-8 sm:px-10 sm:py-10 text-navy-900 antialiased',
+          'text-[15px] leading-relaxed',
         )}
       >
         {esDuplicado && (
-          <p className="text-center font-bold text-sm border-2 border-dashed border-navy-400 py-2 mb-6 uppercase tracking-widest text-navy-600">
+          <p className="text-center font-bold text-sm border-2 border-dashed border-navy-400 py-2 mb-6 uppercase tracking-wide text-navy-600">
             Duplicado del recibo
           </p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8 pb-8 border-b border-navy-200">
-          <div className="text-left space-y-1">
-            {empresa.logoUrl && (
-              <ReceiptLogo
-                url={empresa.logoUrl}
-                empresaNombre={empresa.nombre}
-                className="h-12 sm:h-14 w-auto max-w-[200px] object-contain object-left mb-3"
-              />
-            )}
-            <p className="font-bold text-lg sm:text-xl uppercase tracking-wide text-navy-900">{empresa.nombre}</p>
-            {empresa.direccion && <p className="text-navy-600">{empresa.direccion}</p>}
-            {empresa.telefono  && <p className="text-navy-600">Tel: {empresa.telefono}</p>}
-            {empresa.rnc       && <p className="text-navy-600">RNC: {empresa.rnc}</p>}
+        <header className="text-center mb-8 pb-6 border-b-2 border-navy-200">
+          {empresa.logoUrl && (
+            <ReceiptLogo
+              url={empresa.logoUrl}
+              empresaNombre={empresa.nombre}
+              className="mx-auto h-14 sm:h-16 w-auto max-w-[220px] object-contain mb-4"
+            />
+          )}
+          <h1 className="font-bold text-xl sm:text-2xl uppercase tracking-wide text-navy-900">{empresa.nombre}</h1>
+          <div className="mt-2 space-y-0.5 text-navy-600 text-sm">
+            {empresa.rnc && <p>RNC: {empresa.rnc}</p>}
+            {empresa.direccion && <p>{empresa.direccion}</p>}
+            {empresa.telefono && <p>Tel: {empresa.telefono}</p>}
+            {empresa.sitioWeb && <p>{empresa.sitioWeb}</p>}
           </div>
-          <div className="text-left md:text-right space-y-1.5 text-navy-600">
-            <p><span className="text-navy-400 font-medium">Fecha: </span>{formatDateTime(venta.fecha)}</p>
-            <p><span className="text-navy-400 font-medium">Factura: </span><span className="font-semibold text-navy-900">{numeroFactura}</span></p>
-            {venta.comprobante && (
-              <p><span className="text-navy-400 font-medium">NCF: </span><span className="font-mono font-semibold">{venta.comprobante}</span></p>
-            )}
-            <p><span className="text-navy-400 font-medium">Método: </span>{METODO_LABEL[venta.metodoPago] ?? venta.metodoPago}</p>
-            {venta.cliente && (
-              <p><span className="text-navy-400 font-medium">Cliente: </span>{venta.cliente.nombre}</p>
-            )}
-          </div>
+        </header>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 p-4 rounded-lg bg-navy-50/60 border border-navy-100">
+          {metaRows.map((row) => (
+            <div key={`${row.label}-${row.value}`} className="flex flex-col sm:flex-row sm:gap-2 min-w-0">
+              <span className="text-navy-500 font-medium shrink-0">{row.label}:</span>
+              <span className="text-navy-900 font-semibold break-words">{row.value}</span>
+            </div>
+          ))}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm sm:text-[15px] border-collapse">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b-2 border-navy-300">
-                <th className="text-left py-3 pr-4 font-semibold text-navy-900">Nombre</th>
-                <th className="text-right py-3 px-2 font-semibold text-navy-900 whitespace-nowrap w-28">Precio</th>
-                <th className="text-center py-3 px-2 font-semibold text-navy-900 w-24">Cant.</th>
-                <th className="text-right py-3 pl-4 font-semibold text-navy-900 whitespace-nowrap w-32">Total</th>
+              <tr className="border-b-2 border-navy-300 bg-navy-50/50">
+                <th className="text-left py-3 px-2 font-semibold">Descripción</th>
+                <th className="text-right py-3 px-2 font-semibold whitespace-nowrap w-28">Precio</th>
+                <th className="text-center py-3 px-2 font-semibold w-20">Cant.</th>
+                <th className="text-right py-3 px-2 font-semibold whitespace-nowrap w-32">Total</th>
               </tr>
             </thead>
             <tbody>
               {(venta.detalles ?? []).map((d) => (
                 <tr key={d.id} className="border-b border-navy-100">
-                  <td className="py-3 pr-4 align-top">
-                    <p className="font-semibold text-navy-900">{nombreArticuloConUnidad(d.articulo ?? { nombre: 'Artículo' })}</p>
+                  <td className="py-3 px-2 align-top">
+                    <p className="font-semibold">{nombreArticuloConUnidad(d.articulo ?? { nombre: 'Artículo' })}</p>
+                    {d.articulo?.codigoBarras && (
+                      <p className="text-xs text-navy-500 mt-0.5">Cód: {d.articulo.codigoBarras}</p>
+                    )}
                     {d.descuento > 0 && (
                       <p className="text-xs text-navy-500 mt-0.5">Descuento {d.descuento}%</p>
                     )}
                   </td>
-                  <td className="text-right tabular-nums text-navy-700 py-3 align-top">{fmt(d.precioUnitario)}</td>
-                  <td className="text-center tabular-nums py-3 align-top">{d.cantidad}</td>
-                  <td className="text-right font-semibold tabular-nums text-navy-900 py-3 align-top">{fmt(d.total)}</td>
+                  <td className="text-right tabular-nums py-3 px-2 align-top">{fmt(d.precioUnitario)}</td>
+                  <td className="text-center tabular-nums py-3 px-2 align-top">{d.cantidad}</td>
+                  <td className="text-right font-semibold tabular-nums py-3 px-2 align-top">{fmt(d.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        <div className="mt-8 flex flex-col items-end gap-1 max-w-md ml-auto text-sm sm:text-[15px]">
+        <div className="mt-8 flex flex-col items-center gap-1 max-w-sm mx-auto text-[15px]">
           <RowDoc label="Subtotal" value={fmt(venta.subtotal)} />
-          {venta.descuento > 0 && (
-            <RowDoc label="Descuento" value={`−${fmt(venta.descuento)}`} />
-          )}
+          {venta.descuento > 0 && <RowDoc label="Descuento" value={`−${fmt(venta.descuento)}`} />}
           {venta.esDelivery && Number(venta.deliveryCargo) > 0 && (
             <RowDoc label="Cargo delivery" value={`+${fmt(Number(venta.deliveryCargo))}`} />
           )}
-          <RowDoc label="Base imponible" value={fmt(baseImponible)} />
-          <RowDoc label="ITBIS (18%)" value={fmt(itbis)} />
-          <div className="flex justify-between gap-12 w-full max-w-sm pt-3 mt-2 border-t-2 border-navy-800 font-bold text-lg text-navy-900">
+          {tasaPct > 0 && <RowDoc label="Base imponible" value={fmt(baseImponible)} />}
+          {tasaPct > 0 && itbis > 0 && <RowDoc label={impuestoLabel} value={fmt(itbis)} />}
+          <div className="flex justify-between gap-8 w-full pt-3 mt-2 border-t-2 border-navy-800 font-bold text-xl text-navy-900">
             <span>TOTAL {simboloMoneda}</span>
             <span className="tabular-nums">{fmt(venta.total)}</span>
           </div>
@@ -434,105 +574,102 @@ function ReceiptContent({
             </>
           )}
           {venta.esDelivery && venta.deliveryDireccion && (
-            <div className="w-full max-w-sm mt-2 text-xs text-navy-500">
-              <span className="font-medium text-navy-700">Dirección: </span>{venta.deliveryDireccion}
-            </div>
+            <p className="w-full mt-2 text-sm text-navy-600 text-center">
+              <span className="font-medium text-navy-800">Dirección de entrega: </span>
+              {venta.deliveryDireccion}
+            </p>
           )}
-          <p className="text-navy-500 text-xs mt-2 w-full text-right">
-            N.º artículos: {(venta.detalles ?? []).reduce((n, d) => n + d.cantidad, 0)}
+          <p className="text-navy-500 text-sm mt-2 w-full text-center">
+            Artículos vendidos: {cantidadArticulos}
           </p>
         </div>
 
-        <div className="mt-10 pt-8 border-t border-navy-200 text-center text-navy-500 text-sm">
-          <p className="font-semibold text-navy-700">¡Gracias por su compra!</p>
-          <p className="mt-1 text-xs">Este documento es su comprobante de pago</p>
+        <footer className="mt-10 pt-6 border-t border-navy-200 text-center text-navy-600">
+          <p className="font-semibold text-navy-800 text-base">¡Gracias por su compra!</p>
+          <p className="mt-1 text-sm">Este documento es su comprobante de pago</p>
           {textoPieRecibo && (
-            <p className="mt-4 text-xs text-navy-600 whitespace-pre-wrap max-w-md mx-auto leading-relaxed">
+            <p className="mt-4 text-sm text-navy-600 whitespace-pre-wrap max-w-md mx-auto leading-relaxed">
               {textoPieRecibo}
             </p>
           )}
-        </div>
+        </footer>
       </div>
     );
   }
 
   return (
-    <div className="font-mono text-xs px-4 py-4 w-full max-w-[80mm] mx-auto">
+    <div className="receipt-sheet w-full max-w-[80mm] mx-auto px-3 py-4 text-[13px] leading-snug text-gray-900 antialiased font-sans">
 
       {esDuplicado && (
-        <p className="text-center font-bold text-[11px] border-2 border-dashed border-gray-800 py-1.5 mb-3 uppercase tracking-widest">
+        <p className="text-center font-bold text-xs border-2 border-dashed border-gray-800 py-1.5 mb-3 uppercase tracking-wide">
           Duplicado del recibo
         </p>
       )}
 
-      {/* Encabezado */}
-      <div className="text-center mb-3">
+      <header className="text-center mb-3 space-y-0.5">
         {empresa.logoUrl && (
           <ReceiptLogo
             url={empresa.logoUrl}
             empresaNombre={empresa.nombre}
-            className="mx-auto h-10 max-w-[160px] object-contain mb-2"
+            className="mx-auto h-11 max-w-[170px] object-contain mb-2"
           />
         )}
-        <p className="font-bold text-sm uppercase tracking-wide">{empresa.nombre}</p>
-        {empresa.rnc      && <p>RNC: {empresa.rnc}</p>}
-        {empresa.direccion && <p>{empresa.direccion}</p>}
-        {empresa.telefono  && <p>Tel: {empresa.telefono}</p>}
-      </div>
+        <p className="font-bold text-base uppercase tracking-wide leading-tight">{empresa.nombre}</p>
+        {empresa.rnc && <p className="text-[13px]">RNC: {empresa.rnc}</p>}
+        {empresa.direccion && <p className="text-[13px] leading-snug px-1">{empresa.direccion}</p>}
+        {empresa.telefono && <p className="text-[13px]">Tel: {empresa.telefono}</p>}
+        {empresa.sitioWeb && <p className="text-[13px]">{empresa.sitioWeb}</p>}
+      </header>
 
       <Separator />
 
-      {/* Número de factura */}
-      <div className="text-center my-2">
-        <p className="text-[10px] uppercase tracking-widest text-gray-500">Factura No.</p>
-        <p className="font-bold text-base">{numeroFactura}</p>
+      <section className="text-center my-3 space-y-1">
+        <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">Comprobante de venta</p>
+        <p className="font-bold text-lg leading-none">{numeroFactura}</p>
         {venta.comprobante && (
-          <div className="border border-dashed border-gray-400 rounded px-2 py-1 mt-1 inline-block">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500">NCF</p>
-            <p className="font-bold tracking-wider">{venta.comprobante}</p>
+          <div className="inline-block border border-gray-400 rounded px-3 py-1.5 mt-1 mx-auto">
+            <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">NCF</p>
+            <p className="font-bold text-sm tracking-wide">{venta.comprobante}</p>
+            {tipoComprobante && (
+              <p className="text-xs text-gray-600 mt-0.5">{tipoComprobante}</p>
+            )}
           </div>
         )}
-      </div>
+      </section>
 
       <Separator />
 
-      {/* Info de la venta */}
-      <div className="space-y-0.5 mb-2">
-        <Row label="Fecha"   value={formatDateTime(venta.fecha)} />
-        <Row label="Método"  value={METODO_LABEL[venta.metodoPago] ?? venta.metodoPago} />
-        {venta.cliente && (
-          <>
-            <Row label="Cliente" value={venta.cliente.nombre} />
-            {venta.cliente.tipoIdentificacion && venta.cliente.numeroIdentificacion && (
-              <Row label={venta.cliente.tipoIdentificacion} value={venta.cliente.numeroIdentificacion} />
-            )}
-          </>
-        )}
-      </div>
+      <section className="space-y-1 mb-2">
+        {metaRows.map((row) => (
+          <Row key={`${row.label}-${row.value}`} label={row.label} value={row.value} />
+        ))}
+      </section>
 
       <Separator />
 
-      {/* Artículos */}
-      <table className="w-full mb-2">
+      <table className="w-full mb-2 border-collapse">
         <thead>
-          <tr className="border-b border-dashed border-gray-300">
-            <th className="text-left font-normal pb-1">Descripción</th>
-            <th className="text-center font-normal pb-1 w-8">Qty</th>
-            <th className="text-right font-normal pb-1">Total</th>
+          <tr className="border-b border-gray-400">
+            <th className="text-left font-semibold pb-1 pr-1 text-xs">Descripción</th>
+            <th className="text-center font-semibold pb-1 w-9 text-xs">Cant</th>
+            <th className="text-right font-semibold pb-1 pl-1 w-[4.5rem] text-xs">Total</th>
           </tr>
         </thead>
         <tbody>
           {(venta.detalles ?? []).map((d) => (
-            <tr key={d.id} className="border-b border-dotted border-gray-200">
-              <td className="py-0.5 pr-1">
-                <p className="font-medium leading-tight">{nombreArticuloConUnidad(d.articulo ?? { nombre: 'Artículo' })}</p>
-                <p className="text-gray-500">
+            <tr key={d.id} className="border-b border-dotted border-gray-300 align-top">
+              <td className="py-1 pr-1">
+                <p className="font-semibold leading-tight">{nombreArticuloConUnidad(d.articulo ?? { nombre: 'Artículo' })}</p>
+                <p className="text-xs text-gray-600 tabular-nums">
                   {fmt(d.precioUnitario)} c/u
-                  {d.descuento > 0 && ` (desc. ${d.descuento}%)`}
+                  {d.descuento > 0 && ` · desc. ${d.descuento}%`}
                 </p>
+                {d.articulo?.codigoBarras && (
+                  <p className="text-[11px] text-gray-500">Cód: {d.articulo.codigoBarras}</p>
+                )}
               </td>
-              <td className="text-center">{d.cantidad}</td>
-              <td className="text-right font-semibold">{fmt(d.total)}</td>
+              <td className="text-center tabular-nums py-1 align-top">{d.cantidad}</td>
+              <td className="text-right font-semibold tabular-nums py-1 pl-1 align-top">{fmt(d.total)}</td>
             </tr>
           ))}
         </tbody>
@@ -540,72 +677,72 @@ function ReceiptContent({
 
       <Separator double />
 
-      {/* Totales con desglose ITBIS */}
-      <div className="space-y-0.5">
+      <section className="space-y-1">
         <Row label="Subtotal" value={fmt(venta.subtotal)} />
-        {venta.descuento > 0 && (
-          <Row label="Descuento" value={`-${fmt(venta.descuento)}`} />
-        )}
+        {venta.descuento > 0 && <Row label="Descuento" value={`−${fmt(venta.descuento)}`} />}
         {venta.esDelivery && Number(venta.deliveryCargo) > 0 && (
           <Row label="Delivery" value={`+${fmt(Number(venta.deliveryCargo))}`} />
         )}
-        <Separator />
-        <Row label="Base imponible" value={fmt(baseImponible)} />
-        <Row label="ITBIS (18%)"    value={fmt(itbis)} />
-        <div className="flex justify-between font-bold text-sm border-t-2 border-gray-800 pt-1.5 mt-1">
+        {tasaPct > 0 && (
+          <>
+            <Separator />
+            <Row label="Base imponible" value={fmt(baseImponible)} />
+            {itbis > 0 && <Row label={impuestoLabel} value={fmt(itbis)} />}
+          </>
+        )}
+        <div className="flex justify-between items-center font-bold text-base border-t-2 border-gray-900 pt-1.5 mt-1 gap-2">
           <span>TOTAL {simboloMoneda}</span>
-          <span>{fmt(venta.total)}</span>
+          <span className="tabular-nums">{fmt(venta.total)}</span>
         </div>
         {venta.metodoPago === 'EFECTIVO' && venta.efectivoRecibido != null && (
           <>
             <Separator />
-            <Row label="Efectivo" value={fmt(Number(venta.efectivoRecibido))} />
-            <Row label="Cambio"   value={fmt(Number(venta.cambio ?? 0))} />
+            <Row label="Efectivo recibido" value={fmt(Number(venta.efectivoRecibido))} />
+            <Row label="Cambio" value={fmt(Number(venta.cambio ?? 0))} />
           </>
         )}
-      </div>
+      </section>
+
       {venta.esDelivery && venta.deliveryDireccion && (
         <>
           <Separator />
-          <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Dirección de entrega</p>
-          <p className="text-[10px] mt-0.5">{venta.deliveryDireccion}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 text-center">Dirección de entrega</p>
+          <p className="text-xs mt-0.5 text-center leading-snug px-1">{venta.deliveryDireccion}</p>
         </>
       )}
 
       <Separator />
 
-      {/* Pie */}
-      <div className="text-center text-gray-500 space-y-0.5 mt-1">
-        <p className="font-semibold">¡Gracias por su compra!</p>
-        <p className="text-[10px]">Este documento es su comprobante de pago</p>
+      <footer className="text-center text-gray-600 space-y-1 mt-1">
+        <p className="font-semibold text-gray-800">¡Gracias por su compra!</p>
+        <p className="text-xs">Este documento es su comprobante de pago</p>
+        <p className="text-xs tabular-nums">Artículos: {cantidadArticulos}</p>
         {textoPieRecibo && (
-          <p className="text-[10px] mt-2 whitespace-pre-wrap leading-snug text-gray-600 px-1">
-            {textoPieRecibo}
-          </p>
+          <p className="text-xs mt-2 whitespace-pre-wrap leading-snug px-1">{textoPieRecibo}</p>
         )}
-      </div>
+      </footer>
     </div>
   );
 }
 
 function RowDoc({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-8 w-full max-w-sm">
-      <span className="text-navy-500">{label}</span>
-      <span className="font-medium tabular-nums text-navy-900">{value}</span>
+    <div className="flex justify-between gap-6 w-full">
+      <span className="text-navy-500 shrink-0">{label}</span>
+      <span className="font-medium tabular-nums text-navy-900 text-right">{value}</span>
     </div>
   );
 }
 
 function Separator({ double = false }: { double?: boolean }) {
-  return <div className={`my-2 border-t ${double ? 'border-double border-gray-600' : 'border-dashed border-gray-300'}`} />;
+  return <div className={`my-2 border-t ${double ? 'border-double border-gray-700' : 'border-dashed border-gray-400'}`} />;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-2">
-      <span className="text-gray-500 shrink-0">{label}:</span>
-      <span className="text-right truncate">{value}</span>
+    <div className="grid grid-cols-[auto,1fr] gap-x-2 items-start">
+      <span className="text-gray-600 shrink-0">{label}:</span>
+      <span className="text-right font-medium break-words leading-snug">{value}</span>
     </div>
   );
 }
