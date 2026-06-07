@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { tarjetasRegaloService, ITarjetaRegalo } from '@/services/tarjetas-regalo.service';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
+import { useComprobantes } from '@/hooks/useComprobantes';
+import { buildNcfPreview, parseNcfSequenceTail } from '@/lib/ncf';
 import { useCajas } from '@/hooks/useCajas';
 import { promocionesService } from '@/services/promociones.service';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
@@ -74,6 +76,7 @@ export function POSScreen() {
 
   // ── Config + caja (por sucursal; admin elige entre todas) ─────────────────
   const { data: cfg } = useConfiguracion();
+  const { data: comprobantes = [] } = useComprobantes();
   const user    = useAuthStore((s) => s.user);
   const platformTenantId = useAuthStore((s) => s.platformTenantId);
   const isAdmin = user?.rol === 'admin';
@@ -382,6 +385,39 @@ export function POSScreen() {
     }
   }, [mode, receipt]);
 
+  const tiposNcfDisponibles = useMemo(() => {
+    const activos = new Set(
+      comprobantes.filter((c) => c.activo).map((c) => c.tipo),
+    );
+    return TIPOS_NCF.filter((t) => activos.has(t.id));
+  }, [comprobantes]);
+
+  const comprobanteSeleccionado = useMemo(
+    () => comprobantes.find((c) => c.tipo === tipoNCF && c.activo),
+    [comprobantes, tipoNCF],
+  );
+
+  const proximoNcf = useMemo(() => {
+    if (!comprobanteSeleccionado) return null;
+    const seq = parseNcfSequenceTail(comprobanteSeleccionado.secuenciaActual);
+    if (Number.isNaN(seq)) return comprobanteSeleccionado.secuenciaActual;
+    return buildNcfPreview(comprobanteSeleccionado.series, comprobanteSeleccionado.tipo, seq);
+  }, [comprobanteSeleccionado]);
+
+  useEffect(() => {
+    const def = cfg?.comprobanteDefecto as TipoNCF | undefined;
+    if (def && TIPOS_NCF.some((t) => t.id === def)) {
+      setTipoNCF(def);
+    }
+  }, [cfg?.comprobanteDefecto]);
+
+  useEffect(() => {
+    if (tiposNcfDisponibles.length === 0) return;
+    if (!tiposNcfDisponibles.some((t) => t.id === tipoNCF)) {
+      setTipoNCF(tiposNcfDisponibles[0].id);
+    }
+  }, [tiposNcfDisponibles, tipoNCF]);
+
   useEffect(() => {
     if (items.length === 0) {
       setCartLineFocus(0);
@@ -609,6 +645,10 @@ export function POSScreen() {
     if (!puedeConfirmar || registrar.isPending) return;
     if (usarNCF && !clienteId) {
       toast.error('Para emitir comprobante fiscal se requiere seleccionar un cliente');
+      return;
+    }
+    if (usarNCF && !comprobanteSeleccionado) {
+      toast.error(`No hay serie fiscal activa registrada para el tipo B${tipoNCF}`);
       return;
     }
     let pagosActivos: { metodo: MetodoPago; monto: number }[];
@@ -1773,7 +1813,12 @@ export function POSScreen() {
                       </div>
                       {usarNCF && (
                         <div className="space-y-1 rounded-lg border border-navy-100/80 bg-white p-2">
-                          {TIPOS_NCF.map((t) => (
+                          {tiposNcfDisponibles.length === 0 ? (
+                            <p className="text-xs text-amber-700 bg-amber-50 rounded-md px-2 py-2">
+                              No hay series NCF registradas. Configúralas en Panel → Comprobantes.
+                            </p>
+                          ) : (
+                            tiposNcfDisponibles.map((t) => (
                             <label
                               key={t.id}
                               onClick={() => setTipoNCF(t.id)}
@@ -1792,7 +1837,14 @@ export function POSScreen() {
                                 {t.label}
                               </span>
                             </label>
-                          ))}
+                          ))
+                          )}
+                          {usarNCF && proximoNcf && (
+                            <p className="text-[11px] text-navy-500 border-t border-navy-100 pt-2 mt-1 px-1">
+                              Próximo NCF ({TIPOS_NCF.find((t) => t.id === tipoNCF)?.label ?? `B${tipoNCF}`}):{' '}
+                              <span className="font-mono font-semibold text-navy-800">{proximoNcf}</span>
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1968,7 +2020,7 @@ export function POSScreen() {
                 <button
                   type="button"
                   onClick={handleConfirmar}
-                  disabled={!puedeConfirmar || registrar.isPending || (usarNCF && !clienteId)}
+                  disabled={!puedeConfirmar || registrar.isPending || (usarNCF && !clienteId) || (usarNCF && !comprobanteSeleccionado)}
                   title="Confirmar venta (F10 o Ctrl+Enter)"
                   className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-navy-200 disabled:text-navy-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
                 >

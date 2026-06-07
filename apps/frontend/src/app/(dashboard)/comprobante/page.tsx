@@ -7,6 +7,7 @@ import { IComprobante } from '@pos/shared';
 import { Plus, FileText, Pencil, CheckCircle, AlertTriangle, Loader2, X } from 'lucide-react';
 import { ModalOverlay } from '@/components/ui/ModalOverlay';
 import { Select } from '@/components/ui/Select';
+import { buildNcfPreview, ncfProgressPct, ncfSequenceExhausted, parseNcfSequenceTail } from '@/lib/ncf';
 
 const TIPOS_NCF = [
   { id: '01', label: 'B01 — Crédito Fiscal' },
@@ -136,8 +137,10 @@ function ComprobanteModal({
             <label className="text-sm font-medium text-navy-700 block mb-1.5">Secuencia actual</label>
             <input className="input-field font-mono" value={form.secuenciaActual}
               onChange={(e) => set('secuenciaActual', e.target.value)}
-              placeholder="00000001" />
-            <p className="text-xs text-navy-400 mt-1">El próximo comprobante usará este número</p>
+              placeholder="00000001 o B0200000001" />
+            <p className="text-xs text-navy-400 mt-1">
+              El próximo comprobante usará este número (debe estar dentro del rango autorizado).
+            </p>
           </div>
 
           {error && (
@@ -161,11 +164,7 @@ function ComprobanteModal({
 }
 
 function progreso(actual: string, desde: string, hasta: string): number {
-  const a = parseInt(actual, 10);
-  const d = parseInt(desde, 10);
-  const h = parseInt(hasta, 10);
-  if (isNaN(a) || isNaN(d) || isNaN(h) || h <= d) return 0;
-  return Math.min(100, Math.max(0, ((a - d) / (h - d)) * 100));
+  return ncfProgressPct(actual, desde, hasta);
 }
 
 export default function ComprobantePage() {
@@ -240,7 +239,8 @@ export default function ComprobantePage() {
                 <tbody>
                   {comprobantes.map((c: IComprobante) => {
                     const pct   = progreso(c.secuenciaActual, c.desde, c.hasta);
-                    const agotado = parseInt(c.secuenciaActual, 10) >= parseInt(c.hasta, 10);
+                    const agotado = ncfSequenceExhausted(c.secuenciaActual, c.hasta);
+                    const proximo = buildNcfPreview(c.series, c.tipo, parseNcfSequenceTail(c.secuenciaActual));
                     const pocoStock = pct > 85;
                     return (
                       <tr key={c.id} className="table-row-hover">
@@ -255,7 +255,8 @@ export default function ComprobantePage() {
                           </span>
                         </td>
                         <td className="table-cell text-center font-mono font-semibold text-navy-800">
-                          {c.secuenciaActual}
+                          <span className="block">{c.secuenciaActual}</span>
+                          <span className="text-[10px] font-normal text-navy-500">Próximo: {proximo}</span>
                         </td>
                         <td className="table-cell min-w-[120px]">
                           <div className="flex items-center gap-2">

@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
+import { parseNcfTipo } from '@/lib/ncf';
 import { nombreArticuloConUnidad } from '@/lib/format-articulo';
 import { IVenta } from '@pos/shared';
 import { useConfiguracion } from '@/hooks/useConfiguracion';
@@ -55,9 +56,8 @@ const IDENT_LABEL: Record<string, string> = {
 
 function ncfTipoLabel(comprobante?: string | null): string | null {
   if (!comprobante?.trim()) return null;
-  const digits = comprobante.replace(/\D/g, '');
-  const tipo = digits.length >= 10 ? digits.slice(8, 10) : comprobante.replace(/^B/i, '').slice(0, 2);
-  return TIPO_NCF_LABEL[tipo] ?? null;
+  const tipo = parseNcfTipo(comprobante);
+  return tipo ? (TIPO_NCF_LABEL[tipo] ?? null) : null;
 }
 
 function computeTaxBreakdown(
@@ -133,7 +133,9 @@ export function Receipt({
     cfg?.nombreCaja ??
     null;
 
-  const numeroFactura = `F-${String(venta.id).padStart(6, '0')}`;
+  const referenciaInterna = `F-${String(venta.id).padStart(6, '0')}`;
+  const numeroFactura = venta.comprobante?.trim() || referenciaInterna;
+  const tieneNcf = Boolean(venta.comprobante?.trim());
 
   const registrarImpresionRecibo = useCallback(() => {
     void ventasService.auditarReciboImpresion(venta.id).catch(() => {});
@@ -148,7 +150,7 @@ export function Receipt({
     const items = (venta.detalles ?? [])
       .map((d: any) => `  • ${nombreArticuloConUnidad(d.articulo ?? { nombre: 'Artículo' })} x${d.cantidad} — ${formatCurrency(d.total, simboloMoneda)}`)
       .join('\n');
-    const msg = `*${empresa.nombre}*\nFactura: ${numeroFactura}${venta.comprobante ? `\nNCF: ${venta.comprobante}` : ''}\n\n${items}\n\n*Total: ${formatCurrency(venta.total, simboloMoneda)}*\n\nGracias por su compra.`;
+    const msg = `*${empresa.nombre}*\n${venta.comprobante ? `NCF: ${numeroFactura}` : `Factura: ${numeroFactura}`}\n\n${items}\n\n*Total: ${formatCurrency(venta.total, simboloMoneda)}*\n\nGracias por su compra.`;
     const tel = (venta as any).cliente?.telefono?.replace(/\D/g, '') ?? '';
     const base = tel ? `https://wa.me/1${tel}` : 'https://wa.me/';
     return `${base}?text=${encodeURIComponent(msg)}`;
@@ -284,6 +286,7 @@ export function Receipt({
               empresa={empresa}
               venta={venta}
               numeroFactura={numeroFactura}
+              referenciaInterna={tieneNcf ? referenciaInterna : undefined}
               baseImponible={baseImponible}
               itbis={itbis}
               tasaNombre={tasaNombre}
@@ -320,6 +323,7 @@ export function Receipt({
           empresa={empresa}
           venta={venta}
           numeroFactura={numeroFactura}
+          referenciaInterna={tieneNcf ? referenciaInterna : undefined}
           baseImponible={baseImponible}
           itbis={itbis}
           tasaNombre={tasaNombre}
@@ -417,6 +421,7 @@ interface ContentProps {
   empresa:       { nombre: string; rnc: string; direccion: string; telefono: string; sitioWeb?: string; logoUrl?: string };
   venta:         IVenta;
   numeroFactura: string;
+  referenciaInterna?: string;
   baseImponible: number;
   itbis:         number;
   tasaNombre:    string;
@@ -438,6 +443,7 @@ function ReceiptContent({
   empresa,
   venta,
   numeroFactura,
+  referenciaInterna,
   baseImponible,
   itbis,
   tasaNombre,
@@ -457,13 +463,13 @@ function ReceiptContent({
 
   const metaRows: { label: string; value: string }[] = [
     { label: 'Fecha', value: formatDateTime(venta.fecha) },
-    { label: 'Factura', value: numeroFactura },
   ];
-  if (venta.comprobante) {
-    metaRows.push({ label: 'NCF', value: venta.comprobante });
-  }
-  if (tipoComprobante) {
-    metaRows.push({ label: 'Tipo', value: tipoComprobante });
+  if (venta.comprobante?.trim()) {
+    metaRows.push({ label: 'NCF', value: venta.comprobante.trim() });
+    if (tipoComprobante) metaRows.push({ label: 'Tipo comprobante', value: tipoComprobante });
+    if (referenciaInterna) metaRows.push({ label: 'Referencia interna', value: referenciaInterna });
+  } else {
+    metaRows.push({ label: 'Factura', value: numeroFactura });
   }
   metaRows.push({ label: 'Método de pago', value: METODO_LABEL[venta.metodoPago] ?? venta.metodoPago });
   if (tiendaNombre) metaRows.push({ label: 'Sucursal', value: tiendaNombre });
@@ -624,16 +630,15 @@ function ReceiptContent({
       <Separator />
 
       <section className="text-center my-3 space-y-1">
-        <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">Comprobante de venta</p>
-        <p className="font-bold text-lg leading-none">{numeroFactura}</p>
-        {venta.comprobante && (
-          <div className="inline-block border border-gray-400 rounded px-3 py-1.5 mt-1 mx-auto">
-            <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">NCF</p>
-            <p className="font-bold text-sm tracking-wide">{venta.comprobante}</p>
-            {tipoComprobante && (
-              <p className="text-xs text-gray-600 mt-0.5">{tipoComprobante}</p>
-            )}
-          </div>
+        <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">
+          {venta.comprobante?.trim() ? 'Comprobante fiscal (NCF)' : 'Comprobante de venta'}
+        </p>
+        <p className="font-bold text-lg leading-none tracking-wide">{numeroFactura}</p>
+        {tipoComprobante && (
+          <p className="text-xs text-gray-600">{tipoComprobante}</p>
+        )}
+        {referenciaInterna && (
+          <p className="text-xs text-gray-500">Ref. interna: {referenciaInterna}</p>
         )}
       </section>
 

@@ -1,4 +1,4 @@
-import { buildNcf, parseNcfSequenceTail } from '../utils/ncf';
+import { buildNcf, parseNcfSequenceTail, parseNcfTipo } from '../utils/ncf';
 
 describe('parseNcfSequenceTail', () => {
   it('lee los últimos 8 dígitos de un NCF completo', () => {
@@ -11,6 +11,13 @@ describe('parseNcfSequenceTail', () => {
 
   it('toma los últimos 8 caracteres aunque haya prefijo', () => {
     expect(parseNcfSequenceTail('PREFIX00567899')).toBe(567899);
+  });
+});
+
+describe('parseNcfTipo', () => {
+  it('extrae el tipo de un NCF completo', () => {
+    expect(parseNcfTipo('B0200012501')).toBe('02');
+    expect(parseNcfTipo('B0100000115')).toBe('01');
   });
 });
 
