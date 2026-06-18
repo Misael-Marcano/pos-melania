@@ -33,7 +33,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.75.0",
     "react-toastify": "^11.1.0",
-    "recharts": "^2.12.7",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^2.4.0",
     "zod": "^3.23.8",
     "zustand": "^4.5.4"
